@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Symfony\Component\HttpFoundation\Response;
 
 class UserManagementController extends Controller
 {
@@ -25,6 +26,8 @@ class UserManagementController extends Controller
 
     public function edit(User $user)
     {
+        $this->authorizeTarget($user);
+
         return view('pages.user-edit', [
             'user' => $user,
             'familyHeads' => User::where('is_head_of_family', true)
@@ -48,6 +51,10 @@ class UserManagementController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validateProfile($request, creating: true);
+        abort_unless($data['role'] !== User::SUPERADMIN_ROLE, Response::HTTP_FORBIDDEN);
+        if ($data['role'] === 'official') {
+            abort_unless($request->user()->isSuperadmin(), Response::HTTP_FORBIDDEN);
+        }
         $data['name'] = $this->fullName($data);
         $data['official_group'] = $data['role'] === 'official' ? $data['official_group'] : null;
         $data['official_position'] = $data['role'] === 'official' ? $data['official_position'] : null;
@@ -91,12 +98,18 @@ class UserManagementController extends Controller
 
     public function update(Request $request, User $user)
     {
+        $this->authorizeTarget($user);
+
         if ($user->id === $request->user()->id) {
             return back()->with('error', 'You cannot change your own account from here.');
         }
 
         $positions = config('talafair.official_positions');
         $data = $this->validateProfile($request);
+
+        if ($data['role'] !== $user->role) {
+            abort_unless($request->user()->isSuperadmin(), Response::HTTP_FORBIDDEN);
+        }
 
         if ($data['role'] === 'official' && ! in_array($data['official_position'], array_keys($positions[$data['official_group']]['positions']), true)) {
             return back()->withErrors(['official_position' => 'Select a position from the selected official group.'])->withInput();
@@ -146,6 +159,8 @@ class UserManagementController extends Controller
 
     public function destroy(Request $request, User $user)
     {
+        $this->authorizeTarget($user);
+
         if ($user->id === $request->user()->id) {
             return back()->with('error', 'You cannot delete your own account from here.');
         }
@@ -157,23 +172,31 @@ class UserManagementController extends Controller
 
     public function toggleVerification(Request $request, User $user)
     {
-        if ($user->isOfficial()) {
-            return back()->with('error', 'Official accounts do not need resident verification.');
-        }
+        $this->authorizeTarget($user);
 
         $user->update(['is_verified' => ! $user->is_verified]);
         UserNotification::create([
             'user_id' => $user->id,
             'title' => $user->is_verified ? 'Account verified' : 'Account verification changed',
             'body' => $user->is_verified
-                ? 'Your resident account has been verified by an official.'
-                : 'Your resident account was marked as unverified by an official.',
+                ? 'Your account has been verified by an administrator.'
+                : 'Your account was marked as unverified by an administrator.',
             'created_by' => $request->user()->id,
         ]);
 
         return back()->with('success', $user->is_verified
-            ? "Verified {$user->name}'s resident account."
+            ? "Verified {$user->name}'s account."
             : "Marked {$user->name}'s account as unverified.");
+    }
+
+    private function authorizeTarget(User $user): void
+    {
+        $actor = request()->user();
+
+        abort_if($user->isSuperadmin(), Response::HTTP_FORBIDDEN);
+        if (! $actor->isSuperadmin()) {
+            abort_if($user->role === 'official', Response::HTTP_FORBIDDEN);
+        }
     }
 
     private function validateProfile(Request $request, bool $creating = false): array

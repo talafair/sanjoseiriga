@@ -20,6 +20,11 @@ class User extends Authenticatable
         'official' => 'Official',
     ];
 
+    public const SUPERADMIN_ROLE = 'superadmin';
+    public const ROLE_LABELS = self::CATEGORIES + [
+        self::SUPERADMIN_ROLE => 'Superadmin',
+    ];
+
     public const STUDENT_LEVELS = [
         'elementary' => 'Elementary',
         'junior_high_school' => 'Junior High School',
@@ -209,7 +214,13 @@ class User extends Authenticatable
 
     public function isOfficial(): bool
     {
-        return $this->role === 'official' && $this->official_group !== 'personnel';
+        return in_array($this->role, ['official', self::SUPERADMIN_ROLE], true)
+            && $this->official_group !== 'personnel';
+    }
+
+    public function isSuperadmin(): bool
+    {
+        return $this->role === self::SUPERADMIN_ROLE;
     }
 
     public function isGuest(): bool

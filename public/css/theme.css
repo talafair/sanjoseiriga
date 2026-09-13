@@ -359,7 +359,16 @@ main .accordion-item + .accordion-item {
 @media (max-width: 991.98px) {
     .yg-navbar { position: relative; z-index: 1060; }
     .navbar-actions { gap: .15rem !important; }
-    .mobile-notification { display: block; }
+    .mobile-notification,
+    .yg-navbar .navbar-toggler {
+        width: 2.5rem;
+        height: 2.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        margin: 0;
+    }
     .desktop-notification { display: none; }
     .yg-navbar .notification-menu {
         position: fixed !important;

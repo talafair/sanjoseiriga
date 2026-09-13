@@ -27,7 +27,7 @@ class AnnouncementController extends Controller
         $announcements = Announcement::latest()
             ->when($featured, fn ($q) => $q->whereKeyNot($featured->getKey()))
             ->paginate(15);
-        $calendarAnnouncements = Announcement::latest()->get();
+        $calendarAnnouncements = Announcement::with('creator')->latest()->get();
 
         $facilitators = User::query()
             ->where('role', 'official')

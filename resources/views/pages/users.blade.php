@@ -86,14 +86,16 @@
                             </td>
                             <td class="text-center">
                                 <span class="badge {{ $member->isOfficial() ? 'badge-gold' : 'badge-soft' }} rounded-pill">
-                                        <i class="bi {{ $member->isOfficial() ? 'bi-person-badge' : 'bi-house-heart' }} me-1"></i>{{ \App\Models\User::CATEGORIES[$member->role] ?? 'Unassigned' }}
+                                    <i class="bi {{ $member->isOfficial() ? 'bi-person-badge' : 'bi-house-heart' }} me-1"></i>{{ \App\Models\User::ROLE_LABELS[$member->role] ?? 'Unassigned' }}
                                 </span>
-                                @if ($member->isOfficial() && $member->official_position)
+                                @if ($member->isOfficial() && ! $member->isSuperadmin() && $member->official_position)
                                     <div class="small text-secondary mt-1">{{ config("talafair.official_positions.{$member->official_group}.label") }}: {{ config("talafair.official_positions.{$member->official_group}.positions.{$member->official_position}") }}</div>
                                 @endif
                             </td>
                             <td class="text-center">
-                                @if ($member->isOfficial())
+                                @if ($member->isSuperadmin())
+                                    <span class="badge bg-dark rounded-pill"><i class="bi bi-lock-fill me-1"></i>Protected</span>
+                                @elseif ($member->isOfficial())
                                     <span class="badge badge-gold rounded-pill"><i class="bi bi-shield-check me-1"></i>Official</span>
                                 @elseif ($member->is_verified)
                                     <span class="badge bg-success-subtle text-success-emphasis rounded-pill"><i class="bi bi-patch-check-fill me-1"></i>Verified</span>
@@ -103,21 +105,23 @@
                             </td>
                             <td class="text-center fw-bold">{{ number_format($member->points) }}</td>
                             <td class="pe-4 text-end user-actions-cell">
-                                @if ($member->id !== auth()->id())
+                                @if ($member->id !== auth()->id() && ! $member->isSuperadmin() && (auth()->user()->isSuperadmin() || ! $member->isOfficial()))
                                     <div class="dropdown">
                                         <button class="btn btn-link text-dark p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for {{ $member->name }}">
                                             <i class="bi bi-three-dots-vertical fs-5"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end">
-                                            @if (! $member->isOfficial())
+                                            @if (! $member->isOfficial() || auth()->user()->isSuperadmin())
                                                 <li>
                                                     <form action="{{ route('users.verification.toggle', $member) }}" method="POST">
                                                         @csrf
                                                         @method('PATCH')
-                                                        <button type="submit" class="dropdown-item"><i class="bi {{ $member->is_verified ? 'bi-shield-x' : 'bi-shield-check' }} me-2"></i>{{ $member->is_verified ? 'Mark unverified' : 'Verified User' }}</button>
+                                                        <button type="submit" class="dropdown-item"><i class="bi {{ $member->is_verified ? 'bi-shield-x' : 'bi-shield-check' }} me-2"></i>{{ $member->is_verified ? 'Mark unverified' : 'Mark verified' }}</button>
                                                     </form>
                                                 </li>
                                             @endif
+
+
                                             <li><a class="dropdown-item" href="{{ route('users.edit', $member) }}"><i class="bi bi-pencil me-2"></i>Edit</a></li>
                                             <li>
                                                 <form action="{{ route('users.destroy', $member) }}" method="POST" onsubmit="return confirm('Delete {{ $member->name }}\'s account? This cannot be undone.');">
@@ -143,8 +147,8 @@
                                             <div class="col-md-6"><span class="detail-label">Full name</span><div>{{ $member->full_name }}</div></div>
                                             <div class="col-md-6"><span class="detail-label">Username</span><div>{{ '@' . $member->username }}</div></div>
                                             <div class="col-md-6"><span class="detail-label">Email</span><div>{{ $member->email }}</div></div>
-                                            <div class="col-md-6"><span class="detail-label">Category</span><div>{{ \App\Models\User::CATEGORIES[$member->role] ?? 'Unassigned' }}</div></div>
-                                            <div class="col-md-6"><span class="detail-label">Verification</span><div>{{ $member->isOfficial() ? 'Official' : ($member->is_verified ? 'Verified' : 'Unverified') }}</div></div>
+                                            <div class="col-md-6"><span class="detail-label">Category</span><div>{{ \App\Models\User::ROLE_LABELS[$member->role] ?? 'Unassigned' }}</div></div>
+                                            <div class="col-md-6"><span class="detail-label">Verification</span><div>{{ $member->isSuperadmin() ? 'Protected' : ($member->isOfficial() ? 'Official' : ($member->is_verified ? 'Verified' : 'Unverified')) }}</div></div>
                                             <div class="col-md-6"><span class="detail-label">Points</span><div>{{ number_format($member->points) }}</div></div>
                                             <div class="col-md-6"><span class="detail-label">Joined</span><div>{{ $member->created_at?->format('M j, Y') ?: '—' }}</div></div>
                                             <div class="col-md-6"><span class="detail-label">Resident ID</span><div>{{ $member->unique_id ?: '—' }}</div></div>

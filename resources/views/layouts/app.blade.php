@@ -30,6 +30,17 @@
                     $unreadNotifications = auth()->user()->unreadAppNotifications()->count();
                 @endphp
             @endauth
+            @auth
+                <a class="mobile-notification notification-toggle" href="{{ route('notifications.index') }}"
+                   aria-label="Notifications">
+                    <i class="bi bi-bell"></i>
+                    @if ($unreadNotifications)
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            {{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}
+                        </span>
+                    @endif
+                </a>
+            @endauth
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
                     aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -180,7 +191,7 @@
                     <a href="{{ route('audit-logs.index') }}" class="text-reset text-decoration-none"><i class="bi bi-clock-history me-1 text-yg"></i>View system log</a>
                 @endif
             @endauth
-            <span>Made with <i class="bi bi-heart-fill text-yg"></i> and Bootstrap 5</span>
+            <span>Made by Team Athena <i class="bi bi-heart-fill text-yg"></i> </span>
         </span>
     </div>
 </footer>

@@ -26,6 +26,43 @@
 
 ## Deployment Steps
 
+### Step 0: Configure Email Delivery
+
+The password-reset email will not be delivered when `MAIL_MAILER=log`; that setting only writes the message to `storage/logs/laravel.log`. On the deployed server, set the mail variables in its `.env` using the SMTP details from your email provider:
+
+```dotenv
+MAIL_MAILER=smtp
+MAIL_SCHEME=tls
+MAIL_HOST=smtp.your-provider.com
+MAIL_PORT=587
+MAIL_USERNAME=your-smtp-username
+MAIL_PASSWORD=your-smtp-password
+MAIL_FROM_ADDRESS=no-reply@your-domain.com
+MAIL_FROM_NAME="TalaFair"
+```
+
+Also set the public application URL so reset links point to the deployed site:
+
+```dotenv
+APP_URL=https://your-domain.com
+```
+
+After changing `.env`, reload the cached configuration:
+
+```bash
+php artisan optimize:clear
+php artisan config:cache
+```
+
+Do not commit SMTP credentials. If the deployed server uses a queue worker, restart it after deployment:
+
+```bash
+php artisan queue:restart
+php artisan queue:work --tries=3 --timeout=90
+```
+
+For a quick delivery check, submit **Forgot password?** with a real account email and inspect `storage/logs/laravel.log` only when troubleshooting. With `MAIL_MAILER=smtp`, a successful request should arrive in the mailbox rather than only appearing in that log.
+
 ### Step 1: Database Migration
 ```bash
 cd /path/to/ateyna

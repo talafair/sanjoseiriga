@@ -196,9 +196,15 @@ class User extends Authenticatable
 
     public function getAvatarUrlAttribute(): string
     {
-        return $this->avatar_path
-                ? Storage::disk(config('filesystems.uploads_disk', 'public'))->url($this->avatar_path)
-            : asset('images/default-avatar.svg');
+        if (! $this->avatar_path) {
+            return asset('images/default-avatar.svg');
+        }
+
+        $disk = config('filesystems.uploads_disk', 'public');
+
+        return $disk === 'public'
+            ? rtrim(request()->getBaseUrl(), '/') . '/storage/' . ltrim($this->avatar_path, '/')
+            : Storage::url($this->avatar_path);
     }
 
     public function isOfficial(): bool

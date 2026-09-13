@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#151515">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
     <title>@yield('title', 'TalaFair') · TalaFair</title>
     <link rel="icon" href="{{ asset('images/talafair-logo.png') }}" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -27,34 +29,6 @@
                         ->get();
                     $unreadNotifications = auth()->user()->unreadAppNotifications()->count();
                 @endphp
-                <div class="dropdown mobile-notification">
-                    <button class="notification-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
-                        <i class="bi bi-bell"></i>
-                        @if ($unreadNotifications)
-                            <span class="notification-badge">{{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}</span>
-                        @endif
-                    </button>
-                    <div class="dropdown-menu dropdown-menu-end notification-menu">
-                        <div class="d-flex align-items-center justify-content-between px-2 pb-2">
-                            <span class="fw-bold">Notifications</span>
-                            <a href="{{ route('notifications.index') }}" class="small text-yg text-decoration-none">View all</a>
-                        </div>
-                        @forelse ($headerNotifications as $notification)
-                            <a href="{{ route('notifications.open', $notification) }}" class="notification-item {{ $notification->read_at ? '' : 'is-unread' }}">
-                                <span class="notification-item-icon"><i class="bi bi-bell{{ $notification->read_at ? '' : '-fill' }}"></i></span>
-                                <span class="notification-item-content">
-                                    <span class="notification-item-title">{{ $notification->title }}</span>
-                                    @if ($notification->body)
-                                        <span class="notification-item-body">{{ $notification->body }}</span>
-                                    @endif
-                                    <span class="notification-item-time">{{ $notification->created_at->diffForHumans() }}</span>
-                                </span>
-                            </a>
-                        @empty
-                            <span class="notification-empty">No notifications yet.</span>
-                        @endforelse
-                    </div>
-                </div>
             @endauth
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
                     aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -62,15 +36,6 @@
             </button>
         </div>
         <div class="collapse navbar-collapse" id="mainNav">
-            <div class="mobile-drawer-header">
-                <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url('/') }}">
-                    @include('partials.logo')
-                    <span class="talafair-wordmark">TalaFair<span class="text-yg">.</span></span>
-                </a>
-                <button class="mobile-drawer-close" type="button" aria-label="Close navigation menu">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
             <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1 mt-3 mt-lg-0">
                 <li class="nav-item">
                     <a class="nav-link {{ request()->is('/') ? 'active' : '' }}" href="{{ url('/') }}">
@@ -117,7 +82,7 @@
                            href="{{ route('notifications.index') }}" aria-label="Notifications">
                             <i class="bi bi-bell me-1"></i>Notifications
                             @if ($unreadNotifications)
-                                <span class="badge rounded-pill bg-danger ms-1">{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
+                                <span class="badge rounded-pill bg-danger ms-1">{{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}</span>
                             @endif
                         </a>
                     </li>
@@ -243,6 +208,43 @@
                 if (window.innerWidth < 992) bootstrap.Collapse.getOrCreateInstance(drawer).hide();
             });
         });
+    })();
+</script>
+<script>
+    (() => {
+        let installPrompt = null;
+        const installButton = document.getElementById('install-app');
+
+        const isInstalled = () => window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+
+        const hideInstallButton = () => installButton?.classList.add('d-none');
+        if (isInstalled()) hideInstallButton();
+
+        window.addEventListener('beforeinstallprompt', (event) => {
+            event.preventDefault();
+            installPrompt = event;
+            if (!isInstalled()) installButton?.classList.remove('d-none');
+        });
+
+        installButton?.addEventListener('click', async () => {
+            if (!installPrompt) return;
+            installButton.disabled = true;
+            installPrompt.prompt();
+            const choice = await installPrompt.userChoice;
+            if (choice.outcome === 'accepted') hideInstallButton();
+            installPrompt = null;
+            installButton.disabled = false;
+        });
+
+        window.addEventListener('appinstalled', () => {
+            installPrompt = null;
+            hideInstallButton();
+        });
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('{{ asset('sw.js') }}'));
+        }
     })();
 </script>
 <script>

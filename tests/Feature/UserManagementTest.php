@@ -83,6 +83,36 @@ class UserManagementTest extends TestCase
         $this->assertSame(['resident', 'guest', 'official'], array_keys(User::CATEGORIES));
     }
 
+    public function test_registration_accepts_a_student_with_out_of_school_youth_unchecked(): void
+    {
+        $this->post(route('register.store'), [
+            'role' => 'resident',
+            'first_name' => 'Student',
+            'last_name' => 'Account',
+            'gender' => 'female',
+            'birthdate' => '2008-01-01',
+            'is_student' => '1',
+            'is_out_of_school_youth' => '0',
+            'student_level' => 'senior_high_school',
+            'school' => 'Test High School',
+            'is_head_of_family' => '1',
+            'house_no' => '10',
+            'street' => 'Main Street',
+            'zone' => '1',
+            'username' => 'student-account',
+            'email' => 'student-account@example.test',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+        ])->assertRedirect(route('id-card.show'));
+
+        $this->assertDatabaseHas('users', [
+            'username' => 'student-account',
+            'is_student' => true,
+            'is_out_of_school_youth' => false,
+            'student_level' => 'senior_high_school',
+        ]);
+    }
+
     private function managementOfficial(): User
     {
         return User::factory()->create([

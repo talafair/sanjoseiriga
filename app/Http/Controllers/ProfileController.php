@@ -53,10 +53,10 @@ class ProfileController extends Controller
             'is_pwd' => ['nullable', 'boolean'],
             'is_4ps_member' => ['nullable', 'boolean'],
             'is_solo_parent' => ['nullable', 'boolean'],
-            'is_out_of_school_youth' => ['nullable', 'boolean', Rule::prohibitedIf(fn () => $request->boolean('is_student'))],
+            'is_out_of_school_youth' => ['nullable', 'boolean', Rule::prohibitedIf(fn () => $request->boolean('is_student') && $request->boolean('is_out_of_school_youth'))],
             'birthdate'      => ['required', 'date', 'before_or_equal:today'],
             'contact_number' => ['nullable', 'string', 'max:20'],
-            'is_student'     => ['nullable', 'boolean', Rule::prohibitedIf(fn () => $request->boolean('is_out_of_school_youth'))],
+            'is_student'     => ['nullable', 'boolean', Rule::prohibitedIf(fn () => $request->boolean('is_out_of_school_youth') && $request->boolean('is_student'))],
             'student_level'  => ['nullable', Rule::requiredIf(fn () => $request->boolean('is_student')), Rule::in(array_keys(User::STUDENT_LEVELS))],
             'school'         => ['nullable', 'required_if:is_student,1', 'string', 'max:255'],
             'school_other'   => ['nullable', Rule::requiredIf(fn () => strcasecmp((string) $request->input('school'), 'other') === 0), 'string', 'max:255'],
@@ -122,11 +122,11 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        $uploadDisk = config('filesystems.uploads_disk', 'public');
         if ($user->avatar_path) {
-            Storage::disk('public')->delete($user->avatar_path);
+            Storage::disk($uploadDisk)->delete($user->avatar_path);
         }
 
-        $uploadDisk = config('filesystems.uploads_disk', 'public');
         $user->avatar_path = $request->file('avatar')->store('avatars', $uploadDisk);
         $user->save();
         UserNotification::create([

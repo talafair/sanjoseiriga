@@ -82,9 +82,15 @@ class Announcement extends Model
 
     public function getBannerUrlAttribute(): ?string
     {
-        return $this->banner_path
-            ? Storage::disk(config('filesystems.uploads_disk', 'public'))->url($this->banner_path)
-            : null;
+        if (! $this->banner_path) {
+            return null;
+        }
+
+        $disk = config('filesystems.uploads_disk', 'public');
+
+        return $disk === 'public'
+            ? rtrim(request()->getBaseUrl(), '/') . '/storage/' . ltrim($this->banner_path, '/')
+            : Storage::url($this->banner_path);
     }
 
     /* ------------------------------------------------------------------

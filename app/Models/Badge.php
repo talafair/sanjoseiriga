@@ -24,9 +24,15 @@ class Badge extends Model
 
         public function getImageUrlAttribute(): ?string
     {
-            return $this->image_path
-                ? Storage::disk(config('filesystems.uploads_disk', 'public'))->url($this->image_path)
-                : null;
+            if (! $this->image_path) {
+                return null;
+            }
+
+            $disk = config('filesystems.uploads_disk', 'public');
+
+            return $disk === 'public'
+                ? rtrim(request()->getBaseUrl(), '/') . '/storage/' . ltrim($this->image_path, '/')
+                : Storage::url($this->image_path);
     }
 
     public function users()

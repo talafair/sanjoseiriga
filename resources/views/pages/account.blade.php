@@ -352,6 +352,18 @@
           </div>
         </div>
 
+        <div class="card yg-card mt-3" id="install-app-card">
+          <div class="card-body p-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+            <div>
+              <h6 class="fw-bold mb-1"><i class="bi bi-phone me-1 text-yg"></i>Install TalaFair</h6>
+              <p class="small text-secondary mb-0">Add TalaFair to your device home screen for quick access.</p>
+            </div>
+            <button type="button" id="install-app" class="btn btn-primary fw-semibold">
+              <i class="bi bi-download me-1"></i>Install app
+            </button>
+          </div>
+        </div>
+
         <div class="card yg-card mt-3">
           <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-center mb-3">

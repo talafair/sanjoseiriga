@@ -40,6 +40,27 @@ class NotificationController extends Controller
             return redirect()->route('surveys.show', $notification->survey);
         }
 
+        if (str_starts_with($notification->title, 'New trivia')) {
+            return redirect()->route('games.index');
+        }
+
+        if (str_contains($notification->title, 'Badge')) {
+            return redirect()->route('badges.catalog');
+        }
+
+        if (in_array($notification->title, [
+            'Account created by an official',
+            'Account information updated',
+            'Account verified',
+            'Account verification changed',
+            'Profile information updated',
+            'Profile picture updated',
+            'Profile picture removed',
+            'Password changed',
+        ], true)) {
+            return redirect()->route('account');
+        }
+
         return redirect()->route('notifications.index');
     }
 }

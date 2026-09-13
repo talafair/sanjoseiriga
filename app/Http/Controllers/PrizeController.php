@@ -12,10 +12,10 @@ class PrizeController extends Controller
 
     public function index()
     {
-        return view('pages.prizes', [
+        return response()->view('pages.prizes', [
             'prizes' => Prize::orderBy('id')->get(),
             'maxPrizes' => self::MAX_PRIZES,
-        ]);
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
     public function store(Request $request)
@@ -31,9 +31,12 @@ class PrizeController extends Controller
 
     public function update(Request $request, Prize $prize)
     {
-        $prize->update($this->validated($request));
+        $prize->fill($this->validated($request));
+        $prize->save();
 
-        return back()->with('success', 'Prize updated.');
+        return redirect()->route('prizes.index')
+            ->with('success', 'Prize updated.')
+            ->withHeaders(['Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0']);
     }
 
     public function destroy(Prize $prize)

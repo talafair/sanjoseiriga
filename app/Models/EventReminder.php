@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class EventReminder extends Model
 {
+    use Auditable;
+
     protected $fillable = ['announcement_id', 'sent_by', 'kind', 'message', 'recipients_count'];
 
     public function announcement()

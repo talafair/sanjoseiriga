@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class EventSubstitution extends Model
 {
+    use Auditable;
+
     protected $fillable = ['announcement_id', 'family_head_id', 'substitute_user_id'];
 
     public function announcement()

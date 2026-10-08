@@ -13,6 +13,7 @@ class IdCardController extends Controller
     {
         $user = Auth::user();
 
+        abort_if($user->isSuperadmin(), 404);
         abort_if(! $user->unique_id, 404, 'This account has no resident ID yet.');
 
         return view('pages.my-id', [
@@ -26,6 +27,7 @@ class IdCardController extends Controller
     {
         $user = Auth::user();
 
+        abort_if($user->isSuperadmin(), 404);
         abort_if(! $user->unique_id, 404, 'This account has no resident ID yet.');
 
         return response($this->qrFor($user), 200, ['Content-Type' => 'image/svg+xml']);

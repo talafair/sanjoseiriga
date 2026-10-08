@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class EventRaffleWinner extends Model
 {
+    use Auditable;
+
     protected $fillable = [
         'announcement_id', 'event_raffle_prize_id', 'user_id', 'winner_name_snapshot', 'draw_sequence', 'drawn_at',
     ];

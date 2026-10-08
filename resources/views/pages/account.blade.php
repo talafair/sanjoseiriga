@@ -8,7 +8,8 @@
     <div class="row align-items-center position-relative" style="z-index: 1;">
       <div class="col-md d-flex align-items-center gap-3">
         <img src="{{ $user->avatar_url }}" alt="{{ $user->full_name }}" width="88" height="88"
-             class="rounded-circle border border-3 border-white object-fit-cover shadow-sm flex-shrink-0">
+             class="rounded-circle border border-3 border-white object-fit-cover shadow-sm flex-shrink-0 {{ $user->isSuperadmin() ? 'superadmin-account-avatar' : '' }}">
+        @unless ($user->isSuperadmin())
         <div>
           <h2 class="fw-bold mb-1">{{ $user->full_name }}</h2>
           <div class="d-flex flex-wrap gap-2">
@@ -24,7 +25,17 @@
             @endif
           </div>
         </div>
+        @else
+        <div class="min-w-0">
+          <h2 class="fw-bold mb-1">{{ $user->full_name }}</h2>
+          <div class="small mb-2">{{ '@' . $user->username }}</div>
+          <span class="badge badge-gold rounded-pill px-2 py-2">
+            <i class="bi bi-shield-lock me-1"></i>Superadmin account
+          </span>
+        </div>
+        @endunless
       </div>
+      @unless ($user->isSuperadmin())
       <div class="col-auto mt-3 mt-md-0 d-flex flex-wrap justify-content-end align-items-center gap-2">
         <span class="badge bg-white text-yg rounded-pill px-3 py-2 fs-6">
           <i class="bi bi-star-fill me-1"></i>{{ number_format($user->points) }} points
@@ -33,11 +44,13 @@
           <i class="bi bi-person-badge me-1"></i>View my ID card
         </a>
       </div>
+      @endunless
     </div>
   </div>
 
   <div class="row g-4">
 
+    @unless ($user->isSuperadmin())
     {{-- Earned badges --}}
     <div class="col-12">
       <div class="card yg-card">
@@ -131,6 +144,7 @@
         </div>
       </div>
     @endif
+    @endunless
 
     {{-- Account settings --}}
     <div class="col-12 mt-4">
@@ -171,6 +185,7 @@
           </div>
         </div>
 
+        @unless ($user->isSuperadmin())
         <div class="accordion-item yg-card">
           <h2 class="accordion-header" id="account-settings-heading">
             <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse"
@@ -317,6 +332,7 @@
             </div>
           </div>
         </div>
+        @endunless
 
         <div class="accordion-item yg-card mt-3">
           <h2 class="accordion-header" id="change-password-heading">
@@ -395,6 +411,14 @@
   </div>
 @endsection
 
+@push('styles')
+<style>
+  @media (max-width: 359.98px) {
+    .superadmin-account-avatar { width: 80px; height: 80px; }
+  }
+</style>
+@endpush
+
 @push('scripts')
 <script>
   const accountGroup = document.getElementById('account_official_group');
@@ -412,4 +436,3 @@
 
 </script>
 @endpush
-

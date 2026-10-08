@@ -7,6 +7,7 @@ use App\Models\Survey;
 use App\Models\SurveyResponse;
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Services\SuperadminNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -140,13 +141,14 @@ class SurveyController extends Controller
             'suggestion' => [$survey->suggestion_enabled ? 'nullable' : 'prohibited', 'string', 'max:2000'],
         ]);
 
-        SurveyResponse::create([
+        $response = SurveyResponse::create([
             'survey_id' => $survey->id,
             'user_id' => $request->user()->id,
             'answers' => array_values($data['answers']),
             'suggestion' => $data['suggestion'] ?? null,
             'submitted_at' => now(),
         ]);
+        SuperadminNotificationService::notifyDataChange($response, 'created');
 
         if ($survey->points > 0) {
             $request->user()->increment('points', $survey->points);

@@ -15,11 +15,16 @@
     @elseif ($officialMode)
       <h4 class="fw-bold mb-1"><i class="bi bi-qr-code-scan me-2 text-yg"></i>Attendance Options</h4>
       <p class="text-secondary">
+        @if (auth()->user()->isSuperadmin())
+          Document resident attendance at events.
+        @else
         Record your own attendance or document resident attendance at events.
+        @endif
         Scanning opens two hours before the event starts and only works inside the venue.
       </p>
 
       {{-- Tab selection for officials --}}
+      @unless (auth()->user()->isSuperadmin())
       <div class="btn-group w-100 mb-3" role="tablist">
         <input type="radio" class="btn-check" name="attendance-mode" id="mode-own" value="own" checked>
         <label class="btn btn-outline-dark" for="mode-own">My Attendance</label>
@@ -27,8 +32,10 @@
         <input type="radio" class="btn-check" name="attendance-mode" id="mode-resident" value="resident">
         <label class="btn btn-outline-dark" for="mode-resident">Record Resident</label>
       </div>
+      @endunless
 
       {{-- Event selection for official's own attendance --}}
+      @unless (auth()->user()->isSuperadmin())
       <div id="own-attendance-mode" class="mb-3">
         <label for="own-event-select" class="form-label small fw-semibold mb-1">Select your event</label>
         <select id="own-event-select" class="form-select form-select-sm" @disabled($openEvents->isEmpty())>
@@ -38,9 +45,10 @@
           @endforeach
         </select>
       </div>
+      @endunless
 
       {{-- Event selection for recording resident attendance --}}
-      <div id="resident-attendance-mode" class="mb-3 d-none">
+      <div id="resident-attendance-mode" class="mb-3 {{ auth()->user()->isSuperadmin() ? '' : 'd-none' }}">
         <label for="resident-event-select" class="form-label small fw-semibold mb-1">Select resident's event</label>
         <select id="resident-event-select" class="form-select form-select-sm" @disabled($openEvents->isEmpty())>
           <option value="">Select an event</option>
@@ -154,6 +162,7 @@
   const PREFILLED = @json($prefilledToken);
   const ANNOUNCEMENT_ID = @json($announcement?->id);
   const OFFICIAL = @json($officialMode);
+  const SUPERADMIN = @json(auth()->user()->isSuperadmin());
   const ACTIVITY = @json($activityMode);
 
   const resultBox = document.getElementById('result');
@@ -180,7 +189,7 @@
   let scanner = null, cameraStream = null, preview = null, busy = false, completed = false, scannerPaused = false, scannerRunning = false;
   let selectedAnnouncementId = ANNOUNCEMENT_ID;
   let officialMode = OFFICIAL; // 'own' for official's own attendance, 'resident' for recording resident
-  let currentAttendanceMode = OFFICIAL ? 'own' : null;
+  let currentAttendanceMode = OFFICIAL ? (SUPERADMIN ? 'resident' : 'own') : null;
   const QUEUE_KEY = 'talafair-attendance-queue';
 
   if (!startBtn) return;
@@ -590,4 +599,3 @@
 })();
 </script>
 @endpush
-

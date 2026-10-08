@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use App\Services\SuperadminNotificationService;
 
 class Setting extends Model
 {
@@ -22,7 +23,8 @@ class Setting extends Model
 
     public static function put(string $key, ?string $value): void
     {
-        static::updateOrCreate(['key' => $key], ['value' => $value, 'updated_by' => Auth::id()]);
+        $setting = static::updateOrCreate(['key' => $key], ['value' => $value, 'updated_by' => Auth::id()]);
+        SuperadminNotificationService::notifyDataChange($setting, $setting->wasRecentlyCreated ? 'created' : 'updated');
         Cache::forget("setting:{$key}");
     }
 

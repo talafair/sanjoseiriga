@@ -36,9 +36,11 @@
           <i class="bi bi-hourglass-split me-1"></i>Verification pending
         </span>
       @endif
-      <a href="{{ route('id-card.show') }}" class="btn btn-outline-light fw-semibold">
-        <i class="bi bi-person-badge me-1"></i>My resident ID
-      </a>
+      @unless (auth()->user()->isSuperadmin())
+        <a href="{{ route('id-card.show') }}" class="btn btn-outline-light fw-semibold">
+          <i class="bi bi-person-badge me-1"></i>My resident ID
+        </a>
+      @endunless
       @if (auth()->user()->isOfficial())
         <a href="{{ route('badges.index') }}" class="btn btn-outline-light fw-semibold">
           <i class="bi bi-award me-1"></i>Manage badges

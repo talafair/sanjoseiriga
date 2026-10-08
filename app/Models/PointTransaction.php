@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class PointTransaction extends Model
 {
+    use Auditable;
+
     protected $fillable = [
         'user_id', 'announcement_id', 'type', 'description',
         'base_points', 'multiplier', 'points_awarded',

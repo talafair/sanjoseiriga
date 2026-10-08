@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class EventRafflePrize extends Model
 {
+    use Auditable;
+
     protected $fillable = ['announcement_id', 'name', 'type', 'prize_type', 'points_amount', 'description', 'quantity', 'sort_order', 'created_by'];
 
     protected function casts(): array

@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Models\AuditLog;
+use App\Services\SuperadminNotificationService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
@@ -68,6 +69,8 @@ trait Auditable
                 ? (int) round((microtime(true) - request()->attributes->get('started_at')) * 1000)
                 : null,
         ]);
+
+        SuperadminNotificationService::notifyDataChange($this, $action);
     }
 
     public function auditLogs()

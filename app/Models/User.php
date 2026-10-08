@@ -312,7 +312,13 @@ class User extends Authenticatable implements CanResetPasswordContract
                     'youth' => $query->orWhere(fn ($scope) => $scope->youth()),
                     'senior' => $query->orWhere(fn ($scope) => $scope->seniors()),
                     'family_heads' => $query->orWhere(fn ($scope) => $scope->familyHeads()),
-                    'officials' => $query->orWhere('role', 'official'),
+                    'officials' => $query->orWhere(function (Builder $query) {
+                        $query->whereIn('role', ['official', self::SUPERADMIN_ROLE])
+                            ->where(function (Builder $groupQuery) {
+                                $groupQuery->whereNull('official_group')
+                                    ->orWhere('official_group', '!=', 'personnel');
+                            });
+                    }),
                     default => null,
                 };
             }

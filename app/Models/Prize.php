@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class Prize extends Model
 {
+    use Auditable;
+
     /** Display name and icon per prize type. */
     public const TYPES = [
         'points' => ['label' => 'Points', 'icon' => 'bi-star-fill'],

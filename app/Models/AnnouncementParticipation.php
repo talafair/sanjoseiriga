@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class AnnouncementParticipation extends Model
 {
+    use Auditable;
+
     protected $fillable = [
         'announcement_id', 'user_id', 'scanned_by', 'points_awarded', 'scanned_at',
     ];

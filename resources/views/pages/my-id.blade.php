@@ -63,10 +63,11 @@
       <button type="button" id="save-id" class="btn btn-primary flex-fill fw-semibold">
         <i class="bi bi-download me-1"></i>Save to phone
       </button>
-      <button type="button" onclick="window.print()" class="btn btn-outline-secondary flex-fill fw-semibold">
+      <button type="button" id="print-id" class="btn btn-outline-secondary flex-fill fw-semibold">
         <i class="bi bi-printer me-1"></i>Print
       </button>
     </div>
+    <img id="id-card-print-image" class="d-none" alt="Resident ID card">
     <p id="save-hint" class="form-text mt-2">
       On iPhone, press and hold the saved image to add it to Photos.
     </p>
@@ -77,25 +78,69 @@
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
-document.getElementById('save-id').addEventListener('click', async function () {
-  const card = document.getElementById('id-card');
-  const hint = document.getElementById('save-hint');
+const idCard = document.getElementById('id-card');
+const saveButton = document.getElementById('save-id');
+const printButton = document.getElementById('print-id');
+const printImage = document.getElementById('id-card-print-image');
+const saveHint = document.getElementById('save-hint');
+
+async function getIdCardImage() {
+  const cardImages = [...idCard.querySelectorAll('img')];
+  await Promise.all(cardImages.map((image) => image.complete
+    ? Promise.resolve()
+    : new Promise((resolve) => {
+        image.addEventListener('load', resolve, { once: true });
+        image.addEventListener('error', resolve, { once: true });
+      })));
+
+  const canvas = await html2canvas(idCard, {
+    scale: 3,
+    backgroundColor: '#ffffff',
+    useCORS: true,
+    imageTimeout: 10000,
+  });
+
+  return canvas.toDataURL('image/png');
+}
+
+async function prepareIdCardImage() {
+  const imageData = await getIdCardImage();
+  printImage.src = imageData;
+  return imageData;
+}
+
+saveButton.addEventListener('click', async function () {
 
   this.disabled = true;
-  this.innerHTML = 'Preparing image…';
+  this.innerHTML = 'Preparing image...';
 
   try {
-    const canvas = await html2canvas(card, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
+    const imageData = await prepareIdCardImage();
     const link = document.createElement('a');
     link.download = 'talafair-id-{{ $user->unique_id }}.png';
-    link.href = canvas.toDataURL('image/png');
+    link.href = imageData;
     link.click();
-    hint.textContent = 'Saved to your downloads. Open it to add it to Photos or Gallery.';
+    saveHint.textContent = 'Saved to your downloads. Open it to add it to Photos or Gallery.';
   } catch (e) {
-    hint.textContent = 'The image could not be generated. Use Print instead, or take a screenshot.';
+    saveHint.textContent = 'The image could not be generated. Check that the card images are available and try again.';
   } finally {
     this.disabled = false;
     this.innerHTML = '<i class="bi bi-download me-1"></i>Save to phone';
+  }
+});
+
+printButton.addEventListener('click', async function () {
+  this.disabled = true;
+  this.innerHTML = 'Preparing print...';
+
+  try {
+    await prepareIdCardImage();
+    window.print();
+  } catch (e) {
+    saveHint.textContent = 'The image could not be generated. Check that the card images are available and try again.';
+  } finally {
+    this.disabled = false;
+    this.innerHTML = '<i class="bi bi-printer me-1"></i>Print';
   }
 });
 </script>
@@ -103,6 +148,28 @@ document.getElementById('save-id').addEventListener('click', async function () {
 
 @push('styles')
 <style>
+  @media print {
+    @page { margin: 0; }
+
+    body * { visibility: hidden !important; }
+
+    #id-card {
+      display: none !important;
+    }
+
+    #id-card-print-image {
+      visibility: visible !important;
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: block !important;
+      width: 86mm !important;
+      max-width: 86mm;
+      height: auto !important;
+      margin: 0 !important;
+    }
+  }
+
   #id-card .id-card-main { align-items: flex-start; }
   #id-card .id-card-qr svg { display: block; width: 220px; height: 220px; max-width: 100%; }
 

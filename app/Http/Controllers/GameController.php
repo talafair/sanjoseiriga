@@ -83,6 +83,7 @@ class GameController extends Controller
             $now = now();
             UserNotification::insert($users->map(fn ($user) => [
                 'user_id' => $user->id,
+                'survey_id' => null,
                 'title' => 'New trivia published',
                 'body' => "Trivia \"{$theme->title}\" is now available until {$theme->due_at->format('M j, Y g:i A')}.",
                 'created_by' => $request->user()->id,

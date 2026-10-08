@@ -27,6 +27,11 @@
             'status' => $announcement->eventStatus() ?? 'none',
             'date' => ($announcement->event_start_at ?: $announcement->created_at)->toDateString(),
             'time' => $announcement->event_start_at?->format('g:i A'),
+            'endTime' => $announcement->event_end_at?->format('g:i A'),
+            'dateLabel' => ($announcement->event_start_at ?: $announcement->created_at)->format('M j, Y'),
+            'description' => $announcement->body,
+            'location' => $announcement->venue_name,
+            'creator' => $announcement->creator?->full_name,
             'url' => route('announcements.show', $announcement),
         ])->values();
     @endphp
@@ -156,6 +161,39 @@
           <div id="calendarGrid" class="calendar-grid"></div>
         </div>
         <div id="calendarYearView" class="calendar-year-grid d-none"></div>
+        <div class="calendar-selection mt-4" aria-live="polite">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <h5 class="fw-bold mb-0" id="calendarSelectedDateLabel">Selected date</h5>
+                <span class="small text-secondary" id="calendarSelectedCount"></span>
+            </div>
+            <div id="calendarSelectedEvents" class="calendar-agenda-list"></div>
+        </div>
+        <div class="mt-4 pt-4 border-top">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <h5 class="fw-bold mb-0">Upcoming Events</h5>
+                <span class="small text-secondary">Next scheduled announcements</span>
+            </div>
+            <div id="upcomingEvents" class="calendar-agenda-list"></div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="calendarEventModal" tabindex="-1" aria-labelledby="calendarEventModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0" style="border-radius: 20px;">
+                <div class="modal-header border-0 pb-2">
+                    <h5 class="modal-title fw-bold" id="calendarEventModalLabel"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body px-4 pt-0">
+                    <div class="calendar-modal-meta text-secondary small mb-3" id="calendarEventModalMeta"></div>
+                    <p class="mb-0" id="calendarEventModalDescription"></p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <a class="btn btn-yg-outline btn-sm" id="calendarEventModalLink">View announcement <i class="bi bi-arrow-right ms-1"></i></a>
+                    <button type="button" class="btn btn-light btn-sm rounded-3" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- Announcement cards --}}
@@ -356,20 +394,34 @@
     #announcementCalendar { min-width: 0; overflow: hidden; }
     .calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .45rem; min-width: 0; }
     .calendar-weekdays { margin-bottom: .45rem; }
-    .calendar-day { min-width: 0; min-height: 7rem; background: rgba(245, 248, 229, .6); border: 1px solid rgba(112, 144, 30, .14); border-radius: .6rem; padding: .5rem; overflow: hidden; }
-    .calendar-day.is-other-month { opacity: .45; }
+    .calendar-day { min-width: 0; min-height: 7rem; background: #fff; border: 1px solid rgba(52, 58, 64, .12); border-radius: .6rem; padding: .5rem; overflow: hidden; }
+    .calendar-day.is-selected { border-color: var(--yg-primary); background: rgba(245, 248, 229, .55); box-shadow: 0 0 0 2px rgba(112, 144, 30, .18); }
+    .calendar-day.is-today .calendar-day-number { display: inline-flex; align-items: center; justify-content: center; min-width: 1.55rem; height: 1.55rem; border-radius: 50%; background: var(--yg-primary); color: var(--yg-ink); }
+    .calendar-day-button { display: block; width: 100%; border: 0; padding: 0; background: transparent; text-align: left; color: inherit; }
+    .calendar-day.is-past .calendar-day-number { color: #8a9197; }
+    .calendar-day.is-other-month { background: #fafafa; }
+    .calendar-day.is-other-month .calendar-day-number { color: #adb3b7; }
     .calendar-day-number { font-size: .8rem; font-weight: 700; color: var(--yg-secondary); }
-    .calendar-entry { display: block; min-width: 0; margin-top: .35rem; padding: .3rem .4rem; border-radius: .35rem; background: #fff; color: inherit; font-size: .75rem; line-height: 1.2; text-decoration: none; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .calendar-entry:hover { background: var(--yg-primary); color: var(--yg-ink); }
+    .calendar-entry { display: block; width: 100%; min-width: 0; margin-top: .35rem; padding: .3rem .4rem; border: 0; border-left: 3px solid var(--calendar-event-color, #6c757d); border-radius: .25rem; background: var(--calendar-event-bg, #f1f3f5); color: var(--calendar-event-text, #343a40); font-size: .75rem; line-height: 1.2; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .calendar-entry:hover, .calendar-entry:focus { filter: brightness(.96); outline: 2px solid rgba(52, 58, 64, .14); }
+    .calendar-entry::before { content: ''; display: inline-block; width: .42rem; height: .42rem; margin: 0 .3rem .05rem 0; border-radius: 50%; background: var(--calendar-event-color, #6c757d); }
+    .calendar-more { display: block; margin-top: .25rem; border: 0; background: transparent; color: var(--yg-secondary); font-size: .7rem; font-weight: 700; padding: 0; }
+    .calendar-more:hover, .calendar-more:focus { color: var(--yg-ink); text-decoration: underline; }
     .calendar-year-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
     .calendar-month-card { min-width: 0; min-height: 8rem; background: rgba(245, 248, 229, .6); border: 1px solid rgba(112, 144, 30, .14); border-radius: .6rem; padding: .75rem; overflow: hidden; }
     .calendar-month-card h6 { color: var(--yg-secondary); }
+    .calendar-agenda-list { display: grid; gap: .55rem; }
+    .calendar-agenda-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; border: 1px solid rgba(52, 58, 64, .12); border-radius: .6rem; padding: .65rem .8rem; background: #fff; color: inherit; text-align: left; }
+    button.calendar-agenda-item { cursor: pointer; }
+    .calendar-agenda-item:hover, .calendar-agenda-item:focus { border-color: var(--yg-primary); background: #fff; }
+    .calendar-agenda-item-title { min-width: 0; overflow-wrap: anywhere; }
+    .calendar-agenda-empty { color: var(--yg-secondary); font-size: .9rem; }
     @media (max-width: 991.98px) {
         #announcementCalendar { padding: .85rem !important; }
         .calendar-weekdays, .calendar-grid { gap: .3rem; }
         .calendar-day { min-height: 5.75rem; padding: .35rem; border-radius: .45rem; }
         .calendar-day-number { font-size: .72rem; }
-        .calendar-entry { margin-top: .2rem; padding: .25rem .3rem; font-size: .68rem; }
+            .calendar-entry { margin-top: .2rem; padding: .25rem .3rem; font-size: .68rem; }
         .calendar-year-grid { gap: .55rem; }
         .calendar-month-card { min-height: 6.5rem; padding: .55rem; }
     }
@@ -421,6 +473,7 @@
         let activeView = 'cards';
         let calendarMode = 'month';
         let calendarDate = new Date();
+        let selectedDate = new Date();
 
         function applyFilters() {
             const term = search.value.trim().toLowerCase();
@@ -443,6 +496,10 @@
                 && (!term || item.title.toLowerCase().includes(term) || item.category.toLowerCase().includes(term));
         }
 
+            function toDateKey(date) {
+                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            }
+
         function renderCalendar() {
             const year = calendarDate.getFullYear();
             const month = calendarDate.getMonth();
@@ -460,20 +517,55 @@
                 const cellDate = new Date(year, month, dayOffset);
                 const isOtherMonth = dayOffset < 1 || dayOffset > daysInMonth;
                 const cell = document.createElement('div');
-                cell.className = `calendar-day${isOtherMonth ? ' is-other-month' : ''}`;
+                const dateKey = toDateKey(cellDate);
+                const todayKey = toDateKey(new Date());
+                const events = calendarData.filter(item => item.date === dateKey && calendarMatches(item));
+                cell.className = `calendar-day${isOtherMonth ? ' is-other-month' : ''}${dateKey < todayKey ? ' is-past' : ''}${dateKey === toDateKey(selectedDate) ? ' is-selected' : ''}${dateKey === todayKey ? ' is-today' : ''}`;
                 const dayNumber = document.createElement('div');
                 dayNumber.className = 'calendar-day-number';
                 dayNumber.textContent = isOtherMonth && dayOffset < 1 ? previousMonthDays + dayOffset : (isOtherMonth ? dayOffset - daysInMonth : dayOffset);
-                cell.appendChild(dayNumber);
-                calendarData.filter(item => item.date === cellDate.toISOString().slice(0, 10) && calendarMatches(item)).forEach(item => {
-                    const link = document.createElement('a');
+                const dayButton = document.createElement('button');
+                dayButton.type = 'button';
+                dayButton.className = 'calendar-day-button';
+                dayButton.setAttribute('aria-label', `Select ${cellDate.toLocaleDateString(undefined, { dateStyle: 'long' })}`);
+                dayButton.appendChild(dayNumber);
+                dayButton.addEventListener('click', () => selectDate(cellDate));
+                cell.appendChild(dayButton);
+                events.slice(0, 3).forEach(item => {
+                    const link = document.createElement('button');
+                    link.type = 'button';
                     link.className = 'calendar-entry';
-                    link.href = item.url;
-                    link.innerHTML = `<strong>${item.title}</strong>${item.time ? `<span class="d-block text-secondary">${item.time}</span>` : ''}`;
+                    const eventStyle = getEventStyle(item);
+                    link.style.setProperty('--calendar-event-color', eventStyle.color);
+                    link.style.setProperty('--calendar-event-bg', eventStyle.background);
+                    link.style.setProperty('--calendar-event-text', eventStyle.text);
+                    link.title = `${eventStyle.label}: ${item.title}`;
+                    link.textContent = item.title;
+                    link.addEventListener('click', () => showEventDetails(item));
                     cell.appendChild(link);
                 });
+                if (events.length > 3) {
+                    const more = document.createElement('button');
+                    more.type = 'button';
+                    more.className = 'calendar-more';
+                    more.textContent = `+${events.length - 3} more`;
+                    more.addEventListener('click', () => selectDate(cellDate));
+                    cell.appendChild(more);
+                }
                 calendarGrid.appendChild(cell);
             }
+        }
+
+        function getEventStyle(item) {
+            const styles = {
+                events: { color: '#2f6f9f', background: '#eaf3f9', text: '#214d70', label: 'General event' },
+                game: { color: '#3f8057', background: '#edf7ef', text: '#2b5b3d', label: 'Community activity' },
+                ice_breaker: { color: '#b4771e', background: '#fff5df', text: '#765016', label: 'TalaFair activity' },
+                rewards: { color: '#b4771e', background: '#fff5df', text: '#765016', label: 'Raffle or rewards' },
+                q_and_a: { color: '#76559b', background: '#f3edfa', text: '#513a6d', label: 'Important activity' },
+                maintenance: { color: '#b14b4b', background: '#fbeeee', text: '#7d3333', label: 'Urgent activity' },
+            };
+            return styles[item.category] || { color: '#2f6f9f', background: '#eaf3f9', text: '#214d70', label: 'General announcement' };
         }
 
         function renderYear(year) {
@@ -490,10 +582,16 @@
                     const date = new Date(`${item.date}T00:00:00`);
                     return date.getFullYear() === year && date.getMonth() === month && calendarMatches(item);
                 }).forEach(item => {
-                    const link = document.createElement('a');
+                    const link = document.createElement('button');
+                    link.type = 'button';
                     link.className = 'calendar-entry';
-                    link.href = item.url;
+                    const eventStyle = getEventStyle(item);
+                    link.style.setProperty('--calendar-event-color', eventStyle.color);
+                    link.style.setProperty('--calendar-event-bg', eventStyle.background);
+                    link.style.setProperty('--calendar-event-text', eventStyle.text);
+                    link.title = `${eventStyle.label}: ${item.title}`;
                     link.textContent = `${Number(item.date.slice(8, 10))} - ${item.title}`;
+                    link.addEventListener('click', () => showEventDetails(item));
                     card.appendChild(link);
                 });
                 calendarYearView.appendChild(card);
@@ -507,6 +605,47 @@
             calendarMonthButton.classList.toggle('active', mode === 'month');
             calendarYearButton.classList.toggle('active', mode === 'year');
             renderCalendar();
+            renderAgenda();
+        }
+
+        function displayAgendaItem(item) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'calendar-agenda-item';
+            button.innerHTML = `<span class="calendar-agenda-item-title"><strong>${item.title}</strong><span class="d-block small text-secondary">${item.dateLabel}</span></span><span class="small text-secondary text-nowrap">${item.time || 'All day'}</span>`;
+            button.addEventListener('click', () => showEventDetails(item));
+            return button;
+        }
+
+        function renderAgenda() {
+            const selectedItems = calendarData.filter(item => item.date === toDateKey(selectedDate) && calendarMatches(item));
+            const selectedList = document.getElementById('calendarSelectedEvents');
+            const upcomingList = document.getElementById('upcomingEvents');
+            selectedList.innerHTML = '';
+            upcomingList.innerHTML = '';
+            document.getElementById('calendarSelectedDateLabel').textContent = selectedDate.toLocaleDateString(undefined, { dateStyle: 'full' });
+            document.getElementById('calendarSelectedCount').textContent = `${selectedItems.length} item${selectedItems.length === 1 ? '' : 's'}`;
+            if (!selectedItems.length) selectedList.innerHTML = '<div class="calendar-agenda-empty">No announcements scheduled for this date.</div>';
+            selectedItems.forEach(item => selectedList.appendChild(displayAgendaItem(item)));
+            const upcomingItems = calendarData.filter(item => item.date >= toDateKey(new Date()) && calendarMatches(item))
+                .sort((first, second) => `${first.date} ${first.time || ''}`.localeCompare(`${second.date} ${second.time || ''}`)).slice(0, 8);
+            if (!upcomingItems.length) upcomingList.innerHTML = '<div class="calendar-agenda-empty">No upcoming announcements.</div>';
+            upcomingItems.forEach(item => upcomingList.appendChild(displayAgendaItem(item)));
+        }
+
+        function selectDate(date) {
+            selectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            calendarDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+            renderCalendar();
+            renderAgenda();
+        }
+
+        function showEventDetails(item) {
+            document.getElementById('calendarEventModalLabel').textContent = item.title;
+            document.getElementById('calendarEventModalMeta').innerHTML = `<div><i class="bi bi-calendar-event me-2 text-yg"></i>${item.dateLabel}${item.time ? ` · ${item.time}${item.endTime ? ` - ${item.endTime}` : ''}` : ''}</div>${item.location ? `<div><i class="bi bi-geo-alt me-2 text-yg"></i>${item.location}</div>` : ''}${item.creator ? `<div><i class="bi bi-person me-2 text-yg"></i>${item.creator}</div>` : ''}`;
+            document.getElementById('calendarEventModalDescription').textContent = item.description || 'No description provided.';
+            document.getElementById('calendarEventModalLink').href = item.url;
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('calendarEventModal')).show();
         }
 
         function setView(view) {
@@ -533,19 +672,19 @@
             activeFilter = categoryFilter.value;
             updateFilterLabel();
             applyFilters();
-            if (activeView === 'calendar') renderCalendar();
+            if (activeView === 'calendar') { renderCalendar(); renderAgenda(); }
         });
 
         statusFilter.addEventListener('change', () => {
             activeStatus = statusFilter.value;
             updateFilterLabel();
             applyFilters();
-            if (activeView === 'calendar') renderCalendar();
+            if (activeView === 'calendar') { renderCalendar(); renderAgenda(); }
         });
 
             search.addEventListener('input', () => {
                 applyFilters();
-                if (activeView === 'calendar') renderCalendar();
+                if (activeView === 'calendar') { renderCalendar(); renderAgenda(); }
             });
             cardsViewButton.addEventListener('click', () => setView('cards'));
             calendarViewButton.addEventListener('click', () => setView('calendar'));
@@ -553,15 +692,18 @@
                 if (calendarMode === 'year') calendarDate.setFullYear(calendarDate.getFullYear() - 1);
                 else calendarDate.setMonth(calendarDate.getMonth() - 1);
                 renderCalendar();
+                renderAgenda();
             });
             document.getElementById('calendarNext').addEventListener('click', () => {
                 if (calendarMode === 'year') calendarDate.setFullYear(calendarDate.getFullYear() + 1);
                 else calendarDate.setMonth(calendarDate.getMonth() + 1);
                 renderCalendar();
+                renderAgenda();
             });
             calendarMonthButton.addEventListener('click', () => setCalendarMode('month'));
             calendarYearButton.addEventListener('click', () => setCalendarMode('year'));
             setView(activeView);
+            renderAgenda();
         })();
 
         </script>

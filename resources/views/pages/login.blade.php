@@ -44,6 +44,12 @@
                         <p class="text-secondary mb-0">Sign in to continue your journey</p>
                     </div>
 
+                    @if (session('status'))
+                        <div class="alert alert-success rounded-3 py-2 small" role="alert">
+                            <i class="bi bi-check-circle-fill me-1"></i>{{ session('status') }}
+                        </div>
+                    @endif
+
                     @if ($errors->any())
                         <div class="alert alert-danger rounded-3 py-2 small" role="alert">
                             <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ $errors->first() }}
@@ -53,12 +59,12 @@
                     <form action="{{ route('login.attempt') }}" method="POST">
                         @csrf
                         <div class="mb-3">
-                            <label for="loginField" class="form-label fw-semibold">Email or Username</label>
+                            <label for="loginField" class="form-label fw-semibold">Username, Email, or Phone Number</label>
                             <div class="input-group">
                                 <span class="input-group-text yg-addon"><i class="bi bi-person"></i></span>
                                 <input type="text" name="login" value="{{ old('login') }}"
                                        class="form-control yg-input @error('login') is-invalid @enderror" id="loginField"
-                                       placeholder="you@example.com" autocomplete="username" required autofocus>
+                                       placeholder="Username, email, or 09171234567" autocomplete="username" required autofocus>
                             </div>
                         </div>
 
@@ -80,7 +86,7 @@
                                 <input class="form-check-input" type="checkbox" name="remember" id="rememberMe">
                                 <label class="form-check-label small fw-semibold text-secondary" for="rememberMe">Remember me</label>
                             </div>
-                            <a href="#" class="small fw-semibold text-yg text-decoration-none">Forgot password?</a>
+                            <a href="{{ route('password.request') }}" class="small fw-semibold text-yg text-decoration-none">Forgot password?</a>
                         </div>
 
                         <button type="submit" class="btn btn-yg w-100 py-2 mb-3">

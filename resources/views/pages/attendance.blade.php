@@ -135,6 +135,7 @@
       <p id="gps-status" class="form-text mt-2">
         <i class="bi bi-geo-alt me-1"></i>Location is not shared yet.
       </p>
+      <p id="offline-status" class="form-text mt-1 d-none"></p>
     @endif
 
     <a href="{{ route('attendance.history') }}" class="btn btn-link btn-sm px-0">
@@ -160,6 +161,7 @@
   const startBtn  = document.getElementById('start-btn');
   const stopBtn   = document.getElementById('stop-btn');
   const scannerPlaceholder = document.getElementById('scanner-placeholder');
+  const offlineStatus = document.getElementById('offline-status');
   const manualForm = document.getElementById('manual-form');
   const manualToggle = document.getElementById('manual-toggle');
   const manualBack = document.getElementById('manual-back');
@@ -179,6 +181,7 @@
   let selectedAnnouncementId = ANNOUNCEMENT_ID;
   let officialMode = OFFICIAL; // 'own' for official's own attendance, 'resident' for recording resident
   let currentAttendanceMode = OFFICIAL ? 'own' : null;
+  const QUEUE_KEY = 'talafair-attendance-queue';
 
   if (!startBtn) return;
 
@@ -251,6 +254,9 @@
 
   function cameraError(error) {
     const name = error?.name || '';
+    if (name === 'InsecureContextError') {
+      return 'Camera access requires HTTPS. Use https:// or open TalaFair through http://localhost; local network IP addresses are not allowed by mobile browsers.';
+    }
     if (name === 'NotAllowedError' || name === 'SecurityError') {
       return 'Camera permission was denied. Allow camera access for this site, then try again. Mobile browsers also require HTTPS (localhost is allowed).';
     }
@@ -276,15 +282,99 @@
     resultBox.textContent = message;
   }
 
+  function queuedScans() {
+    try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch (e) { return []; }
+  }
+
+  function updateOfflineStatus() {
+    const count = queuedScans().length;
+    if (!offlineStatus) return;
+    offlineStatus.classList.toggle('d-none', count === 0 && navigator.onLine);
+    offlineStatus.innerHTML = count
+      ? '<i class="bi bi-cloud-arrow-up me-1"></i>' + count + ' scan' + (count === 1 ? '' : 's') + ' waiting to sync when you are online.'
+      : '<i class="bi bi-wifi me-1"></i>Back online. Saved scans are syncing.';
+  }
+
+  function queueScan(url, payload) {
+    const queue = queuedScans();
+    queue.push({ url, payload, queuedAt: Date.now() });
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    updateOfflineStatus();
+    show(true, '<div class="fw-semibold"><i class="bi bi-cloud-arrow-down-fill me-1"></i>Scan saved on this device.</div><div class="small mt-1">It will be submitted automatically when you are back online. Keep this app installed and signed in.</div>');
+  }
+
+  async function sendScan(url, payload) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({ ok: false, message: 'The attendance service is temporarily unavailable. Please try again.' }));
+    return data;
+  }
+
+  async function syncQueuedScans() {
+    const queue = queuedScans();
+    if (!queue.length || !navigator.onLine) return;
+    const remaining = [];
+    for (const item of queue) {
+      try {
+        await sendScan(item.url, item.payload);
+      } catch (error) {
+        remaining.push(item);
+      }
+    }
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+    updateOfflineStatus();
+  }
+
+  window.addEventListener('online', syncQueuedScans);
+  updateOfflineStatus();
+  syncQueuedScans();
+
   function position() {
     return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) return reject(new Error('This device cannot share its location.'));
+      if (!navigator.geolocation) {
+        const error = new Error('This device cannot share its location.');
+        error.name = 'LocationPermissionError';
+        return reject(error);
+      }
       navigator.geolocation.getCurrentPosition(
         p => resolve(p.coords),
-        () => reject(new Error('Turn on location so the barangay can confirm you are at the venue.')),
+        () => {
+          const error = new Error('Turn on location so the barangay can confirm you are at the venue.');
+          error.name = 'LocationPermissionError';
+          reject(error);
+        },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     });
+  }
+
+  async function requestScannerPermissions() {
+    if (!window.isSecureContext) {
+      throw new DOMException('Camera access requires HTTPS.', 'InsecureContextError');
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new DOMException('Camera API is unavailable in this browser.', 'NotSupportedError');
+    }
+
+    let requestedStream = null;
+    try {
+      const cameraRequest = navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false
+      }).then((stream) => {
+        requestedStream = stream;
+        return stream;
+      });
+
+      const [camera, coords] = await Promise.all([cameraRequest, position()]);
+      return { camera, coords };
+    } catch (error) {
+      requestedStream?.getTracks().forEach(track => track.stop());
+      throw error;
+    }
   }
 
   async function submit(token) {
@@ -298,22 +388,24 @@
       gpsStatus.innerHTML = '<i class="bi bi-geo-alt-fill me-1"></i>Location accurate to about ' +
                             Math.round(coords.accuracy) + ' m.';
 
-      const res = await fetch(ACTIVITY ? @json($announcement ? route('announcements.participation', $announcement) : route('attendance.check')) : CHECK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
-        body: JSON.stringify({
-          token: token,
-          announcement_id: selectedAnnouncementId,
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          accuracy: coords.accuracy
-        })
-      });
-
-      const data = await res.json().catch(() => ({
-        ok: false,
-        message: 'The attendance service is temporarily unavailable. Please try again.'
-      }));
+      const submitUrl = ACTIVITY ? @json($announcement ? route('announcements.participation', $announcement) : route('attendance.check')) : CHECK_URL;
+      const payload = {
+        token: token,
+        announcement_id: selectedAnnouncementId,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        accuracy: coords.accuracy
+      };
+      let data;
+      try {
+        data = await sendScan(submitUrl, payload);
+      } catch (error) {
+        if (!navigator.onLine || error instanceof TypeError) {
+          queueScan(submitUrl, payload);
+          return;
+        }
+        throw error;
+      }
 
       if (data.ok) {
         completed = !OFFICIAL;
@@ -419,14 +511,10 @@
     }
 
     try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new DOMException('Camera API is unavailable in this browser.', 'NotSupportedError');
-      }
-      status('Requesting camera permission…', 'info');
-      cameraStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
-        audio: false
-      });
+      status('Requesting camera and location permission…', 'info');
+      const permissions = await requestScannerPermissions();
+      cameraStream = permissions.camera;
+      gpsStatus.innerHTML = '<i class="bi bi-geo-alt-fill me-1"></i>Location permission granted. Checking your position when you scan.';
       preview = document.createElement('video');
       preview.autoplay = true;
       preview.playsInline = true;
@@ -469,7 +557,9 @@
       document.getElementById('permission-help')?.classList.add('d-none');
     } catch (e) {
       stopCamera();
-      const cameraMessage = e.name === 'NotSupportedError'
+      const cameraMessage = e.name === 'LocationPermissionError'
+        ? e.message
+        : e.name === 'NotSupportedError'
         ? 'This browser does not support camera access.'
         : cameraError(e);
       const fallbackMsg = OFFICIAL && manualToggle && currentAttendanceMode === 'resident'

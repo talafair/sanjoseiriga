@@ -4,20 +4,27 @@ namespace App\Models;
 
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
-class User extends Authenticatable
+class User extends Authenticatable implements CanResetPasswordContract
 {
-    use HasFactory, Notifiable, Auditable;
+    use HasFactory, Notifiable, Auditable, CanResetPassword;
 
     public const CATEGORIES = [
         'resident' => 'Resident',
         'guest' => 'Guest',
         'official' => 'Official',
+    ];
+
+    public const SUPERADMIN_ROLE = 'superadmin';
+    public const ROLE_LABELS = self::CATEGORIES + [
+        self::SUPERADMIN_ROLE => 'Superadmin',
     ];
 
     public const STUDENT_LEVELS = [
@@ -196,14 +203,26 @@ class User extends Authenticatable
 
     public function getAvatarUrlAttribute(): string
     {
-        return $this->avatar_path
-                ? Storage::disk(config('filesystems.uploads_disk', 'public'))->url($this->avatar_path)
-            : asset('images/default-avatar.svg');
+        if (! $this->avatar_path) {
+            return asset('images/default-avatar.svg');
+        }
+
+        $disk = config('filesystems.uploads_disk', 'public');
+
+        return $disk === 'public'
+            ? rtrim(request()->getBaseUrl(), '/') . '/storage/' . ltrim($this->avatar_path, '/')
+            : Storage::url($this->avatar_path);
     }
 
     public function isOfficial(): bool
     {
-        return $this->role === 'official' && $this->official_group !== 'personnel';
+        return in_array($this->role, ['official', self::SUPERADMIN_ROLE], true)
+            && $this->official_group !== 'personnel';
+    }
+
+    public function isSuperadmin(): bool
+    {
+        return $this->role === self::SUPERADMIN_ROLE;
     }
 
     public function isGuest(): bool

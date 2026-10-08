@@ -37,15 +37,10 @@
                 @if ($notification->body)
                   <p class="mb-2 text-secondary">{{ $notification->body }}</p>
                 @endif
-                @if ($notification->announcement)
-                  <a href="{{ route('notifications.open', $notification) }}" class="small fw-semibold text-yg text-decoration-none">
-                    View related announcement <i class="bi bi-arrow-right"></i>
-                  </a>
-                @elseif ($notification->survey)
-                  <a href="{{ route('notifications.open', $notification) }}" class="small fw-semibold text-yg text-decoration-none">
-                    Answer survey <i class="bi bi-arrow-right"></i>
-                  </a>
-                @endif
+                <a href="{{ route('notifications.open', $notification) }}" class="small fw-semibold text-yg text-decoration-none">
+                  {{ $notification->announcement ? 'View related announcement' : ($notification->survey ? 'Answer survey' : 'View update') }}
+                  <i class="bi bi-arrow-right"></i>
+                </a>
               </div>
               @if (! $notification->read_at)
                 <span class="badge badge-yg align-self-start">New</span>

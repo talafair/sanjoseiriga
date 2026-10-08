@@ -356,7 +356,7 @@ main .accordion-item + .accordion-item {
 .mobile-drawer-header,
 .mobile-nav-backdrop { display: none; }
 
-@media (max-width: 1499.98px) {
+@media (max-width: 1399.98px) {
     .yg-navbar { position: relative; z-index: 1060; }
     .navbar-actions { gap: .15rem !important; }
     .yg-navbar .mobile-notification,

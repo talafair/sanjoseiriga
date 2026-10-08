@@ -55,9 +55,6 @@
             <div class="card yg-card h-100">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-stars me-2 text-yg"></i>Recent Winners</span>
-                    @if (auth()->user()->isOfficial())
-                        <a href="{{ route('badges.index') }}" class="small fw-semibold text-yg text-decoration-none">Manage badges <i class="bi bi-arrow-right"></i></a>
-                    @endif
                 </div>
                 <div class="card-body p-3">
                     @forelse ($recentWinners as $i => $win)

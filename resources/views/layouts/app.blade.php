@@ -14,7 +14,7 @@
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg yg-navbar sticky-top">
+<nav class="navbar navbar-expand-xxl yg-navbar sticky-top">
     <div class="container">
         <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url('/') }}">
             @include('partials.logo')

@@ -15,6 +15,7 @@ class Announcement extends Model
 
     /** Scanning opens this many hours before the event starts. */
     public const SCAN_WINDOW_HOURS = 2;
+    public const FALLBACK_SCAN_CLOSE_HOURS = 4;
 
     public const AUDIENCES = [
         'public'       => 'All residents',
@@ -104,7 +105,7 @@ class Announcement extends Model
 
     public function scanClosesAt(): ?Carbon
     {
-        return $this->event_end_at ?? $this->event_start_at?->copy()->addHours(4);
+        return $this->event_end_at ?? $this->event_start_at?->copy()->addHours(self::FALLBACK_SCAN_CLOSE_HOURS);
     }
 
     public function scanningIsOpen(?Carbon $at = null): bool
@@ -240,6 +241,22 @@ class Announcement extends Model
     public function scopeUpcoming(Builder $q): Builder
     {
         return $q->where('is_event', true)->where('event_start_at', '>=', now()->startOfDay());
+    }
+
+    public function scopeScanningOpen(Builder $query, ?Carbon $at = null): Builder
+    {
+        $at = $at ?: now();
+
+        return $query->events()
+            ->whereNotNull('event_start_at')
+            ->where('event_start_at', '<=', $at->copy()->addHours(self::SCAN_WINDOW_HOURS))
+            ->where(function (Builder $query) use ($at) {
+                $query->where('event_end_at', '>=', $at)
+                    ->orWhere(function (Builder $query) use ($at) {
+                        $query->whereNull('event_end_at')
+                            ->where('event_start_at', '>=', $at->copy()->subHours(self::FALLBACK_SCAN_CLOSE_HOURS));
+                    });
+            });
     }
 }
 

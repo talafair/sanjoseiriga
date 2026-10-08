@@ -191,7 +191,7 @@ main .accordion-item + .accordion-item {
 .yg-navbar .navbar-toggler-icon { filter: invert(1); }
 
 .navbar-actions { margin-left: auto; gap: .25rem !important; }
-.mobile-notification { display: none; }
+.yg-navbar .mobile-notification { display: none; }
 
 .notification-toggle {
     position: relative;
@@ -225,7 +225,7 @@ main .accordion-item + .accordion-item {
 .notification-badge {
     position: absolute;
     top: .15rem;
-    right: -.2rem;
+    right: 0;
     min-width: 1.05rem;
     padding: .1rem .25rem;
     color: #fff;
@@ -359,24 +359,17 @@ main .accordion-item + .accordion-item {
 @media (max-width: 991.98px) {
     .yg-navbar { position: relative; z-index: 1060; }
     .navbar-actions { gap: .15rem !important; }
-<<<<<<< HEAD
-=======
-    .mobile-notification,
->>>>>>> 2d54b220b34371601a390f83b53622152f970ec4
+    .yg-navbar .mobile-notification,
     .yg-navbar .navbar-toggler {
         width: 2.5rem;
         height: 2.5rem;
+        flex: 0 0 2.5rem;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         padding: 0;
-<<<<<<< HEAD
-    }
-    .mobile-notification { display: block; }
-=======
         margin: 0;
     }
->>>>>>> 2d54b220b34371601a390f83b53622152f970ec4
     .desktop-notification { display: none; }
     .yg-navbar .notification-menu {
         position: fixed !important;

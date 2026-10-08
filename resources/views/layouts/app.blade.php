@@ -23,10 +23,6 @@
         <div class="navbar-actions d-flex align-items-center gap-2">
             @auth
                 @php
-                    $headerNotifications = auth()->user()->appNotifications()
-                        ->with(['announcement', 'survey'])
-                        ->limit(6)
-                        ->get();
                     $unreadNotifications = auth()->user()->unreadAppNotifications()->count();
                 @endphp
             @endauth
@@ -35,7 +31,7 @@
                    aria-label="Notifications">
                     <i class="bi bi-bell"></i>
                     @if ($unreadNotifications)
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        <span class="notification-badge">
                             {{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}
                         </span>
                     @endif

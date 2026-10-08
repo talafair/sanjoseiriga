@@ -38,7 +38,6 @@
                                     {{ $player->name }}
                                     @if ($player->id === auth()->id())<span class="badge badge-yg rounded-pill ms-1">You</span>@endif
                                 </div>
-                                <div class="text-secondary" style="font-size: .75rem;">Level {{ $player->level }}</div>
                             </div>
                             <span class="badge badge-soft rounded-pill">{{ number_format($player->points) }} pts</span>
                         </div>

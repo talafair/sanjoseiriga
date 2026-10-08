@@ -44,12 +44,7 @@ class AttendanceController extends Controller
             'announcement'   => $announcement,
             'officialMode'   => $viewer->isOfficial(),
             'activityMode'   => $announcement?->isParticipationActivity() ?? false,
-            'openEvents'     => Announcement::events()
-                ->whereNotNull('event_start_at')
-                ->where('event_start_at', '<=', now()->addHours(Announcement::SCAN_WINDOW_HOURS))
-                ->where(function ($q) {
-                    $q->where('event_end_at', '>=', now())->orWhereNull('event_end_at');
-                })
+            'openEvents'     => Announcement::scanningOpen()
                 ->orderBy('event_start_at')
                 ->get(),
         ]);

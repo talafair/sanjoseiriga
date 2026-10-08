@@ -1,22 +1,3 @@
-@php
-    $background = \App\Models\Setting::url('home_background');
-
-    $featured = \App\Models\Announcement::where('is_featured', true)->latest('created_at')->first();
-    $banners = \App\Models\Announcement::query()
-      ->when($featured, fn ($query) => $query->where('id', '!=', $featured->id))
-      ->where(fn ($query) => $query->whereNull('event_end_at')->orWhere('event_end_at', '>=', now()))
-      ->orderByDesc('is_event')
-      ->latest('created_at')
-      ->get();
-    $displayBanners = $featured ? collect([$featured])->concat($banners) : $banners;
-
-    $scanNow = \App\Models\Announcement::events()
-        ->whereNotNull('event_start_at')
-        ->where('event_start_at', '<=', now()->addHours(\App\Models\Announcement::SCAN_WINDOW_HOURS))
-        ->where(fn ($q) => $q->where('event_end_at', '>=', now())->orWhereNull('event_end_at'))
-        ->count();
-@endphp
-
 <section class="page-header p-4 p-lg-5 mb-4 position-relative overflow-hidden rounded-3"
          @if ($background) style="background-image:url('{{ $background }}');background-size:cover;background-position:center;" @endif>
 
@@ -35,10 +16,10 @@
 
     <div class="position-absolute top-0 end-0 d-none d-sm-flex gap-2">
       <span class="badge bg-white text-yg rounded-pill px-3 py-2 fs-6">
-        <i class="bi {{ auth()->user()->isOfficial() ? 'bi-person-badge' : 'bi-house-heart' }} me-1"></i>{{ ucfirst(auth()->user()->role) }}
+        <i class="bi {{ in_array(auth()->user()->role, ['official', 'superadmin'], true) ? 'bi-person-badge' : 'bi-house-heart' }} me-1"></i>{{ ucfirst(auth()->user()->role) }}
       </span>
       <span class="badge {{ auth()->user()->is_verified ? 'text-bg-success' : 'text-bg-danger' }} rounded-pill px-3 py-2 fs-6">
-        <i class="bi {{ auth()->user()->is_verified ? 'bi-shield-check' : 'bi-shield-x' }} me-1"></i>{{ auth()->user()->is_verified ? 'Verified resident' : 'Unverified resident' }}
+        <i class="bi {{ auth()->user()->is_verified ? 'bi-shield-check' : 'bi-shield-x' }} me-1"></i>{{ auth()->user()->is_verified ? 'Verified account' : 'Unverified account' }}
       </span>
     </div>
 
@@ -159,4 +140,3 @@
   }
 </style>
 @endpush
-

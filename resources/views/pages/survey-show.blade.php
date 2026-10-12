@@ -20,7 +20,11 @@
 					<form method="POST" action="{{ route('surveys.respond', $survey) }}">
 						@csrf
 						<div class="alert alert-light border small"><strong>Choose one answer for each question:</strong> Strongly Disagree, Disagree, Neutral, Agree, or Strongly Agree.</div>
+						@php($sectionHeadings = collect($survey->sections ?? [])->keyBy('start'))
 						@foreach ($survey->questions as $index => $question)
+							@if (filled($sectionHeadings->get($index)['heading'] ?? null))
+								<h5 class="fw-bold mt-4 mb-3">{{ $sectionHeadings->get($index)['heading'] }}</h5>
+							@endif
 							<fieldset class="mb-4">
 								<legend class="h6 fw-semibold">{{ $index + 1 }}. {{ $question }}</legend>
 								<div class="d-flex flex-wrap gap-3">

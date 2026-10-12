@@ -10,6 +10,7 @@ use App\Models\UserNotification;
 use App\Services\SuperadminNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class SurveyController extends Controller
@@ -39,12 +40,21 @@ class SurveyController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'due_at' => ['required', 'date', 'after:now'],
             'points' => ['required', 'integer', 'min:0', 'max:100000'],
-            'questions' => ['required', 'array', 'min:1', 'max:20'],
-            'questions.*' => ['required', 'string', 'max:500'],
+            'sections' => ['required', 'array', 'min:1', 'max:20'],
+            'sections.*.heading' => ['nullable', 'string', 'max:255'],
+            'sections.*.questions' => ['required', 'array', 'min:1'],
+            'sections.*.questions.*' => ['required', 'string', 'max:500'],
             'audience' => ['required', 'in:public,youth,senior,family_heads,officials,event_attendees'],
             'event_id' => ['nullable', 'exists:announcements,id'],
             'suggestion_enabled' => ['nullable', 'boolean'],
         ]);
+
+        $questionData = $this->flattenQuestionSections($data['sections']);
+        if (count($questionData['questions']) > 20) {
+            throw ValidationException::withMessages([
+                'sections' => 'A survey may contain no more than 20 questions.',
+            ]);
+        }
 
         if ($data['audience'] === 'event_attendees') {
             $request->validate(['event_id' => ['required', 'exists:announcements,id']]);
@@ -57,7 +67,8 @@ class SurveyController extends Controller
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'due_at' => $data['due_at'],
-            'questions' => array_values($data['questions']),
+            'questions' => $questionData['questions'],
+            'sections' => $questionData['sections'],
             'suggestion_enabled' => $request->boolean('suggestion_enabled'),
             'points' => $data['points'],
             'audience' => $data['audience'],
@@ -74,6 +85,7 @@ class SurveyController extends Controller
     {
         return view('pages.survey-edit', [
             'survey' => $survey,
+            'questionSections' => $this->questionSectionsForEditing($survey),
             'events' => Announcement::where('is_event', true)->latest('event_start_at')->get(),
         ]);
     }
@@ -85,12 +97,21 @@ class SurveyController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'due_at' => ['required', 'date', 'after:now'],
             'points' => ['required', 'integer', 'min:0', 'max:100000'],
-            'questions' => ['required', 'array', 'min:1', 'max:20'],
-            'questions.*' => ['required', 'string', 'max:500'],
+            'sections' => ['required', 'array', 'min:1', 'max:20'],
+            'sections.*.heading' => ['nullable', 'string', 'max:255'],
+            'sections.*.questions' => ['required', 'array', 'min:1'],
+            'sections.*.questions.*' => ['required', 'string', 'max:500'],
             'audience' => ['required', 'in:public,youth,senior,family_heads,officials,event_attendees'],
             'event_id' => ['nullable', 'exists:announcements,id'],
             'suggestion_enabled' => ['nullable', 'boolean'],
         ]);
+
+        $questionData = $this->flattenQuestionSections($data['sections']);
+        if (count($questionData['questions']) > 20) {
+            throw ValidationException::withMessages([
+                'sections' => 'A survey may contain no more than 20 questions.',
+            ]);
+        }
 
         if ($data['audience'] === 'event_attendees') {
             abort_unless(Announcement::whereKey($data['event_id'] ?? null)->where('is_event', true)->exists(), 422, 'Select an event.');
@@ -103,7 +124,8 @@ class SurveyController extends Controller
             'description' => $data['description'] ?? null,
             'due_at' => $data['due_at'],
             'points' => $data['points'],
-            'questions' => array_values($data['questions']),
+            'questions' => $questionData['questions'],
+            'sections' => $questionData['sections'],
             'suggestion_enabled' => $request->boolean('suggestion_enabled'),
             'audience' => $data['audience'],
             'event_id' => $data['event_id'],
@@ -164,6 +186,40 @@ class SurveyController extends Controller
         }
 
         return (new User)->audienceQueryFor([$survey->audience]);
+    }
+
+    private function flattenQuestionSections(array $sections): array
+    {
+        $questions = [];
+        $sectionHeadings = [];
+
+        foreach ($sections as $section) {
+            $sectionHeadings[] = [
+                'heading' => trim($section['heading'] ?? ''),
+                'start' => count($questions),
+            ];
+            foreach ($section['questions'] as $question) {
+                $questions[] = $question;
+            }
+        }
+
+        return ['questions' => $questions, 'sections' => $sectionHeadings];
+    }
+
+    private function questionSectionsForEditing(Survey $survey): array
+    {
+        $questions = $survey->questions ?? [];
+        $sectionMarkers = array_values($survey->sections ?: [['heading' => '', 'start' => 0]]);
+
+        return collect($sectionMarkers)->map(function (array $section, int $index) use ($sectionMarkers, $questions) {
+            $start = (int) $section['start'];
+            $nextStart = isset($sectionMarkers[$index + 1]) ? (int) $sectionMarkers[$index + 1]['start'] : count($questions);
+
+            return [
+                'heading' => $section['heading'] ?? '',
+                'questions' => array_slice($questions, $start, $nextStart - $start),
+            ];
+        })->all();
     }
 
     private function notifyAudience(Survey $survey): void

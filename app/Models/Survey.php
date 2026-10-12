@@ -9,11 +9,11 @@ class Survey extends Model
 {
     use Auditable;
 
-    protected $fillable = ['title', 'description', 'due_at', 'questions', 'suggestion_enabled', 'points', 'audience', 'event_id', 'created_by'];
+    protected $fillable = ['title', 'description', 'due_at', 'questions', 'sections', 'suggestion_enabled', 'points', 'audience', 'event_id', 'created_by'];
 
     protected function casts(): array
     {
-        return ['questions' => 'array', 'suggestion_enabled' => 'boolean', 'due_at' => 'datetime', 'points' => 'integer'];
+        return ['questions' => 'array', 'sections' => 'array', 'suggestion_enabled' => 'boolean', 'due_at' => 'datetime', 'points' => 'integer'];
     }
 
     public function event()

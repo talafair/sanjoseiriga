@@ -52,10 +52,10 @@
                 $formSections = old('sections', $questionSections);
               @endphp
               <div id="surveySections">
-                @php
-                  $questionNumber = 1;
-                @endphp
                 @foreach ($formSections as $sectionIndex => $section)
+                  @php
+                    $questionNumber = 1;
+                  @endphp
                   <section class="survey-question-section border rounded-3 p-3 mb-3" data-section>
                     <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
                       <label class="form-label fw-semibold mb-0">Section header</label>
@@ -110,9 +110,9 @@
   syncAudience();
 
   const renumber = () => {
-    let questionNumber = 1;
     const sectionItems = sections.querySelectorAll('[data-section]');
     sectionItems.forEach((section, sectionIndex) => {
+      let questionNumber = 1;
       section.querySelector('input[name$="[heading]"]').name = `sections[${sectionIndex}][heading]`;
       section.querySelectorAll('[data-question]').forEach((question) => {
         question.querySelector('[data-question-number]').textContent = questionNumber++;

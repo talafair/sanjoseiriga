@@ -10,7 +10,6 @@ use App\Models\UserNotification;
 use App\Services\SuperadminNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class SurveyController extends Controller
@@ -40,7 +39,7 @@ class SurveyController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'due_at' => ['required', 'date', 'after:now'],
             'points' => ['required', 'integer', 'min:0', 'max:100000'],
-            'sections' => ['required', 'array', 'min:1', 'max:20'],
+            'sections' => ['required', 'array', 'min:1'],
             'sections.*.heading' => ['nullable', 'string', 'max:255'],
             'sections.*.questions' => ['required', 'array', 'min:1'],
             'sections.*.questions.*' => ['required', 'string', 'max:500'],
@@ -50,12 +49,6 @@ class SurveyController extends Controller
         ]);
 
         $questionData = $this->flattenQuestionSections($data['sections']);
-        if (count($questionData['questions']) > 20) {
-            throw ValidationException::withMessages([
-                'sections' => 'A survey may contain no more than 20 questions.',
-            ]);
-        }
-
         if ($data['audience'] === 'event_attendees') {
             $request->validate(['event_id' => ['required', 'exists:announcements,id']]);
             abort_unless(Announcement::whereKey($data['event_id'])->where('is_event', true)->exists(), 422, 'Select an event.');
@@ -97,7 +90,7 @@ class SurveyController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'due_at' => ['required', 'date', 'after:now'],
             'points' => ['required', 'integer', 'min:0', 'max:100000'],
-            'sections' => ['required', 'array', 'min:1', 'max:20'],
+            'sections' => ['required', 'array', 'min:1'],
             'sections.*.heading' => ['nullable', 'string', 'max:255'],
             'sections.*.questions' => ['required', 'array', 'min:1'],
             'sections.*.questions.*' => ['required', 'string', 'max:500'],
@@ -107,12 +100,6 @@ class SurveyController extends Controller
         ]);
 
         $questionData = $this->flattenQuestionSections($data['sections']);
-        if (count($questionData['questions']) > 20) {
-            throw ValidationException::withMessages([
-                'sections' => 'A survey may contain no more than 20 questions.',
-            ]);
-        }
-
         if ($data['audience'] === 'event_attendees') {
             abort_unless(Announcement::whereKey($data['event_id'] ?? null)->where('is_event', true)->exists(), 422, 'Select an event.');
         } else {

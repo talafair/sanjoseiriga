@@ -19,16 +19,28 @@
 				@else
 					<form method="POST" action="{{ route('surveys.respond', $survey) }}">
 						@csrf
-						<div class="alert alert-light border small"><strong>Choose one answer for each question:</strong> Strongly Disagree, Disagree, Neutral, Agree, or Strongly Agree.</div>
-						@php($sectionHeadings = collect($survey->sections ?? [])->keyBy('start'))
+						<div class="alert alert-light border small"><strong>Choose one answer for each question:</strong> Strongly Agree, Agree, Neutral, Disagree, or Strongly Disagree.</div>
+						@php
+							$sectionMarkers = array_values($survey->sections ?: [['heading' => 'Questions', 'start' => 0]]);
+							$sectionHeadings = collect($sectionMarkers)->mapWithKeys(fn ($section, $sectionIndex) => [
+								(int) $section['start'] => filled($section['heading'] ?? null) ? $section['heading'] : 'Section ' . ($sectionIndex + 1),
+							]);
+							$questionNumber = 0;
+						@endphp
 						@foreach ($survey->questions as $index => $question)
-							@if (filled($sectionHeadings->get($index)['heading'] ?? null))
-								<h5 class="fw-bold mt-4 mb-3">{{ $sectionHeadings->get($index)['heading'] }}</h5>
+							@if ($sectionHeadings->has($index))
+								@php
+									$questionNumber = 0;
+								@endphp
+								<h5 class="fw-bold mt-4 mb-3">{{ $sectionHeadings->get($index) }}</h5>
 							@endif
+							@php
+								$questionNumber++;
+							@endphp
 							<fieldset class="mb-4">
-								<legend class="h6 fw-semibold">{{ $index + 1 }}. {{ $question }}</legend>
+								<legend class="h6 fw-semibold">{{ $questionNumber }}. {{ $question }}</legend>
 								<div class="d-flex flex-wrap gap-3">
-									@foreach ([1 => 'Strongly Disagree', 2 => 'Disagree', 3 => 'Neutral', 4 => 'Agree', 5 => 'Strongly Agree'] as $value => $label)
+									@foreach ([5 => 'Strongly Agree', 4 => 'Agree', 3 => 'Neutral', 2 => 'Disagree', 1 => 'Strongly Disagree'] as $value => $label)
 										<div class="form-check">
 											<input class="form-check-input" type="radio" name="answers[{{ $index }}]" id="answer{{ $index }}{{ $value }}" value="{{ $value }}" required>
 											<label class="form-check-label" for="answer{{ $index }}{{ $value }}">{{ $label }}</label>

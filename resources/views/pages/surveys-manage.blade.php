@@ -21,10 +21,10 @@
           $formSections = old('sections', [['heading' => '', 'questions' => ['']]]);
         @endphp
         <div id="surveySections">
-          @php
-            $questionNumber = 1;
-          @endphp
           @foreach ($formSections as $sectionIndex => $section)
+            @php
+              $questionNumber = 1;
+            @endphp
             <section class="survey-question-section border rounded-3 p-3 mb-3" data-section>
               <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
                 <label class="form-label fw-semibold mb-0">Section header</label>
@@ -58,9 +58,28 @@
 @foreach ($surveys as $survey)
   @php
     $responses = $survey->responses;
-    $allRatings = $responses->flatMap(fn ($response) => $response->answers ?? []);
     $suggestions = $responses->filter(fn ($response) => filled($response->suggestion));
-    $sectionHeadings = collect($survey->sections ?? [])->keyBy('start');
+    $sectionMarkers = array_values($survey->sections ?: [['heading' => 'Questions', 'start' => 0]]);
+    $sectionHeadings = collect($sectionMarkers)->mapWithKeys(fn ($section, $sectionIndex) => [
+        (int) $section['start'] => filled($section['heading'] ?? null) ? $section['heading'] : 'Section ' . ($sectionIndex + 1),
+    ]);
+    $sectionSummaries = collect($sectionMarkers)->map(function ($section, $sectionIndex) use ($sectionMarkers, $survey, $responses) {
+        $start = (int) $section['start'];
+        $end = isset($sectionMarkers[$sectionIndex + 1]) ? (int) $sectionMarkers[$sectionIndex + 1]['start'] : count($survey->questions);
+        $ratings = $responses->flatMap(fn ($response) => array_slice($response->answers ?? [], $start, $end - $start))
+            ->filter(fn ($rating) => $rating !== null);
+
+        return [
+            'heading' => filled($section['heading'] ?? null) ? $section['heading'] : 'Section ' . ($sectionIndex + 1),
+            'questions' => $end - $start,
+            'ratings' => $ratings->count(),
+            'mean' => $ratings->count() ? $ratings->avg() : null,
+        ];
+    });
+    $weightedRatingCount = $sectionSummaries->sum('ratings');
+    $overallWeightedMean = $weightedRatingCount
+        ? $sectionSummaries->sum(fn ($section) => ($section['mean'] ?? 0) * $section['ratings']) / $weightedRatingCount
+        : null;
     $respondentDetails = $responses->sortBy('submitted_at')->map(function ($response) use ($survey) {
         return [
             'user' => $response->user?->full_name ?? 'Unknown resident',
@@ -79,7 +98,29 @@
       </div>
     </div>
     <div class="card-body p-4">
-      <div class="row g-3 mb-4"><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ number_format($survey->notified_count) }}</div><div class="small text-secondary">Notified</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ $responses->count() }}</div><div class="small text-secondary">Answered</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ max(0, $survey->notified_count - $responses->count()) }}</div><div class="small text-secondary">Not answered</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ $allRatings->count() ? number_format($allRatings->avg(), 2) : '—' }}</div><div class="small text-secondary">Overall average / 5</div></div></div></div>
+      <div class="row g-3 mb-4"><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ number_format($survey->notified_count) }}</div><div class="small text-secondary">Notified</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ $responses->count() }}</div><div class="small text-secondary">Answered</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ max(0, $survey->notified_count - $responses->count()) }}</div><div class="small text-secondary">Not answered</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ $overallWeightedMean !== null ? number_format($overallWeightedMean, 2) : '—' }}</div><div class="small text-secondary">Overall weighted mean / 5</div></div></div></div>
+      <h6 class="fw-bold">Section means</h6>
+      <div class="table-responsive mb-4">
+        <table class="table table-sm align-middle border rounded overflow-hidden">
+          <thead class="table-light">
+            <tr><th>Section</th><th>Questions</th><th>Ratings</th><th>Mean / 5</th></tr>
+          </thead>
+          <tbody>
+            @foreach ($sectionSummaries as $section)
+              <tr>
+                <td>{{ $section['heading'] }}</td>
+                <td>{{ $section['questions'] }}</td>
+                <td>{{ $section['ratings'] }}</td>
+                <td>{{ $section['mean'] !== null ? number_format($section['mean'], 2) : '—' }}</td>
+              </tr>
+            @endforeach
+            <tr class="table-light fw-bold">
+              <td colspan="3">Overall weighted mean</td>
+              <td>{{ $overallWeightedMean !== null ? number_format($overallWeightedMean, 2) : '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <div class="table-responsive mb-4">
         <table class="table table-sm align-middle border rounded overflow-hidden">
           <thead class="table-light">
@@ -96,16 +137,23 @@
             </tr>
           </thead>
           <tbody>
+            @php
+              $questionNumber = 0;
+            @endphp
             @foreach ($survey->questions as $index => $question)
-              @if (filled($sectionHeadings->get($index)['heading'] ?? null))
-                <tr class="table-light"><th colspan="9">{{ $sectionHeadings->get($index)['heading'] }}</th></tr>
+              @if ($sectionHeadings->has($index))
+                @php
+                  $questionNumber = 0;
+                @endphp
+                <tr class="table-light"><th colspan="9">{{ $sectionHeadings->get($index) }}</th></tr>
               @endif
               @php
+                $questionNumber++;
                 $ratings = $responses->map(fn ($response) => $response->answers[$index] ?? null)->filter(fn ($rating) => $rating !== null);
                 $distribution = [1 => $ratings->filter(fn ($rating) => (int) $rating === 1)->count(), 2 => $ratings->filter(fn ($rating) => (int) $rating === 2)->count(), 3 => $ratings->filter(fn ($rating) => (int) $rating === 3)->count(), 4 => $ratings->filter(fn ($rating) => (int) $rating === 4)->count(), 5 => $ratings->filter(fn ($rating) => (int) $rating === 5)->count()];
               @endphp
               <tr>
-                <td>{{ $index + 1 }}</td>
+                <td>{{ $questionNumber }}</td>
                 <td>{{ $question }}</td>
                 <td>{{ $ratings->count() ? number_format($ratings->avg(), 2) : '—' }} / 5</td>
                 <td>{{ $ratings->count() }}</td>
@@ -132,11 +180,20 @@
             <div class="fw-semibold">{{ $respondent['user'] }}</div>
             <div class="small text-secondary">Unique ID: {{ $respondent['unique_id'] }} · Submitted: {{ $respondent['submitted_at'] }}</div>
             <ul class="mb-0 mt-2 small ps-3">
+              @php
+                $questionNumber = 0;
+              @endphp
               @foreach ($survey->questions as $index => $question)
-                @if (filled($sectionHeadings->get($index)['heading'] ?? null))
-                  <li class="list-unstyled fw-bold mt-2">{{ $sectionHeadings->get($index)['heading'] }}</li>
+                @if ($sectionHeadings->has($index))
+                  @php
+                    $questionNumber = 0;
+                  @endphp
+                  <li class="list-unstyled fw-bold mt-2">{{ $sectionHeadings->get($index) }}</li>
                 @endif
-                <li><span class="fw-semibold">{{ $index + 1 }}. {{ $question }}</span> — {{ $respondent['answers'][$index] ?? 'No answer' }} / 5</li>
+                @php
+                  $questionNumber++;
+                @endphp
+                <li><span class="fw-semibold">{{ $questionNumber }}. {{ $question }}</span> — {{ $respondent['answers'][$index] ?? 'No answer' }} / 5</li>
               @endforeach
             </ul>
           </div>

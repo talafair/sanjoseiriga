@@ -26,10 +26,10 @@ class SurveySummaryExportTest extends TestCase
             'description' => 'Tell us how the event went.',
             'due_at' => now()->addDays(7),
             'points' => 10,
-            'questions' => ['Question one', 'Question two'],
+            'questions' => ['Question one', 'Question two', 'Question three'],
             'sections' => [
                 ['heading' => 'Experience', 'start' => 0],
-                ['heading' => 'Suggestions', 'start' => 1],
+                ['heading' => 'Suggestions', 'start' => 2],
             ],
             'suggestion_enabled' => true,
             'audience' => 'public',
@@ -39,7 +39,7 @@ class SurveySummaryExportTest extends TestCase
         SurveyResponse::create([
             'survey_id' => $survey->id,
             'user_id' => $official->id,
-            'answers' => [5, 3],
+            'answers' => [5, 5, 1],
             'suggestion' => 'Great event',
             'submitted_at' => now(),
         ]);
@@ -47,11 +47,13 @@ class SurveySummaryExportTest extends TestCase
         $response = $this->actingAs($official)->get(route('surveys.manage'));
 
         $response->assertOk();
-        $response->assertSeeText('Overall average / 5');
+        $response->assertSeeText('Overall weighted mean / 5');
         $response->assertSeeText('Question one');
         $response->assertSeeText('Experience');
         $response->assertSeeText('Suggestions');
-        $response->assertSeeText('4.00');
+        $response->assertSeeText('5.00');
+        $response->assertSeeText('1.00');
+        $response->assertSeeText('3.67');
         $response->assertSeeText('Survey responses');
         $response->assertDontSee('Download DOC');
     }
@@ -88,7 +90,15 @@ class SurveySummaryExportTest extends TestCase
         $this->get(route('surveys.show', $survey))
             ->assertOk()
             ->assertSeeText('Event planning')
-            ->assertSeeText('Venue');
+            ->assertSeeText('Venue')
+            ->assertSeeText('Strongly Agree, Agree, Neutral, Disagree, or Strongly Disagree')
+            ->assertSee('<legend class="h6 fw-semibold">1. Question one</legend>', false)
+            ->assertSee('<legend class="h6 fw-semibold">2. Question two</legend>', false)
+            ->assertSee('<legend class="h6 fw-semibold">1. Question three</legend>', false)
+            ->assertSee('value="5"', false)
+            ->assertSee('>Strongly Agree</label>', false)
+            ->assertSee('value="1"', false)
+            ->assertSee('>Strongly Disagree</label>', false);
 
         $this->get(route('surveys.edit', $survey))
             ->assertOk()
@@ -110,5 +120,28 @@ class SurveySummaryExportTest extends TestCase
         $survey->refresh();
         $this->assertSame(['Updated question'], $survey->questions);
         $this->assertSame([['heading' => 'Planning', 'start' => 0]], $survey->sections);
+    }
+
+    public function test_official_can_publish_a_survey_with_more_than_twenty_questions(): void
+    {
+        /** @var User $official */
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay',
+            'official_position' => 'captain',
+        ]);
+        $questions = array_map(fn ($number) => 'Question '.$number, range(1, 21));
+
+        $this->actingAs($official)->post(route('surveys.store'), [
+            'title' => 'Long survey',
+            'due_at' => now()->addDays(7)->format('Y-m-d H:i:s'),
+            'points' => 0,
+            'audience' => 'public',
+            'sections' => [
+                ['heading' => 'All questions', 'questions' => $questions],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertCount(21, Survey::where('title', 'Long survey')->firstOrFail()->questions);
     }
 }

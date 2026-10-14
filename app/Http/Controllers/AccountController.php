@@ -63,7 +63,6 @@ class AccountController extends Controller
             'recentPointTransactions' => $user->pointTransactions()->with('announcement')->latest()->take(10)->get(),
             'householdMembers' => $householdMembers,
             'householdHead' => $householdHead,
-            'pushPublicKey' => config('webpush.vapid.public_key'),
         ]);
     }
 

@@ -36,6 +36,20 @@
         ])->values();
     @endphp
 
+    <div class="page-header p-3 p-lg-4 mb-3">
+        <div class="row align-items-center position-relative" style="z-index: 1;">
+            <div class="col">
+                <h2 class="h4 fw-bold mb-1"><i class="bi bi-megaphone-fill me-2"></i>Announcements</h2>
+                <p class="small mb-0 opacity-75">Stay up to date with community news, events, and important notices.</p>
+            </div>
+            <div class="col-auto">
+                <span class="badge bg-dark rounded-pill px-2 py-1">
+                    {{ $calendarAnnouncements->count() }} {{ Str::plural('announcement', $calendarAnnouncements->count()) }}
+                </span>
+            </div>
+        </div>
+    </div>
+
     @if ($isOfficial)
         <div class="d-flex justify-content-end mb-4">
             <button class="btn btn-gold" data-bs-toggle="modal" data-bs-target="#addAnnouncementModal">
@@ -93,7 +107,7 @@
 
     
     {{-- Search + filters --}}
-    <div class="card yg-card p-3 mb-4">
+    <div class="card yg-card p-3 mb-2 announcement-controls">
         <div class="row g-3 align-items-center">
             <div class="col-lg-5">
                 <div class="input-group">
@@ -103,14 +117,6 @@
                 </div>
             </div>
             <div class="col-lg-7 d-flex justify-content-lg-end gap-2 flex-wrap">
-                <div class="btn-group announcement-view-switch" role="group" aria-label="Announcement view">
-                    <button type="button" class="btn btn-outline-secondary active" id="cardsViewButton">
-                        <i class="bi bi-grid-3x3-gap me-1"></i>Cards
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" id="calendarViewButton">
-                        <i class="bi bi-calendar3 me-1"></i>Calendar
-                    </button>
-                </div>
                 <div class="dropdown">
                     <button class="btn filter-dropdown-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown"
                             data-bs-auto-close="outside" aria-expanded="false" aria-label="Filter announcements">
@@ -139,6 +145,16 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+    <div class="d-flex justify-content-center mb-4">
+        <div class="btn-group announcement-view-switch" role="group" aria-label="Announcement view">
+            <button type="button" class="btn btn-outline-secondary active" id="cardsViewButton">
+                <i class="bi bi-grid-3x3-gap me-1"></i>Cards
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="calendarViewButton">
+                <i class="bi bi-calendar3 me-1"></i>Calendar
+            </button>
         </div>
     </div>
 
@@ -391,6 +407,18 @@
     .filter-dropdown-toggle:hover, .filter-dropdown-toggle:focus { background: var(--yg-primary); color: var(--yg-ink); }
     .announcement-filter-menu { min-width: 15rem; border: 0; border-radius: 1rem; box-shadow: 0 10px 30px rgba(52, 58, 64, .14); }
     .announcement-view-switch .btn.active { background: var(--yg-primary); border-color: var(--yg-primary); color: var(--yg-ink); }
+    @media (max-width: 767.98px) {
+        .announcement-controls .row { --bs-gutter-x: .5rem; flex-wrap: nowrap; gap: .5rem !important; }
+        .announcement-controls .row > .col-lg-5 { flex: 1 1 auto; width: auto; min-width: 0; }
+        .announcement-controls .row > .col-lg-7 { flex: 0 0 auto; width: auto; padding: 0; }
+        .announcement-controls .announcement-filter-menu { right: 0; left: auto; }
+        .announcement-controls .filter-dropdown-toggle { width: 2.75rem; height: 2.75rem; padding: 0; }
+        .announcement-controls .filter-dropdown-toggle .bi-funnel { margin: 0 !important; }
+        .announcement-controls .filter-dropdown-toggle #announcementFilterLabel,
+        .announcement-controls .filter-dropdown-toggle::after { display: none; }
+        .announcement-controls .filter-dropdown-toggle { font-size: 0; }
+        .announcement-controls .filter-dropdown-toggle .bi-funnel { font-size: 1rem; }
+    }
     #announcementCalendar { min-width: 0; overflow: hidden; }
     .calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .45rem; min-width: 0; }
     .calendar-weekdays { margin-bottom: .45rem; }

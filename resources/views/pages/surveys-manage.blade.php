@@ -3,7 +3,7 @@
 @section('title', 'Manage Surveys')
 
 @section('content')
-<div class="page-header p-4 p-lg-5 mb-4"><h2 class="fw-bold mb-1"><i class="bi bi-bar-chart-line me-2"></i>Community surveys</h2><p class="mb-0 opacity-75">Publish questions for residents to answer using a Likert scale.</p></div>
+<div class="page-header p-3 p-lg-4 mb-3"><h2 class="h4 fw-bold mb-1"><i class="bi bi-bar-chart-line me-2"></i>Community surveys</h2><p class="small mb-0 opacity-75">Publish questions for residents to answer using a Likert scale.</p></div>
 
 <div class="card yg-card mb-4"><div class="card-body p-4">
   <h5 class="fw-bold mb-3">Publish a survey</h5>

@@ -5,10 +5,10 @@
 @section('content')
 
     {{-- Header --}}
-    <div class="page-header p-4 p-lg-5 mb-5">
+    <div class="page-header p-3 p-lg-4 mb-3">
         <div class="position-relative" style="z-index: 1;">
-            <h2 class="fw-bold mb-1"><i class="bi bi-trophy-fill me-2"></i>Leaderboard</h2>
-            <p class="mb-0 opacity-75">Rankings are based on total points earned</p>
+            <h2 class="h4 fw-bold mb-1"><i class="bi bi-trophy-fill me-2"></i>Leaderboard</h2>
+            <p class="small mb-0 opacity-75">Rankings are based on total points earned</p>
         </div>
     </div>
 

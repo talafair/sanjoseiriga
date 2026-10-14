@@ -4,17 +4,17 @@
 
 @section('content')
   <div class="notifications-page">
-    <div class="page-header p-4 p-lg-5 mb-4">
+    <div class="page-header p-3 p-lg-4 mb-3">
       <div class="row align-items-center position-relative" style="z-index: 1;">
         <div class="col">
-          <h2 class="fw-bold mb-1"><i class="bi bi-bell-fill me-2"></i>Notifications</h2>
-          <p class="mb-0 opacity-75">Updates concerning your account and community activities.</p>
+          <h2 class="h4 fw-bold mb-1"><i class="bi bi-bell-fill me-2"></i>Notifications</h2>
+          <p class="small mb-0 opacity-75">Updates concerning your account and community activities.</p>
         </div>
-        <div class="col-auto mt-3 mt-md-0">
+        <div class="col-auto">
           @if ($unreadCount)
             <form method="POST" action="{{ route('notifications.read-all') }}">
               @csrf
-              <button class="btn btn-light fw-semibold"><i class="bi bi-check2-all me-1"></i>Mark all as read</button>
+              <button class="btn btn-light btn-sm fw-semibold"><i class="bi bi-check2-all me-1"></i>Mark all as read</button>
             </form>
           @endif
         </div>

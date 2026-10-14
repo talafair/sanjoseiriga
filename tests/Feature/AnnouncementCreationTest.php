@@ -16,6 +16,7 @@ class AnnouncementCreationTest extends TestCase
     public function test_regular_announcement_does_not_require_or_store_event_data(): void
     {
         $official = $this->official();
+        $resident = User::factory()->create();
 
         $this->actingAs($official)
             ->post(route('announcements.store'), [
@@ -33,6 +34,11 @@ class AnnouncementCreationTest extends TestCase
         $this->assertSame(0, $announcement->participation_points);
         $this->assertNull($announcement->qr_token);
         $this->assertNull($announcement->event_start_at);
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $resident->id,
+            'announcement_id' => $announcement->id,
+            'title' => 'New announcement: Barangay update',
+        ]);
     }
 
     public function test_event_creation_stores_confirmation_points_and_generates_qr_token(): void
@@ -92,7 +98,9 @@ class AnnouncementCreationTest extends TestCase
             ->get(route('announcements.index'))
             ->assertOk()
             ->assertSee('SJTODA')
-            ->assertSee('BPC');
+            ->assertSee('BPC')
+            ->assertSee('data-audience-all="add"', false)
+            ->assertSee('data-audience-group="add"', false);
         $this->assertTrue($sjtoda->fresh()->belongsToAudience($event->audiences));
         $this->assertTrue($bpc->fresh()->belongsToAudience($event->audiences));
         $this->assertFalse($other->fresh()->belongsToAudience($event->audiences));
@@ -103,10 +111,12 @@ class AnnouncementCreationTest extends TestCase
         $this->assertDatabaseHas('user_notifications', [
             'user_id' => $sjtoda->id,
             'announcement_id' => $event->id,
+            'title' => 'New event: Community meeting',
         ]);
         $this->assertDatabaseHas('user_notifications', [
             'user_id' => $bpc->id,
             'announcement_id' => $event->id,
+            'title' => 'New event: Community meeting',
         ]);
         $this->assertDatabaseMissing('user_notifications', [
             'user_id' => $other->id,
@@ -119,6 +129,83 @@ class AnnouncementCreationTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(['sjtoda', 'bpc'], $event->fresh()->audiences);
+    }
+
+    public function test_event_updates_notify_the_current_audience_and_no_op_edits_do_not_duplicate_notifications(): void
+    {
+        $official = $this->official();
+        $sjtoda = User::factory()->create(['is_sjtoda' => true]);
+        $bpc = User::factory()->create(['is_bpc' => true]);
+        $other = User::factory()->create();
+
+        $this->actingAs($official)->post(route('announcements.store'), [
+            ...$this->eventPayload(),
+            'audiences' => ['sjtoda'],
+        ])->assertRedirect();
+        $event = Announcement::query()->latest('id')->firstOrFail();
+
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $sjtoda->id,
+            'announcement_id' => $event->id,
+            'title' => 'New event: Community meeting',
+        ]);
+
+        $updatedPayload = [
+            ...$this->eventPayload(),
+            'title' => 'Updated community meeting',
+            'body' => 'Updated event details.',
+            'audiences' => ['bpc'],
+        ];
+        $this->actingAs($official)
+            ->put(route('announcements.update', $event), $updatedPayload)
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $bpc->id,
+            'announcement_id' => $event->id,
+            'title' => 'Event updated: Updated community meeting',
+            'body' => 'The event details have changed. Please review the latest information.',
+        ]);
+        $this->assertDatabaseMissing('user_notifications', [
+            'user_id' => $other->id,
+            'announcement_id' => $event->id,
+            'title' => 'Event updated: Updated community meeting',
+        ]);
+
+        $this->actingAs($official)
+            ->put(route('announcements.update', $event), $updatedPayload)
+            ->assertRedirect();
+
+        $this->assertSame(1, UserNotification::where('user_id', $bpc->id)
+            ->where('announcement_id', $event->id)
+            ->where('title', 'Event updated: Updated community meeting')
+            ->count());
+    }
+
+    public function test_regular_announcement_edits_notify_users(): void
+    {
+        $official = $this->official();
+        $resident = User::factory()->create();
+
+        $this->actingAs($official)->post(route('announcements.store'), [
+            'title' => 'Service update',
+            'category' => 'updates',
+            'body' => 'Initial details.',
+        ])->assertRedirect();
+        $announcement = Announcement::query()->latest('id')->firstOrFail();
+
+        $this->actingAs($official)->put(route('announcements.update', $announcement), [
+            'title' => 'Service update',
+            'category' => 'updates',
+            'body' => 'Revised details.',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $resident->id,
+            'announcement_id' => $announcement->id,
+            'title' => 'Announcement updated: Service update',
+            'body' => 'The announcement details have changed. Please review the latest information.',
+        ]);
     }
 
     public function test_event_facilitators_can_be_added_without_duplicates(): void

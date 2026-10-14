@@ -95,6 +95,9 @@ class NotificationController extends Controller
             'You were assigned as a substitute',
         ], true)
             || str_starts_with($notification->title, 'New event:')
+            || str_starts_with($notification->title, 'Event updated:')
+            || str_starts_with($notification->title, 'New announcement:')
+            || str_starts_with($notification->title, 'Announcement updated:')
             || str_starts_with($notification->title, 'Attendance survey extended:');
     }
 

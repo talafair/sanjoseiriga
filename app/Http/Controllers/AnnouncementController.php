@@ -70,6 +70,12 @@ class AnnouncementController extends Controller
             $this->notifyAudience($announcement, 'New event: ' . $announcement->title,
                 'You are invited. Please confirm your attendance before ' .
                 $announcement->rsvp_due_at?->format('M j, Y g:i A') . '.');
+        } else {
+            $this->notifyAudience(
+                $announcement,
+                'New announcement: ' . $announcement->title,
+                'A new community announcement has been published.'
+            );
         }
 
         return redirect()->route('announcements.show', $announcement)
@@ -142,6 +148,13 @@ class AnnouncementController extends Controller
     public function update(Request $request, Announcement $announcement): RedirectResponse
     {
         $data = $this->validated($request, $announcement);
+        $notificationFields = [
+            'title', 'category', 'body', 'is_featured', 'is_event',
+            'allow_guest_scanning', 'raffle_enabled', 'event_start_at', 'event_end_at',
+            'rsvp_due_at', 'audiences', 'base_points', 'confirmation_points',
+            'weight_points', 'participation_points', 'venue_name', 'venue_lat',
+            'venue_lng', 'geofence_radius', 'banner_path',
+        ];
 
         if ($request->hasFile('banner')) {
             if ($announcement->banner_path) {
@@ -158,6 +171,16 @@ class AnnouncementController extends Controller
 
         $announcement->save();
         $this->syncFacilitators($announcement, $data['facilitator_ids'] ?? []);
+
+        if ($announcement->wasChanged($notificationFields)) {
+            $this->notifyAudience(
+                $announcement,
+                ($announcement->is_event ? 'Event updated: ' : 'Announcement updated: ') . $announcement->title,
+                $announcement->is_event
+                    ? 'The event details have changed. Please review the latest information.'
+                    : 'The announcement details have changed. Please review the latest information.'
+            );
+        }
 
         return redirect()->route('announcements.show', $announcement)
             ->with('success', 'Announcement updated. The change is logged under your ID.');

@@ -108,6 +108,7 @@
           <div class="form-check border rounded-3 px-3 py-2 ps-5">
             <input class="form-check-input" type="checkbox" name="audiences[]" value="{{ $key }}"
                    id="aud_{{ $key }}_{{ $sfx }}"
+                   @if ($key === 'public') data-audience-all="{{ $sfx }}" @else data-audience-group="{{ $sfx }}" @endif
                    @checked(in_array($key, old('audiences', $a?->audiences ?? []), true))>
             <label class="form-check-label" for="aud_{{ $key }}_{{ $sfx }}">{{ $label }}</label>
           </div>
@@ -181,7 +182,28 @@
   const activityInput = document.getElementById('participation_points{{ $sfx }}');
   const eventToggle = document.getElementById('is_event{{ $sfx }}');
   const eventFields = document.getElementById('event_fields{{ $sfx }}');
+  const audienceAll = eventFields.querySelector('[data-audience-all="{{ $sfx }}"]');
+  const audienceGroups = Array.from(eventFields.querySelectorAll('[data-audience-group="{{ $sfx }}"]'));
   const activities = ['ice_breaker', 'q_and_a', 'game', 'intermission'];
+
+  function syncAudienceSelection() {
+    if (audienceAll.checked) {
+      audienceGroups.forEach(checkbox => checkbox.checked = true);
+    } else if (audienceGroups.some(checkbox => !checkbox.checked)) {
+      audienceAll.checked = false;
+    } else {
+      audienceAll.checked = true;
+    }
+  }
+
+  audienceAll.addEventListener('change', () => {
+    audienceGroups.forEach(checkbox => checkbox.checked = audienceAll.checked);
+  });
+  audienceGroups.forEach(checkbox => checkbox.addEventListener('change', () => {
+    if (!checkbox.checked) audienceAll.checked = false;
+    else if (audienceGroups.every(group => group.checked)) audienceAll.checked = true;
+  }));
+  syncAudienceSelection();
 
   function togglePoints() {
     const isActivity = activities.includes(category.value);

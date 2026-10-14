@@ -26,7 +26,7 @@ class NotificationController extends Controller
         return back()->with('success', 'All notifications marked as read.');
     }
 
-    public function open(Request $request, UserNotification $notification): RedirectResponse
+    public function open(Request $request, UserNotification $notification): RedirectResponse|View
     {
         abort_unless($notification->user_id === $request->user()->id, 403);
 
@@ -37,15 +37,24 @@ class NotificationController extends Controller
         }
 
         if ($notification->survey) {
-            return redirect()->route('surveys.show', $notification->survey);
+            if ($notification->survey->audienceQuery()->whereKey($request->user()->id)->exists()
+                || $request->user()->isOfficial()) {
+                return redirect()->route('surveys.show', $notification->survey);
+            }
+
+            return $this->details($notification, available: false);
+        }
+
+        if ($this->expectsDeletedAnnouncement($notification) || $this->expectsDeletedSurvey($notification)) {
+            return $this->details($notification, available: false);
         }
 
         if (str_starts_with($notification->title, 'New trivia')) {
-            return redirect()->route('games.index');
+            return $this->details($notification, destination: route('games.index'), destinationLabel: 'Open Trivia');
         }
 
         if (str_contains($notification->title, 'Badge')) {
-            return redirect()->route('badges.catalog');
+            return $this->details($notification, destination: route('badges.catalog'), destinationLabel: 'View badges');
         }
 
         if (in_array($notification->title, [
@@ -61,6 +70,37 @@ class NotificationController extends Controller
             return redirect()->route('account');
         }
 
-        return redirect()->route('notifications.index');
+        return $this->details($notification);
+    }
+
+    private function details(
+        UserNotification $notification,
+        bool $available = true,
+        ?string $destination = null,
+        ?string $destinationLabel = null
+    ): View {
+        return view('pages.notification-detail', compact(
+            'notification',
+            'available',
+            'destination',
+            'destinationLabel'
+        ));
+    }
+
+    private function expectsDeletedAnnouncement(UserNotification $notification): bool
+    {
+        return in_array($notification->title, [
+            'Deleted Announcement',
+            'Event facilitator assignment',
+            'You were assigned as a substitute',
+        ], true)
+            || str_starts_with($notification->title, 'New event:')
+            || str_starts_with($notification->title, 'Attendance survey extended:');
+    }
+
+    private function expectsDeletedSurvey(UserNotification $notification): bool
+    {
+        return in_array($notification->title, ['Deleted Survey'], true)
+            || str_starts_with($notification->title, 'New survey:');
     }
 }

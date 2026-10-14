@@ -50,6 +50,42 @@ class SuperadminAccountPageTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_official_profile_edit_persists_sjtoda_and_bpc_classifications(): void
+    {
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'kagawad',
+        ]);
+
+        $this->actingAs($official)
+            ->patch(route('profile.update'), [
+                'first_name' => 'Profile',
+                'middle_name' => '',
+                'last_name' => 'Official',
+                'suffix' => '',
+                'sex_at_birth' => 'female',
+                'preferred_gender_identity' => 'woman',
+                'birthdate' => '1990-01-01',
+                'contact_number' => '09170000000',
+                'house_no' => '10',
+                'street' => 'Main Street',
+                'zone' => '1',
+                'email' => $official->email,
+                'official_group' => 'barangay_council',
+                'official_position' => 'kagawad',
+                'is_sjtoda' => '1',
+                'is_bpc' => '1',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $official->id,
+            'is_sjtoda' => true,
+            'is_bpc' => true,
+        ]);
+    }
+
     public function test_official_audience_notifications_include_superadmins_but_not_personnel(): void
     {
         $superadmin = User::factory()->create(['role' => User::SUPERADMIN_ROLE]);

@@ -23,7 +23,7 @@
                 <div class="display-1 mb-2">@include('partials.logo')</div>
                 <div class="talafair-wordmark login-wordmark mb-4">TalaFair</div>
                 <p class="fs-5 mb-4" style="max-width: 26rem; margin-inline: auto;">
-                    Join the community, climb the leaderboard and collect rewards.
+                    Join the community, climb the leaderboard, and collect rewards.
                 </p>
                 <div class="d-flex justify-content-center gap-4 fw-semibold">
                     <span><i class="bi bi-trophy-fill me-2"></i>Rankings</span>

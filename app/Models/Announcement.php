@@ -26,6 +26,8 @@ class Announcement extends Model
         'solo_parents' => 'Solo parents',
         'out_of_school_youth' => 'Out-of-school Youth',
         'lgbtqia'      => 'LGBTQIA+',
+        'sjtoda'       => 'SJTODA',
+        'bpc'          => 'BPC',
         'youth'        => 'Youth (15-30 years old)',
         'senior'       => 'Senior citizens (60+)',
         'family_heads' => 'Family heads',

@@ -197,6 +197,9 @@ class GameController extends Controller
 
     private function triviaRankings(TriviaTheme $theme, string $period = 'all'): array
     {
+        $rank = 0;
+        $previousPoints = null;
+
         return TriviaAnswer::with(['user', 'theme'])
             ->where('trivia_theme_id', $theme->id)
             ->when($this->periodStart($period), fn ($query, Carbon $start) => $query->where('answered_at', '>=', $start))
@@ -208,15 +211,24 @@ class GameController extends Controller
                 'perfect_score' => count($theme->questions) * $this->triviaQuestionPoints($theme),
                 'answered_at' => $answers->max('answered_at')->format('M j, Y g:i A'),
             ])
-            ->sortByDesc('points')
+            ->sortBy([['points', 'desc'], ['name', 'asc']])
             ->values()
-            ->map(fn (array $ranking, int $index) => [...$ranking, 'rank' => $index + 1])
+            ->map(function (array $ranking, int $index) use (&$rank, &$previousPoints) {
+                if ($ranking['points'] !== $previousPoints) {
+                    $rank = $index + 1;
+                    $previousPoints = $ranking['points'];
+                }
+
+                return [...$ranking, 'rank' => $rank];
+            })
             ->all();
     }
 
     private function triviaAggregateRankings($themes, string $period = 'all'): array
     {
         $themeIds = $themes->pluck('id');
+        $rank = 0;
+        $previousPoints = null;
 
         return TriviaAnswer::with(['user', 'theme'])
             ->whereIn('trivia_theme_id', $themeIds)
@@ -233,10 +245,17 @@ class GameController extends Controller
                     'answered_at' => $answers->max('answered_at')->format('M j, Y g:i A'),
                 ];
             })
-            ->sortByDesc('points')
-            ->take(20)
+            ->sortBy([['points', 'desc'], ['name', 'asc']])
             ->values()
-            ->map(fn (array $ranking, int $index) => [...$ranking, 'rank' => $index + 1])
+            ->map(function (array $ranking, int $index) use (&$rank, &$previousPoints) {
+                if ($ranking['points'] !== $previousPoints) {
+                    $rank = $index + 1;
+                    $previousPoints = $ranking['points'];
+                }
+
+                return [...$ranking, 'rank' => $rank];
+            })
+            ->take(20)
             ->all();
     }
 

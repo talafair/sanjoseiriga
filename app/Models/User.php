@@ -129,7 +129,7 @@ class User extends Authenticatable implements CanResetPasswordContract
         'first_name', 'middle_name', 'last_name', 'suffix',
         'username', 'email', 'password', 'role', 'official_group', 'official_position', 'is_verified', 'points',
         'gender', 'gender_other', 'sex_at_birth', 'preferred_gender_identity', 'gender_identity_other', 'birthdate', 'contact_number',
-        'is_student', 'student_level', 'is_pwd', 'is_4ps_member', 'is_solo_parent', 'is_out_of_school_youth', 'is_lgbtqia', 'school', 'school_other', 'occupation',
+        'is_student', 'student_level', 'is_pwd', 'is_4ps_member', 'is_solo_parent', 'is_out_of_school_youth', 'is_lgbtqia', 'is_sjtoda', 'is_bpc', 'school', 'school_other', 'occupation',
         'house_no', 'street', 'zone', 'barangay', 'city', 'province', 'country', 'postal_code',
         'is_head_of_family', 'head_of_family_name', 'head_of_family_id',
         'unique_id', 'avatar_path',
@@ -151,6 +151,8 @@ class User extends Authenticatable implements CanResetPasswordContract
             'is_solo_parent'   => 'boolean',
             'is_out_of_school_youth' => 'boolean',
             'is_lgbtqia'       => 'boolean',
+            'is_sjtoda'        => 'boolean',
+            'is_bpc'           => 'boolean',
         ];
     }
 
@@ -276,6 +278,8 @@ class User extends Authenticatable implements CanResetPasswordContract
                 'solo_parents'   => (bool) $this->is_solo_parent,
                 'out_of_school_youth' => (bool) $this->is_out_of_school_youth,
                 'lgbtqia'        => (bool) $this->is_lgbtqia,
+                'sjtoda'         => (bool) $this->is_sjtoda,
+                'bpc'            => (bool) $this->is_bpc,
                 'youth'         => $age !== null && $age >= 15 && $age <= 30,
                 'senior'        => $age !== null && $age >= 60,
                 'family_heads'  => (bool) $this->is_head_of_family,
@@ -309,6 +313,8 @@ class User extends Authenticatable implements CanResetPasswordContract
                     'solo_parents' => $query->orWhere('is_solo_parent', true),
                     'out_of_school_youth' => $query->orWhere('is_out_of_school_youth', true),
                     'lgbtqia' => $query->orWhere('is_lgbtqia', true),
+                    'sjtoda' => $query->orWhere('is_sjtoda', true),
+                    'bpc' => $query->orWhere('is_bpc', true),
                     'youth' => $query->orWhere(fn ($scope) => $scope->youth()),
                     'senior' => $query->orWhere(fn ($scope) => $scope->seniors()),
                     'family_heads' => $query->orWhere(fn ($scope) => $scope->familyHeads()),

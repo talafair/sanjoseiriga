@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\Auditable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Survey extends Model
@@ -29,5 +30,14 @@ class Survey extends Model
     public function responses()
     {
         return $this->hasMany(SurveyResponse::class);
+    }
+
+    public function audienceQuery(): Builder
+    {
+        if ($this->audience === 'event_attendees') {
+            return User::whereHas('attendances', fn (Builder $query) => $query->where('announcement_id', $this->event_id));
+        }
+
+        return (new User)->audienceQueryFor([$this->audience]);
     }
 }

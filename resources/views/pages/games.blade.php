@@ -61,11 +61,73 @@
 
     <div class="card yg-card mb-4"><div class="card-header py-3"><i class="bi bi-broadcast me-2 text-yg"></i>Live game rankings</div><div class="card-body"><div class="row g-4"><div class="col-md-6"><h6 class="fw-bold">Catch the Star</h6><div class="table-responsive"><table class="table table-sm ranking-table align-middle mb-0"><thead><tr><th>Rank</th><th>Name</th><th>Total points</th><th>Last played</th></tr></thead><tbody id="starRankings"><tr><td colspan="4" class="text-secondary">No scores yet.</td></tr></tbody></table></div></div><div class="col-md-6"><h6 class="fw-bold">Memory Test</h6><div class="table-responsive"><table class="table table-sm ranking-table align-middle mb-0"><thead><tr><th>Rank</th><th>Name</th><th>Total points</th><th>Last played</th></tr></thead><tbody id="memoryRankings"><tr><td colspan="4" class="text-secondary">No scores yet.</td></tr></tbody></table></div></div></div></div></div>
 
-    @if ($themes->isNotEmpty())
-        <div class="card yg-card mb-4"><div class="card-header py-3 d-flex justify-content-between align-items-center"><span><i class="bi bi-bar-chart-fill me-2 text-yg"></i>Trivia rankings</span><form method="GET" class="d-flex align-items-center gap-2"><label for="rankingPeriod" class="small text-secondary">Period</label><select id="rankingPeriod" name="period" class="form-select form-select-sm" onchange="this.form.submit()"><option value="today" @selected($period === 'today')>Today</option><option value="weekly" @selected($period === 'weekly')>Weekly</option><option value="monthly" @selected($period === 'monthly')>Monthly</option><option value="all" @selected($period === 'all')>All time</option></select></form></div><div class="card-body border-bottom small text-secondary">Today shows each trivia theme separately. Longer periods show accumulated points across all published trivia.</div>@if ($period !== 'today')<div class="table-responsive"><table class="table align-middle mb-0 ranking-table"><thead><tr class="small text-secondary text-uppercase"><th class="ps-4">Rank</th><th>Resident</th><th>Total points</th><th class="pe-4">Last answer</th></tr></thead><tbody id="triviaAggregateRankings">@forelse ($triviaAggregateRankings as $answer)<tr><td class="ps-4"><span class="badge {{ $answer['rank'] <= 3 ? 'badge-gold' : 'badge-soft' }} rounded-pill">#{{ $answer['rank'] }}</span></td><td class="fw-semibold">{{ $answer['name'] }}</td><td>{{ $answer['points'] }}</td><td class="pe-4 text-secondary">{{ $answer['answered_at'] }}</td></tr>@empty<tr><td colspan="4" class="p-3 text-secondary">No answers were submitted.</td></tr>@endforelse</tbody></table></div>@else @foreach ($themes as $theme)@if ($canPlay && auth()->user()->isOfficial() || $theme->due_at?->isPast())<div class="px-3 pt-3"><h6 class="fw-bold mb-2">{{ $theme->title }}</h6><div class="table-responsive"><table class="table align-middle mb-0 ranking-table"><thead><tr class="small text-secondary text-uppercase"><th class="ps-4">Rank</th><th>Resident</th><th>Total points</th><th class="pe-4">Last answer</th></tr></thead><tbody id="triviaRankings{{ $theme->id }}">@forelse ($rankings->get($theme->id, collect()) as $answer)<tr><td class="ps-4"><span class="badge {{ $answer['rank'] <= 3 ? 'badge-gold' : 'badge-soft' }} rounded-pill">#{{ $answer['rank'] }}</span></td><td class="fw-semibold">{{ $answer['name'] }}</td><td>{{ $answer['points'] }}</td><td class="pe-4 text-secondary">{{ $answer['answered_at'] }}</td></tr>@empty<tr><td colspan="4" class="p-3 text-secondary">No answers were submitted.</td></tr>@endforelse</tbody></table></div></div>@else<div class="p-3 small text-secondary">{{ $theme->title }} results will be visible after {{ $theme->due_at?->format('M j, Y g:i A') ?? 'the official sets a due date' }}.</div>@endif @endforeach @endif</div>
-    @endif
+    <div class="card yg-card mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-bar-chart-fill me-2 text-yg"></i>Trivia rankings</span>
+            <form method="GET" class="d-flex align-items-center gap-2">
+                <label for="rankingPeriod" class="small text-secondary">Period</label>
+                <select id="rankingPeriod" name="period" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="today" @selected($period === 'today')>Today</option>
+                    <option value="weekly" @selected($period === 'weekly')>Weekly</option>
+                    <option value="monthly" @selected($period === 'monthly')>Monthly</option>
+                    <option value="all" @selected($period === 'all')>All time</option>
+                </select>
+            </form>
+        </div>
+        <div class="card-body border-bottom small text-secondary">
+            Today shows each trivia theme separately. Longer periods show accumulated points across all published trivia.
+        </div>
+        @if ($themes->isEmpty())
+            <div class="p-3 small text-secondary">No trivia themes have been published yet.</div>
+        @elseif ($period !== 'today')
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 ranking-table">
+                    <thead><tr class="small text-secondary text-uppercase"><th class="ps-4">Rank</th><th>Resident</th><th>Total points</th><th class="pe-4">Last answer</th></tr></thead>
+                    <tbody id="triviaAggregateRankings">
+                        @forelse ($triviaAggregateRankings as $answer)
+                            <tr>
+                                <td class="ps-4"><span class="badge {{ $answer['rank'] <= 3 ? 'badge-gold' : 'badge-soft' }} rounded-pill">#{{ $answer['rank'] }}</span></td>
+                                <td class="fw-semibold">{{ $answer['name'] }}</td>
+                                <td>{{ $answer['points'] }}</td>
+                                <td class="pe-4 text-secondary">{{ $answer['answered_at'] }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="p-3 text-secondary">No answers were submitted.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        @else
+            @foreach ($themes as $theme)
+                @if (($canPlay && auth()->user()->isOfficial()) || $theme->due_at?->isPast())
+                    <div class="px-3 pt-3">
+                        <h6 class="fw-bold mb-2">{{ $theme->title }}</h6>
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0 ranking-table">
+                                <thead><tr class="small text-secondary text-uppercase"><th class="ps-4">Rank</th><th>Resident</th><th>Total points</th><th class="pe-4">Last answer</th></tr></thead>
+                                <tbody id="triviaRankings{{ $theme->id }}">
+                                    @forelse ($rankings->get($theme->id, collect()) as $answer)
+                                        <tr>
+                                            <td class="ps-4"><span class="badge {{ $answer['rank'] <= 3 ? 'badge-gold' : 'badge-soft' }} rounded-pill">#{{ $answer['rank'] }}</span></td>
+                                            <td class="fw-semibold">{{ $answer['name'] }}</td>
+                                            <td>{{ $answer['points'] }}</td>
+                                            <td class="pe-4 text-secondary">{{ $answer['answered_at'] }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr><td colspan="4" class="p-3 text-secondary">No answers were submitted.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @else
+                    <div class="p-3 small text-secondary">{{ $theme->title }} results will be visible after {{ $theme->due_at?->format('M j, Y g:i A') ?? 'the official sets a due date' }}.</div>
+                @endif
+            @endforeach
+        @endif
+    </div>
 
-    @if (auth()->user()->isOfficial() && $themes->isNotEmpty())
+    @if ($canPlay && auth()->user()->isOfficial() && $themes->isNotEmpty())
         <div class="card yg-card"><div class="card-header py-3"><i class="bi bi-collection me-2 text-yg"></i>Published themes</div><div class="list-group list-group-flush">@foreach ($themes as $theme)<div class="list-group-item d-flex justify-content-between align-items-center px-4"><span><strong>{{ $theme->title }}</strong><span class="small text-secondary ms-2">{{ count($theme->questions) }} questions</span></span><form method="POST" action="{{ route('games.themes.destroy', $theme) }}" onsubmit="return confirm('Remove this trivia theme?');">@csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm rounded-3" title="Remove theme"><i class="bi bi-trash"></i></button></form></div>@endforeach</div></div>
     @endif
 @endsection

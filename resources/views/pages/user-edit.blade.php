@@ -74,7 +74,7 @@
         <div class="row g-3">
           <div class="col-md-4"><label for="house_no" class="form-label">House / building no.</label><input id="house_no" name="house_no" value="{{ $user->house_no }}" class="form-control" required></div>
           <div class="col-md-4"><label for="street" class="form-label">Street</label><input id="street" name="street" value="{{ $user->street }}" class="form-control" data-title-case required></div>
-          <div class="col-md-4"><label for="zone" class="form-label">Zone number</label><input id="zone" name="zone" value="{{ $user->zone }}" class="form-control" required></div>
+          <div class="col-md-4"><label for="zone" class="form-label">Zone number (1, 2, 3, 4)</label><input id="zone" name="zone" value="{{ $user->zone }}" class="form-control" required></div>
         </div>
         <div class="row g-3 mt-1 mx-0 p-3 bg-body-secondary rounded-3">@foreach (['Barangay' => $user->barangay, 'City / Municipality' => $user->city, 'Province' => $user->province, 'Country' => $user->country, 'Postal code' => $user->postal_code] as $label => $value)<div class="col-6 col-md"><div class="small text-uppercase text-secondary">{{ $label }}</div><div class="fw-semibold">{{ $value }}</div></div>@endforeach</div>
       </div>
@@ -94,7 +94,7 @@
         <h6 class="fw-bold text-uppercase text-secondary mb-3">Account</h6>
         <div class="row g-3">
           <div class="col-md-6"><label class="form-label">Username</label><input value="{{ $user->username }}" class="form-control bg-body-secondary" readonly></div>
-          <div class="col-md-6"><label for="email" class="form-label">Email</label><input id="email" type="email" name="email" value="{{ $user->email }}" class="form-control" required></div>
+          <div class="col-md-6"><label for="email" class="form-label">Email <span class="text-secondary fw-normal">(optional)</span></label><input id="email" type="email" name="email" value="{{ $user->email }}" class="form-control"></div>
           <div class="col-md-6"><label for="password" class="form-label">Password</label><input id="password" type="password" name="password" class="form-control" autocomplete="new-password"><div class="form-text">Leave blank to keep the current password.</div></div>
           <div class="col-md-6"><label for="password_confirmation" class="form-label">Confirm password</label><input id="password_confirmation" type="password" name="password_confirmation" class="form-control" autocomplete="new-password"></div>
         </div>

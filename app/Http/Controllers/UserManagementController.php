@@ -69,6 +69,8 @@ class UserManagementController extends Controller
         $data['is_pwd'] = (bool) ($data['is_pwd'] ?? false);
         $data['is_4ps_member'] = (bool) ($data['is_4ps_member'] ?? false);
         $data['is_solo_parent'] = (bool) ($data['is_solo_parent'] ?? false);
+        $data['is_sjtoda'] = (bool) ($data['is_sjtoda'] ?? false);
+        $data['is_bpc'] = (bool) ($data['is_bpc'] ?? false);
         $data['is_out_of_school_youth'] = (bool) ($data['is_out_of_school_youth'] ?? false);
         $data['school_other'] = $data['is_student'] && strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? ($data['school_other'] ?? null) : null;
         $data['school'] = $data['is_student'] ? (strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? 'Other' : $data['school']) : null;
@@ -128,7 +130,7 @@ class UserManagementController extends Controller
         $user->fill(collect($data)->only([
             'first_name', 'middle_name', 'last_name', 'suffix', 'gender', 'gender_other', 'sex_at_birth',
             'preferred_gender_identity', 'gender_identity_other', 'is_lgbtqia', 'birthdate',
-            'contact_number', 'is_student', 'student_level', 'is_pwd', 'is_4ps_member', 'is_solo_parent', 'is_out_of_school_youth', 'school', 'school_other', 'occupation', 'house_no', 'street', 'zone',
+            'contact_number', 'is_student', 'student_level', 'is_pwd', 'is_4ps_member', 'is_solo_parent', 'is_sjtoda', 'is_bpc', 'is_out_of_school_youth', 'school', 'school_other', 'occupation', 'house_no', 'street', 'zone',
             'email', 'head_of_family_id', 'head_of_family_name', 'is_head_of_family',
         ])->all());
         if ($user->is_head_of_family) {
@@ -232,6 +234,8 @@ class UserManagementController extends Controller
             'is_pwd' => ['nullable', 'boolean'],
             'is_4ps_member' => ['nullable', 'boolean'],
             'is_solo_parent' => ['nullable', 'boolean'],
+            'is_sjtoda' => ['nullable', 'boolean'],
+            'is_bpc' => ['nullable', 'boolean'],
             'is_out_of_school_youth' => ['nullable', 'boolean', Rule::prohibitedIf(fn () => $request->boolean('is_student') && $request->boolean('is_out_of_school_youth'))],
             'school' => ['nullable', 'required_if:is_student,1', 'string', 'max:255'],
             'school_other' => ['nullable', Rule::requiredIf(fn () => strcasecmp((string) $request->input('school'), 'other') === 0), 'string', 'max:255'],
@@ -239,7 +243,7 @@ class UserManagementController extends Controller
             'house_no' => ['required', 'string', 'max:255'],
             'street' => ['required', 'string', 'max:255'],
             'zone' => ['required', 'string', 'max:10'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($request->route('user'))],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($request->route('user'))],
             'head_of_family_id' => [
                 'nullable',
                 Rule::requiredIf(fn () => $request->input('role') === 'resident' && ! $request->boolean('is_head_of_family')),

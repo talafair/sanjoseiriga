@@ -171,7 +171,7 @@
           </div>
           @if ($role !== 'guest')
             <div class="col-md-4">
-              <label for="zone" class="form-label">Zone number</label>
+              <label for="zone" class="form-label">Zone number (ex. 1, 2, 3, 4)</label>
               <input id="zone" name="zone" type="text" inputmode="numeric" required value="{{ old('zone') }}" class="form-control">
               <div class="form-text">Your zone prefixes your ID (Zone 2 &rarr; Z2-…).</div>
             </div>
@@ -284,8 +284,8 @@
             <div class="form-text">Letters, numbers, dashes and underscores only.</div>
           </div>
           <div class="col-md-6">
-            <label for="email" class="form-label">Email</label>
-            <input id="email" name="email" type="email" required
+            <label for="email" class="form-label">Email <span class="text-secondary fw-normal">(optional)</span></label>
+            <input id="email" name="email" type="email"
                    value="{{ old('email') }}" class="form-control">
           </div>
           <div class="col-md-6">

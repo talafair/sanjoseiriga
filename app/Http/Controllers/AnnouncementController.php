@@ -311,6 +311,10 @@ class AnnouncementController extends Controller
 
     private function validated(Request $request, ?Announcement $existing = null): array
     {
+        if ($request->boolean('is_event') && $existing && ! $request->exists('audiences')) {
+            $request->merge(['audiences' => $existing->audiences ?: ['public']]);
+        }
+
         $rules = [
             'title'       => ['required', 'string', 'max:255'],
             'category'    => ['required', Rule::in(['events', 'updates', 'rewards', 'maintenance', 'ice_breaker', 'q_and_a', 'game', 'intermission'])],

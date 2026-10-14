@@ -168,11 +168,7 @@ class SurveyController extends Controller
 
     private function audienceQuery(Survey $survey)
     {
-        if ($survey->audience === 'event_attendees') {
-            return User::whereHas('attendances', fn ($query) => $query->where('announcement_id', $survey->event_id));
-        }
-
-        return (new User)->audienceQueryFor([$survey->audience]);
+        return $survey->audienceQuery();
     }
 
     private function flattenQuestionSections(array $sections): array

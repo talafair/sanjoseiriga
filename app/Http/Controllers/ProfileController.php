@@ -53,6 +53,8 @@ class ProfileController extends Controller
             'is_pwd' => ['nullable', 'boolean'],
             'is_4ps_member' => ['nullable', 'boolean'],
             'is_solo_parent' => ['nullable', 'boolean'],
+            'is_sjtoda' => ['nullable', 'boolean'],
+            'is_bpc' => ['nullable', 'boolean'],
             'is_out_of_school_youth' => ['nullable', 'boolean', Rule::prohibitedIf(fn () => $request->boolean('is_student') && $request->boolean('is_out_of_school_youth'))],
             'birthdate'      => ['required', 'date', 'before_or_equal:today'],
             'contact_number' => ['nullable', 'string', 'max:20'],
@@ -64,7 +66,7 @@ class ProfileController extends Controller
             'house_no'       => ['required', 'string', 'max:255'],
             'street'         => ['required', 'string', 'max:255'],
             'zone'           => ['required', 'string', 'max:10'],
-            'email'          => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'email'          => ['nullable', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
         ]);
 
         if ($user->isOfficial()) {
@@ -95,6 +97,8 @@ class ProfileController extends Controller
         $data['is_pwd'] = (bool) ($data['is_pwd'] ?? false);
         $data['is_4ps_member'] = (bool) ($data['is_4ps_member'] ?? false);
         $data['is_solo_parent'] = (bool) ($data['is_solo_parent'] ?? false);
+        $data['is_sjtoda'] = (bool) ($data['is_sjtoda'] ?? false);
+        $data['is_bpc'] = (bool) ($data['is_bpc'] ?? false);
         $data['is_out_of_school_youth'] = (bool) ($data['is_out_of_school_youth'] ?? false);
         $data['school_other'] = $data['is_student'] && strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? ($data['school_other'] ?? null) : null;
         $data['school'] = $data['is_student'] ? (strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? 'Other' : $data['school']) : null;

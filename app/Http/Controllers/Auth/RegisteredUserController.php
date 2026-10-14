@@ -52,6 +52,8 @@ class RegisteredUserController extends Controller
             'is_pwd' => ['nullable', 'boolean'],
             'is_4ps_member' => ['nullable', 'boolean'],
             'is_solo_parent' => ['nullable', 'boolean'],
+            'is_sjtoda' => ['nullable', 'boolean'],
+            'is_bpc' => ['nullable', 'boolean'],
             'is_out_of_school_youth' => ['nullable', 'boolean', Rule::prohibitedIf(fn () => $request->boolean('is_student') && $request->boolean('is_out_of_school_youth'))],
 
             'birthdate'      => [$isGuest ? 'nullable' : 'required', 'date', 'before_or_equal:today', 'after:1900-01-01'],
@@ -80,7 +82,7 @@ class RegisteredUserController extends Controller
             'head_of_family_name' => ['exclude_if:is_head_of_family,1', 'nullable', 'string', 'max:255'],
 
             'username' => ['required', 'string', 'min:3', 'max:30', 'alpha_dash', 'unique:users,username'],
-            'email'    => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
+            'email'    => ['nullable', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => ['required', Rule::in(array_keys(User::CATEGORIES))],
             'official_group' => ['nullable', 'required_if:role,official', 'in:' . implode(',', array_keys(config('talafair.official_positions')))],
@@ -156,6 +158,8 @@ class RegisteredUserController extends Controller
                 'is_pwd'         => (bool) ($data['is_pwd'] ?? false),
                 'is_4ps_member'  => (bool) ($data['is_4ps_member'] ?? false),
                 'is_solo_parent' => (bool) ($data['is_solo_parent'] ?? false),
+                'is_sjtoda'      => (bool) ($data['is_sjtoda'] ?? false),
+                'is_bpc'         => (bool) ($data['is_bpc'] ?? false),
                 'is_out_of_school_youth' => (bool) ($data['is_out_of_school_youth'] ?? false),
                 'school'         => $data['is_student'] ? (strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? 'Other' : $data['school']) : null,
                 'school_other'   => $data['is_student'] && strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? ($data['school_other'] ?? null) : null,
@@ -175,7 +179,7 @@ class RegisteredUserController extends Controller
                 'head_of_family_name' => $isHead ? null : ($data['head_of_family_name'] ?? null),
 
                 'username' => $data['username'],
-                'email'    => $data['email'],
+                'email'    => $data['email'] ?? null,
                 'password' => Hash::make($data['password']),
                 'role'              => $data['role'],
                 'official_group'    => $data['role'] === 'official' ? $data['official_group'] : null,

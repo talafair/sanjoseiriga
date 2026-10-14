@@ -74,6 +74,53 @@ class AnnouncementCreationTest extends TestCase
         $this->assertCount(0, $event->facilitators);
     }
 
+    public function test_new_classification_audiences_notify_only_eligible_users_and_survive_edit_without_audience_input(): void
+    {
+        $official = $this->official();
+        $sjtoda = User::factory()->create(['is_sjtoda' => true]);
+        $bpc = User::factory()->create(['is_bpc' => true]);
+        $other = User::factory()->create();
+        $payload = [...$this->eventPayload(), 'audiences' => ['sjtoda', 'bpc']];
+
+        $this->actingAs($official)
+            ->post(route('announcements.store'), $payload)
+            ->assertRedirect();
+
+        $event = Announcement::query()->latest('id')->firstOrFail();
+        $this->assertSame(['sjtoda', 'bpc'], $event->audiences);
+        $this->actingAs($official)
+            ->get(route('announcements.index'))
+            ->assertOk()
+            ->assertSee('SJTODA')
+            ->assertSee('BPC');
+        $this->assertTrue($sjtoda->fresh()->belongsToAudience($event->audiences));
+        $this->assertTrue($bpc->fresh()->belongsToAudience($event->audiences));
+        $this->assertFalse($other->fresh()->belongsToAudience($event->audiences));
+        $this->assertEqualsCanonicalizing(
+            [$sjtoda->id, $bpc->id],
+            $event->audienceQuery()->pluck('users.id')->all()
+        );
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $sjtoda->id,
+            'announcement_id' => $event->id,
+        ]);
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $bpc->id,
+            'announcement_id' => $event->id,
+        ]);
+        $this->assertDatabaseMissing('user_notifications', [
+            'user_id' => $other->id,
+            'announcement_id' => $event->id,
+        ]);
+
+        $updatePayload = array_diff_key($payload, ['audiences' => true]);
+        $this->actingAs($official)
+            ->put(route('announcements.update', $event), $updatePayload)
+            ->assertRedirect();
+
+        $this->assertSame(['sjtoda', 'bpc'], $event->fresh()->audiences);
+    }
+
     public function test_event_facilitators_can_be_added_without_duplicates(): void
     {
         $official = $this->official();

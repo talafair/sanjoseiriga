@@ -300,8 +300,8 @@
             </div>
             @include('pages.partials.student-fields', ['formPrefix' => 'account_', 'user' => $user])
             <div class="col-md-4">
-              <label class="form-label">Email</label>
-              <input type="email" name="email" value="{{ old('email', $user->email) }}" required class="form-control">
+              <label class="form-label">Email <span class="text-secondary fw-normal">(optional)</span></label>
+              <input type="email" name="email" value="{{ old('email', $user->email) }}" class="form-control">
             </div>
 
             <div class="col-md-4">

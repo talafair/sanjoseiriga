@@ -46,7 +46,7 @@
 
     <div class="card yg-card mb-4"><div class="card-body p-4"><h6 class="fw-bold text-uppercase text-secondary mb-3">Account</h6><div class="row g-3">
       <div class="col-md-6"><label class="form-label">Username</label><input name="username" value="{{ old('username') }}" class="form-control" required><div class="form-text">Letters, numbers, dashes and underscores only.</div></div>
-      <div class="col-md-6"><label class="form-label">Email</label><input type="email" name="email" value="{{ old('email') }}" class="form-control" required></div>
+      <div class="col-md-6"><label class="form-label">Email <span class="text-secondary fw-normal">(optional)</span></label><input type="email" name="email" value="{{ old('email') }}" class="form-control"></div>
       <div class="col-md-6"><label class="form-label">Temporary password</label><input type="password" name="password" class="form-control" required></div>
       <div class="col-md-6"><label class="form-label">Confirm password</label><input type="password" name="password_confirmation" class="form-control" required></div>
     </div><div class="form-text mt-2">Provide the resident with these login details after creating the account.</div></div></div>

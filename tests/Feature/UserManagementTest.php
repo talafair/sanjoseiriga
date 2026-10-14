@@ -52,6 +52,8 @@ class UserManagementTest extends TestCase
             ->assertOk();
 
         $response->assertSee('value="guest"', false)
+            ->assertSee('name="is_sjtoda"', false)
+            ->assertSee('name="is_bpc"', false)
             ->assertSee('Category', false);
         $this->assertSame(1, substr_count($response->getContent(), 'id="role"'));
 
@@ -59,6 +61,7 @@ class UserManagementTest extends TestCase
         $payload['email'] = $user->email;
         $payload['username'] = $user->username;
         $payload['first_name'] = 'Updated';
+        unset($payload['password'], $payload['password_confirmation']);
 
         $this->actingAs($official)
             ->put(route('users.update', $user), $payload)
@@ -78,7 +81,9 @@ class UserManagementTest extends TestCase
         $this->get(route('register', ['role' => 'resident']))
             ->assertOk()
             ->assertSee('value="resident"', false)
-            ->assertSee('name="role"', false);
+            ->assertSee('name="role"', false)
+            ->assertSee('name="is_sjtoda"', false)
+            ->assertSee('name="is_bpc"', false);
 
         $this->assertSame(['resident', 'guest', 'official'], array_keys(User::CATEGORIES));
     }
@@ -93,6 +98,9 @@ class UserManagementTest extends TestCase
             'birthdate' => '2008-01-01',
             'is_student' => '1',
             'is_out_of_school_youth' => '0',
+            'is_pwd' => '1',
+            'is_sjtoda' => '1',
+            'is_bpc' => '1',
             'student_level' => 'senior_high_school',
             'school' => 'Test High School',
             'is_head_of_family' => '1',
@@ -109,7 +117,83 @@ class UserManagementTest extends TestCase
             'username' => 'student-account',
             'is_student' => true,
             'is_out_of_school_youth' => false,
+            'is_pwd' => true,
+            'is_sjtoda' => true,
+            'is_bpc' => true,
             'student_level' => 'senior_high_school',
+        ]);
+    }
+
+    public function test_managed_user_creation_and_editing_save_new_classifications_and_preserve_existing_ones(): void
+    {
+        $official = $this->managementSuperadmin();
+        $payload = $this->userPayload('resident', 21);
+        $payload['is_sjtoda'] = '1';
+        $payload['is_bpc'] = '1';
+        $payload['is_pwd'] = '1';
+        $payload['is_4ps_member'] = '1';
+
+        $this->actingAs($official)
+            ->post(route('users.store'), $payload)
+            ->assertRedirect(route('users.index'));
+
+        $user = User::where('username', 'managed-resident-21')->firstOrFail();
+        $this->assertTrue($user->is_sjtoda);
+        $this->assertTrue($user->is_bpc);
+        $this->assertTrue($user->is_pwd);
+        $this->assertTrue($user->is_4ps_member);
+
+        $update = $this->userPayload('resident', 21);
+        $update['email'] = $user->email;
+        $update['username'] = $user->username;
+        $update['is_sjtoda'] = '0';
+        $update['is_bpc'] = '1';
+        unset($update['password'], $update['password_confirmation']);
+
+        $this->actingAs($official)
+            ->put(route('users.update', $user), $update)
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'is_sjtoda' => false,
+            'is_bpc' => true,
+            'is_pwd' => true,
+            'is_4ps_member' => true,
+        ]);
+    }
+
+    public function test_user_management_can_create_and_edit_accounts_without_email(): void
+    {
+        $official = $this->managementOfficial();
+        $payload = $this->userPayload('resident', 22);
+        $payload['email'] = '';
+
+        $this->actingAs($official)
+            ->post(route('users.store'), $payload)
+            ->assertRedirect(route('users.index'));
+
+        $created = User::where('username', 'managed-resident-22')->firstOrFail();
+        $this->assertNull($created->email);
+
+        $target = User::factory()->create([
+            'role' => 'resident',
+            'username' => 'account-no-email',
+            'email' => 'remove-email@example.test',
+        ]);
+        $update = $this->userPayload('resident', 23);
+        $update['username'] = $target->username;
+        $update['email'] = '';
+        unset($update['password'], $update['password_confirmation']);
+
+        $this->actingAs($official)
+            ->put(route('users.update', $target), $update)
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $target->id,
+            'email' => null,
         ]);
     }
 

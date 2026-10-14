@@ -36,9 +36,17 @@ class SuperadminNotificationService
 
         $actor = auth()->user()?->full_name ?? 'the system';
         $now = now();
+        $announcementId = $model instanceof Announcement
+            ? ($action === 'deleted' ? null : $model->getKey())
+            : $model->getAttribute('announcement_id');
+        $surveyId = $model instanceof Survey
+            ? ($action === 'deleted' ? null : $model->getKey())
+            : $model->getAttribute('survey_id');
 
         DB::table('user_notifications')->insert($superadminIds->map(fn (int $userId) => [
             'user_id' => $userId,
+            'announcement_id' => $announcementId,
+            'survey_id' => $surveyId,
             'title' => ucfirst($action) . ' ' . class_basename($model),
             'body' => "{$subject} was {$verb} by {$actor}.",
             'created_by' => auth()->id(),

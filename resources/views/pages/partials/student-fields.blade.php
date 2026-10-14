@@ -25,6 +25,10 @@
   <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="is_pwd" value="1" id="{{ $prefix }}is_pwd" @checked(old('is_pwd', $user->is_pwd ?? false))><label class="form-check-label" for="{{ $prefix }}is_pwd">Person with Disability (PWD)</label></div>
   <input type="hidden" name="is_solo_parent" value="0">
   <div class="form-check"><input class="form-check-input" type="checkbox" name="is_solo_parent" value="1" id="{{ $prefix }}is_solo_parent" @checked(old('is_solo_parent', $user->is_solo_parent ?? false))><label class="form-check-label" for="{{ $prefix }}is_solo_parent">Solo parent</label></div>
+  <input type="hidden" name="is_sjtoda" value="0">
+  <div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="is_sjtoda" value="1" id="{{ $prefix }}is_sjtoda" @checked(old('is_sjtoda', $user->is_sjtoda ?? false))><label class="form-check-label" for="{{ $prefix }}is_sjtoda">SJTODA</label></div>
+  <input type="hidden" name="is_bpc" value="0">
+  <div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="is_bpc" value="1" id="{{ $prefix }}is_bpc" @checked(old('is_bpc', $user->is_bpc ?? false))><label class="form-check-label" for="{{ $prefix }}is_bpc">BPC</label></div>
 </div>
 
 <div class="col-12 col-md-4" id="{{ $prefix }}student_level_wrap" @if(!$student) hidden @endif>

@@ -93,7 +93,7 @@ class Announcement extends Model
 
         return $disk === 'public'
             ? rtrim(request()->getBaseUrl(), '/') . '/storage/' . ltrim($this->banner_path, '/')
-            : Storage::url($this->banner_path);
+            : Storage::disk($disk)->url($this->banner_path);
     }
 
     /* ------------------------------------------------------------------

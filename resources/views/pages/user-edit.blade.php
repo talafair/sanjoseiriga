@@ -24,7 +24,7 @@
       <div class="card-body p-4">
         <h6 class="fw-bold text-uppercase text-secondary mb-3">Profile picture</h6>
         <div class="d-flex align-items-center gap-3">
-          <img src="{{ $user->avatar_url }}" alt="{{ $user->full_name }}" width="76" height="76" class="rounded-circle object-fit-cover border">
+          <img src="{{ $user->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $user->full_name }}" width="76" height="76" class="rounded-circle object-fit-cover border">
           <div class="small text-secondary">Profile picture management remains available from the user's Account page.</div>
         </div>
       </div>

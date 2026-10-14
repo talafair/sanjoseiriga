@@ -69,7 +69,7 @@
                 <div class="col-md-4">
                   <a href="{{ route('announcements.show', $banner) }}" class="card yg-card yg-card-hover h-100 text-decoration-none text-body {{ $banner->is_featured ? 'border border-2 border-warning' : '' }}">
                     @if ($banner->banner_url)
-                      <img src="{{ $banner->banner_url }}" alt="" class="card-img-top object-fit-cover" style="height:7rem;">
+                      <img src="{{ $banner->banner_url }}" data-image-fallback="{{ asset('images/image-placeholder.svg') }}" alt="" class="card-img-top object-fit-cover" style="height:7rem;">
                     @else
                       <div class="card-img-top d-flex align-items-center justify-content-center bg-body-secondary" style="height:7rem;"><span class="small fw-bold text-uppercase text-secondary">{{ $banner->category }}</span></div>
                     @endif
@@ -106,7 +106,7 @@
       @foreach ($displayBanners as $banner)
         <a href="{{ route('announcements.show', $banner) }}" class="card yg-card yg-card-hover text-decoration-none text-body {{ $banner->is_featured ? 'border border-2 border-warning' : '' }}">
           @if ($banner->banner_url)
-            <img src="{{ $banner->banner_url }}" alt="" class="card-img-top object-fit-cover" style="height:10rem;">
+            <img src="{{ $banner->banner_url }}" data-image-fallback="{{ asset('images/image-placeholder.svg') }}" alt="" class="card-img-top object-fit-cover" style="height:10rem;">
           @else
             <div class="card-img-top d-flex align-items-center justify-content-center bg-body-secondary" style="height:10rem;"><span class="small fw-bold text-uppercase text-secondary">{{ $banner->category }}</span></div>
           @endif

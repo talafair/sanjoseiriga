@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Models\UserNotification;
 use Illuminate\Validation\Rule;
+use RuntimeException;
 
 class BadgeController extends Controller
 {
@@ -52,6 +53,9 @@ class BadgeController extends Controller
         $recipients = $data['recipients'] ?? [];
         unset($data['recipients']);
         $data['image_path'] = $request->hasFile('image') ? $request->file('image')->store('badges', config('filesystems.uploads_disk', 'public')) : null;
+        if ($request->hasFile('image') && ! $data['image_path']) {
+            throw new RuntimeException('The badge image could not be saved to the configured upload storage.');
+        }
         unset($data['image']);
 
         $badge = Badge::create($data);
@@ -81,15 +85,19 @@ class BadgeController extends Controller
             'image'           => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp,svg', 'max:2048'],
         ]);
 
+        $oldImagePath = $badge->image_path;
         if ($request->hasFile('image')) {
-            if ($badge->image_path) {
-                Storage::disk(config('filesystems.uploads_disk', 'public'))->delete($badge->image_path);
-            }
             $data['image_path'] = $request->file('image')->store('badges', config('filesystems.uploads_disk', 'public'));
+            if (! $data['image_path']) {
+                throw new RuntimeException('The badge image could not be saved to the configured upload storage.');
+            }
         }
 
         unset($data['image']);
         $badge->update($data);
+        if ($oldImagePath && isset($data['image_path'])) {
+            Storage::disk(config('filesystems.uploads_disk', 'public'))->delete($oldImagePath);
+        }
 
         return back()->with('success', 'Badge updated.');
     }

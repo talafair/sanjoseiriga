@@ -10,7 +10,7 @@
 
     <div class="card yg-card overflow-hidden">
       @if ($backgroundUrl)
-        <img src="{{ $backgroundUrl }}" alt="" class="w-100 object-fit-cover" style="height:12rem;">
+        <img src="{{ $backgroundUrl }}" data-image-fallback="{{ asset('images/image-placeholder.svg') }}" alt="" class="w-100 object-fit-cover" style="height:12rem;">
       @else
         <div class="d-flex align-items-center justify-content-center text-secondary bg-body-secondary"
              style="height:12rem;">
@@ -40,4 +40,3 @@
   </div>
 </div>
 @endsection
-

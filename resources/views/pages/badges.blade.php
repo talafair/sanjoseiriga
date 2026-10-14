@@ -91,7 +91,7 @@
       <div class="col-6 col-md-4 col-lg-3">
         <div class="card yg-card h-100 text-center">
           <div class="card-body">
-            @if ($badge->image_path)<img src="{{ $badge->image_url }}" alt="" style="height:5rem;" class="object-fit-contain">@else<div class="text-secondary" style="height:5rem; padding-top:1.5rem;"><i class="bi bi-image fs-2"></i></div>@endif
+            @if ($badge->image_path)<img src="{{ $badge->image_url }}" data-image-fallback="{{ asset('images/image-placeholder.svg') }}" alt="" style="height:5rem;" class="object-fit-contain">@else<div class="text-secondary" style="height:5rem; padding-top:1.5rem;"><i class="bi bi-image fs-2"></i></div>@endif
             <div class="fw-semibold mt-2">{{ $badge->name }}</div>
             <div class="small text-secondary">{{ $conditionOptions[$badge->condition_key] ?? $badge->condition_key }}@if ($badge->points_required) · {{ $badge->points_required }} @endif</div>
             <div class="small text-secondary text-capitalize">{{ $badge->category }} · {{ $badge->rarity }} · {{ $badge->award_method }}</div>

@@ -28,7 +28,7 @@
       <div class="card-body p-4">
            <div class="row g-4 flex-nowrap id-card-main">
           <div class="col-auto text-center">
-            <img src="{{ $user->avatar_url }}" alt="" width="96" height="96"
+            <img src="{{ $user->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="" width="96" height="96"
               class="rounded-3 border object-fit-cover id-card-avatar">
             <div class="mt-3 id-card-qr">{!! $qrSvg !!}</div>
           </div>
@@ -183,4 +183,3 @@ printButton.addEventListener('click', async function () {
   }
 </style>
 @endpush
-

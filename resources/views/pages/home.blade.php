@@ -32,7 +32,7 @@
                             <span class="home-ranking-rank fw-bold text-secondary">
                                 {{ $i + 1 }}
                             </span>
-                            <img src="{{ $player->avatar_url }}" alt="{{ $player->name }}" class="avatar avatar-sm object-fit-cover">
+                            <img src="{{ $player->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $player->name }}" class="avatar avatar-sm object-fit-cover">
                             <div class="flex-grow-1 text-truncate">
                                 <div class="fw-semibold small text-truncate">
                                     {{ $player->name }}
@@ -59,7 +59,7 @@
                 <div class="card-body p-3">
                     @forelse ($recentWinners as $i => $win)
                         <div class="home-ranking-row d-flex align-items-center gap-3 p-2 {{ !$loop->first ? 'border-top' : '' }}">
-                            <img src="{{ $win->user->avatar_url }}" alt="{{ $win->user->name }}" class="avatar avatar-sm object-fit-cover">
+                            <img src="{{ $win->user->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $win->user->name }}" class="avatar avatar-sm object-fit-cover">
                             <div class="flex-grow-1 text-truncate">
                                 <div class="fw-semibold small text-truncate">{{ $win->user->name }}</div>
                                 <div class="text-secondary" style="font-size: .75rem;">{{ $win->created_at->diffForHumans() }}</div>
@@ -87,7 +87,7 @@
                 <div class="card-body p-3">
                     @forelse ($newMembers as $i => $member)
                         <div class="home-ranking-row d-flex align-items-center gap-3 p-2 {{ !$loop->first ? 'border-top' : '' }}">
-                            <img src="{{ $member->avatar_url }}" alt="{{ $member->name }}" class="avatar avatar-sm object-fit-cover">
+                            <img src="{{ $member->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $member->name }}" class="avatar avatar-sm object-fit-cover">
                             <div class="flex-grow-1 text-truncate">
                                 <div class="fw-semibold small text-truncate">
                                     {{ $member->name }}
@@ -122,7 +122,7 @@
                     <div class="col-6 col-md-3 home-badge-item">
                         <div class="card h-100 border-0 bg-body-secondary-subtle text-center {{ $earned ? '' : 'opacity-50' }}">
                             <div class="card-body p-3 d-flex flex-column align-items-center justify-content-center">
-                                <img src="{{ $badge->image_url }}" alt="{{ $badge->name }}" style="height:5rem;" class="object-fit-contain {{ $earned ? '' : 'grayscale' }}">
+                                <img src="{{ $badge->image_url }}" data-image-fallback="{{ asset('images/image-placeholder.svg') }}" alt="{{ $badge->name }}" style="height:5rem;" class="object-fit-contain {{ $earned ? '' : 'grayscale' }}">
                                 <div class="small fw-semibold mt-2">{{ $badge->name }}</div>
                                 <div class="small text-secondary">{{ number_format($badge->points_required) }} pts</div>
                                 @if ($earned)

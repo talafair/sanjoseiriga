@@ -10,6 +10,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use App\Models\User;
 use App\Models\UserNotification;
+use RuntimeException;
 
 class ProfileController extends Controller
 {
@@ -125,14 +126,19 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
-
         $uploadDisk = config('filesystems.uploads_disk', 'public');
-        if ($user->avatar_path) {
-            Storage::disk($uploadDisk)->delete($user->avatar_path);
+        $newPath = $request->file('avatar')->store('avatars', $uploadDisk);
+        if (! $newPath) {
+            throw new RuntimeException('The profile picture could not be saved to the configured upload storage.');
         }
 
-        $user->avatar_path = $request->file('avatar')->store('avatars', $uploadDisk);
+        $oldPath = $user->avatar_path;
+        $user->avatar_path = $newPath;
         $user->save();
+        if ($oldPath) {
+            Storage::disk($uploadDisk)->delete($oldPath);
+        }
+
         UserNotification::create([
             'user_id' => $user->id,
             'title' => 'Profile picture updated',

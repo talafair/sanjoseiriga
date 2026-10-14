@@ -73,7 +73,7 @@
       <div class="col-6 col-md-4 col-lg-3 badge-catalog-item" data-category="{{ $badge->category }}" data-level="{{ $badgeLevel }}">
         <div class="card yg-card h-100 text-center {{ $earned ? '' : 'opacity-50' }}">
           <div class="card-body p-3">
-            @if ($badge->image_path)<img src="{{ $badge->image_url }}" alt="{{ $badge->name }}" style="height:6rem;" class="object-fit-contain {{ $earned ? '' : 'grayscale' }}">@else<div class="text-secondary" style="height:6rem; padding-top:2rem;"><i class="bi bi-image fs-1"></i></div>@endif
+            @if ($badge->image_path)<img src="{{ $badge->image_url }}" data-image-fallback="{{ asset('images/image-placeholder.svg') }}" alt="{{ $badge->name }}" style="height:6rem;" class="object-fit-contain {{ $earned ? '' : 'grayscale' }}">@else<div class="text-secondary" style="height:6rem; padding-top:2rem;"><i class="bi bi-image fs-1"></i></div>@endif
             <div class="fw-semibold mt-2">{{ $badge->name }}</div>
             <div class="small text-secondary">{{ $conditionLabels[$badge->condition_key] ?? $badge->condition_key }}@if ($badge->points_required) · {{ $badge->points_required }} @endif</div>
             <div class="mt-2"><span class="badge badge-soft text-capitalize">{{ $badge->category }}</span> <span class="badge rarity-{{ $badge->rarity }} text-capitalize">{{ $badge->rarity }}</span></div>
@@ -95,7 +95,7 @@
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center">
-              @if ($badge->image_path)<img src="{{ $badge->image_url }}" alt="{{ $badge->name }}" style="height:8rem;" class="object-fit-contain mb-3">@else<div class="text-secondary mb-3" style="height:8rem; padding-top:2.5rem;"><i class="bi bi-image fs-1"></i></div>@endif
+              @if ($badge->image_path)<img src="{{ $badge->image_url }}" data-image-fallback="{{ asset('images/image-placeholder.svg') }}" alt="{{ $badge->name }}" style="height:8rem;" class="object-fit-contain mb-3">@else<div class="text-secondary mb-3" style="height:8rem; padding-top:2.5rem;"><i class="bi bi-image fs-1"></i></div>@endif
               <p class="text-secondary">{{ $badge->description ?: 'A TalaFair community achievement.' }}</p>
               <p class="small text-secondary mb-3"><strong>Condition:</strong> {{ $conditionLabels[$badge->condition_key] ?? $badge->condition_key }}@if ($badge->points_required) · {{ $badge->points_required }} @endif</p>
               <div class="d-flex flex-wrap justify-content-center gap-2">

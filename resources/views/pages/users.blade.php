@@ -74,7 +74,7 @@
                         <tr class="user-management-row" data-user-toggle="user-details-{{ $member->id }}" data-user-name="{{ strtolower($member->full_name) }}" data-user-category="{{ $member->role }}" data-user-status="{{ $member->isOfficial() ? 'official' : ($member->is_verified ? 'verified' : 'unverified') }}">
                             <td class="ps-4 user-member-cell">
                                 <button type="button" class="btn btn-link link-dark text-decoration-none p-0 d-flex align-items-center gap-3 text-start" data-bs-toggle="collapse" data-bs-target="#user-details-{{ $member->id }}" aria-expanded="false" aria-controls="user-details-{{ $member->id }}">
-                                    <img src="{{ $member->avatar_url }}" alt="{{ $member->name }}" class="avatar avatar-sm object-fit-cover">
+                                    <img src="{{ $member->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $member->name }}" class="avatar avatar-sm object-fit-cover">
                                     <div>
                                         <div class="fw-semibold text-truncate">
                                             {{ $member->name }}
@@ -142,7 +142,7 @@
                                 <div class="user-profile-details">
                                     <div class="fw-bold mb-3"><i class="bi bi-person-lines-fill text-yg me-1"></i>Profile Information</div>
                                     <div class="row g-4 align-items-start">
-                                        <div class="col-12 col-md-3 d-flex justify-content-center"><img src="{{ $member->avatar_url }}" alt="{{ $member->full_name }}" width="112" height="112" class="rounded-circle object-fit-cover border"></div>
+                                        <div class="col-12 col-md-3 d-flex justify-content-center"><img src="{{ $member->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $member->full_name }}" width="112" height="112" class="rounded-circle object-fit-cover border"></div>
                                         <div class="col-12 col-md-9"><div class="row g-3 small profile-info-grid">
                                             <div class="col-md-6"><span class="detail-label">Full name</span><div>{{ $member->full_name }}</div></div>
                                             <div class="col-md-6"><span class="detail-label">Username</span><div>{{ '@' . $member->username }}</div></div>

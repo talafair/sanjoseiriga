@@ -9,7 +9,7 @@
     {{-- Details --}}
     <div class="card yg-card overflow-hidden mb-4">
       @if ($announcement->banner_url)
-        <img src="{{ $announcement->banner_url }}" alt="" class="card-img-top object-fit-cover" style="height:14rem;">
+        <img src="{{ $announcement->banner_url }}" data-image-fallback="{{ asset('images/image-placeholder.svg') }}" alt="" class="card-img-top object-fit-cover" style="height:14rem;">
       @endif
 
       <div class="card-body p-4">
@@ -274,4 +274,3 @@
   </div>
 </div>
 @endsection
-

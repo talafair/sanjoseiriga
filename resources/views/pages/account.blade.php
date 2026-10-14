@@ -7,7 +7,7 @@
   <div class="page-header p-4 p-lg-5 mb-4">
     <div class="row align-items-center position-relative" style="z-index: 1;">
       <div class="col-md d-flex align-items-center gap-3">
-        <img src="{{ $user->avatar_url }}" alt="{{ $user->full_name }}" width="88" height="88"
+        <img src="{{ $user->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $user->full_name }}" width="88" height="88"
              class="rounded-circle border border-3 border-white object-fit-cover shadow-sm flex-shrink-0 {{ $user->isSuperadmin() ? 'superadmin-account-avatar' : '' }}">
         @unless ($user->isSuperadmin())
         <div>
@@ -63,7 +63,7 @@
 
           @forelse ($user->badges as $badge)
             <div class="d-inline-flex align-items-center gap-2 border rounded p-2 me-2 mb-2">
-              <img src="{{ $badge->image_url }}" alt="{{ $badge->name }}" width="48" height="48" class="object-fit-cover rounded">
+              <img src="{{ $badge->image_url }}" data-image-fallback="{{ asset('images/image-placeholder.svg') }}" alt="{{ $badge->name }}" width="48" height="48" class="object-fit-cover rounded">
               <div>
                 <div class="fw-semibold">{{ $badge->name }}</div>
                 @if ($badge->description)
@@ -106,7 +106,7 @@
               <span class="small text-secondary">{{ $householdMembers->count() + 1 }} household {{ Str::plural('person', $householdMembers->count() + 1) }}</span>
             </div>
             <div class="d-flex align-items-center gap-3 border border-success-subtle rounded p-2 mb-2 bg-success-subtle bg-opacity-25">
-              <img src="{{ $householdHead->avatar_url }}" alt="{{ $householdHead->full_name }}" width="44" height="44" class="rounded-circle object-fit-cover">
+              <img src="{{ $householdHead->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $householdHead->full_name }}" width="44" height="44" class="rounded-circle object-fit-cover">
               <div class="flex-grow-1">
                 <div class="fw-semibold">{{ $householdHead->full_name }} @if ($householdHead->id === $user->id)<span class="text-secondary fw-normal">(You)</span>@endif</div>
                 <div class="small text-secondary">{{ $householdHead->email }}</div>
@@ -115,7 +115,7 @@
             </div>
             @forelse ($householdMembers as $member)
               <div class="d-flex align-items-center gap-3 border rounded p-2 mb-2">
-                <img src="{{ $member->avatar_url }}" alt="{{ $member->full_name }}" width="44" height="44" class="rounded-circle object-fit-cover">
+                <img src="{{ $member->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $member->full_name }}" width="44" height="44" class="rounded-circle object-fit-cover">
                 <div class="flex-grow-1">
                   <div class="fw-semibold">{{ $member->full_name }}</div>
                   <div class="small text-secondary text-capitalize">{{ $member->role }} · {{ $member->email }}</div>
@@ -161,7 +161,7 @@
               <form method="POST" action="{{ route('profile.photo.update') }}" enctype="multipart/form-data">
                 @csrf
                 <div class="text-center mb-3">
-                  <img src="{{ $user->avatar_url }}" alt="{{ $user->full_name }}" id="avatar-preview" width="120" height="120"
+                  <img src="{{ $user->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $user->full_name }}" id="avatar-preview" width="120" height="120"
                        class="rounded-circle border object-fit-cover">
                 </div>
 

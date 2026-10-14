@@ -2,6 +2,35 @@
 
 ## Pre-Deployment Checklist
 
+## TalaFair Uploaded Image Storage
+
+Uploaded profile pictures, badge images, announcement banners, and the home background use `filesystems.uploads_disk`. The local default remains `public`; if Laravel Cloud supplies `FILESYSTEM_DISK=s3` and `FILESYSTEM_UPLOADS_DISK` is unset, uploads follow that cloud disk. Set `FILESYSTEM_UPLOADS_DISK=s3` explicitly in production to avoid accidentally keeping uploads on the application's local filesystem.
+
+### Laravel Cloud setup (manual dashboard step required)
+
+1. In Laravel Cloud, open **Organization → Resources → Object Storage** and create a bucket. Choose **Public** visibility because avatars, badges, banners, and the home background are displayed publicly. Laravel Cloud's buckets use bucket-level visibility; do not configure per-file `visibility: public` or ACL headers.
+2. Attach the bucket to the TalaFair Laravel Cloud environment. Laravel Cloud should inject `FILESYSTEM_DISK` and the S3-compatible variables `AWS_BUCKET`, `AWS_REGION`, `AWS_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY`. Confirm these in that environment's settings; this repository cannot create or attach the bucket.
+3. Set `FILESYSTEM_UPLOADS_DISK=s3` in the environment if it is set to another disk. For the public bucket, copy its public base URL from its Laravel Cloud settings and set it as `AWS_URL`. Do not put credentials in source control.
+4. Deploy/restart the environment. The S3 disk config maps Cloud's `AWS_REGION` and `AWS_ENDPOINT_URL` (and retains the `AWS_DEFAULT_REGION`/`AWS_ENDPOINT` aliases for other S3-compatible services). Clear/rebuild config cache if applicable.
+5. Test one profile photo upload, replacement, and removal, then test a badge image, announcement banner, and home background. Verify their public image URLs load after a new deployment/restart and that static assets such as the logo still load from `public/`.
+
+### Existing image transfer
+
+Database image paths are unchanged. If you have a trusted copy of existing files in `storage/app/public`, first preview a non-destructive sync and then upload those paths to the root of the attached bucket (do not use `--delete`):
+
+```sh
+aws s3 sync storage/app/public s3://YOUR_BUCKET/ \
+  --endpoint-url "$AWS_ENDPOINT_URL" \
+  --region "$AWS_REGION" \
+  --dryrun
+
+aws s3 sync storage/app/public s3://YOUR_BUCKET/ \
+  --endpoint-url "$AWS_ENDPOINT_URL" \
+  --region "$AWS_REGION"
+```
+
+Use credentials for that bucket only in your local shell/secure credential store, never in committed files. The sync preserves relative paths such as `avatars/...`, `badges/...`, `banners/...`, and `backgrounds/...`, so existing database values remain valid. Only transfer files that are actually available in a local copy or backup; missing files on an ephemeral production filesystem cannot be recovered by this change. Missing avatar and uploaded-image URLs fall back to TalaFair's static placeholder images.
+
 ## TalaFair PWA Push Notifications
 
 Web Push requires HTTPS (except on localhost), a browser with the Push API, and a running Laravel queue worker. Users opt in from **Account → Push notifications**; the browser permission prompt only appears after they select **Enable on this device**. Subscriptions are stored per signed-in user and browser/device.

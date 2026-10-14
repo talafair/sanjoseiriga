@@ -42,7 +42,7 @@
                 <div class="col-10 col-sm-6 col-lg-3 {{ $podiumMeta[$i]['order'] }}">
                     <div class="card podium-card {{ $podiumMeta[$i]['class'] }} text-center p-4 {{ $i === 0 ? 'pb-5' : '' }}">
                         <span class="podium-rank">{!! $podiumMeta[$i]['rank'] !!}</span>
-                        <img src="{{ $player->avatar_url }}" alt="{{ $player->name }}" class="avatar {{ $podiumMeta[$i]['avatar'] }} object-fit-cover mx-auto mt-3 mb-2">
+                        <img src="{{ $player->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $player->name }}" class="avatar {{ $podiumMeta[$i]['avatar'] }} object-fit-cover mx-auto mt-3 mb-2">
                         <div class="{{ $podiumMeta[$i]['title'] }} fw-bold mb-0">
                             {{ $player->name }}
                             @if ($ranking === 'individual' && auth()->id() === $player->id)<span class="badge badge-yg rounded-pill ms-1">You</span>@endif
@@ -50,7 +50,7 @@
                         <div class="small text-secondary mb-2">{{ $ranking === 'family' ? 'Household ranking' : '@' . $player->username }}</div>
                         <div class="leader-badges justify-content-center mb-3" aria-label="{{ $player->badges->count() }} badges earned">
                             @forelse ($player->badges as $badge)
-                                <img src="{{ $badge->image_url }}" alt="{{ $badge->name }}" class="leader-badge" title="{{ $badge->name }}">
+                                <img src="{{ $badge->image_url }}" data-image-fallback="{{ asset('images/image-placeholder.svg') }}" alt="{{ $badge->name }}" class="leader-badge" title="{{ $badge->name }}">
                             @empty
                                 <span class="small text-secondary">No badges yet</span>
                             @endforelse
@@ -135,8 +135,8 @@
                             @foreach ($players as $i => $player)
                                 <tr class="ranking-row {{ auth()->id() === $player->id ? 'current-user' : '' }}">
                                     <td class="ps-4 fw-bold {{ auth()->id() === $player->id ? 'text-yg' : 'text-secondary' }}">{{ $i + 1 }}</td>
-                                    <td><div class="d-flex align-items-center gap-3"><img src="{{ $player->avatar_url }}" alt="{{ $player->name }}" class="avatar avatar-sm object-fit-cover"><span class="{{ auth()->id() === $player->id ? 'fw-bold' : 'fw-semibold' }}">{{ $player->name }} @if (auth()->id() === $player->id)<span class="badge badge-yg rounded-pill ms-1">You</span>@endif</span></div></td>
-                                    <td><div class="leader-badges" aria-label="{{ $player->badges->count() }} badges earned">@forelse ($player->badges as $badge)<img src="{{ $badge->image_url }}" alt="{{ $badge->name }}" class="leader-badge" title="{{ $badge->name }}">@empty<span class="small text-secondary">None</span>@endforelse</div></td>
+                                    <td><div class="d-flex align-items-center gap-3"><img src="{{ $player->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $player->name }}" class="avatar avatar-sm object-fit-cover"><span class="{{ auth()->id() === $player->id ? 'fw-bold' : 'fw-semibold' }}">{{ $player->name }} @if (auth()->id() === $player->id)<span class="badge badge-yg rounded-pill ms-1">You</span>@endif</span></div></td>
+                                    <td><div class="leader-badges" aria-label="{{ $player->badges->count() }} badges earned">@forelse ($player->badges as $badge)<img src="{{ $badge->image_url }}" data-image-fallback="{{ asset('images/image-placeholder.svg') }}" alt="{{ $badge->name }}" class="leader-badge" title="{{ $badge->name }}">@empty<span class="small text-secondary">None</span>@endforelse</div></td>
                                     <td class="pe-4 text-center fw-bold">{{ number_format($player->points) }}</td>
                                 </tr>
                             @endforeach

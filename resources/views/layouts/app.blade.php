@@ -7,6 +7,16 @@
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <title>@yield('title', 'TalaFair') · TalaFair</title>
     @include('partials.theme-init')
+    <script>
+        document.addEventListener('error', (event) => {
+            const image = event.target;
+            if (!(image instanceof HTMLImageElement) || !image.dataset.imageFallback) return;
+
+            const fallback = image.dataset.imageFallback;
+            delete image.dataset.imageFallback;
+            image.src = fallback;
+        }, true);
+    </script>
     <link rel="icon" href="{{ asset('images/talafair-logo.png') }}" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">

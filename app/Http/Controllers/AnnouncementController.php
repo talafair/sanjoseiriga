@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use RuntimeException;
 
 class AnnouncementController extends Controller
 {
@@ -57,6 +58,9 @@ class AnnouncementController extends Controller
 
         if ($request->hasFile('banner')) {
             $announcement->banner_path = $request->file('banner')->store('banners', config('filesystems.uploads_disk', 'public'));
+            if (! $announcement->banner_path) {
+                throw new RuntimeException('The announcement banner could not be saved to the configured upload storage.');
+            }
         }
 
         if ($announcement->is_event) {
@@ -156,11 +160,12 @@ class AnnouncementController extends Controller
             'venue_lng', 'geofence_radius', 'banner_path',
         ];
 
+        $oldBannerPath = $announcement->banner_path;
         if ($request->hasFile('banner')) {
-            if ($announcement->banner_path) {
-                Storage::disk(config('filesystems.uploads_disk', 'public'))->delete($announcement->banner_path);
-            }
             $data['banner_path'] = $request->file('banner')->store('banners', config('filesystems.uploads_disk', 'public'));
+            if (! $data['banner_path']) {
+                throw new RuntimeException('The announcement banner could not be saved to the configured upload storage.');
+            }
         }
 
         $announcement->fill($data);
@@ -170,6 +175,10 @@ class AnnouncementController extends Controller
         }
 
         $announcement->save();
+        if ($oldBannerPath && isset($data['banner_path'])) {
+            Storage::disk(config('filesystems.uploads_disk', 'public'))->delete($oldBannerPath);
+        }
+
         $this->syncFacilitators($announcement, $data['facilitator_ids'] ?? []);
 
         if ($announcement->wasChanged($notificationFields)) {

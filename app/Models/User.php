@@ -214,7 +214,7 @@ class User extends Authenticatable implements CanResetPasswordContract
 
         return $disk === 'public'
             ? rtrim(request()->getBaseUrl(), '/') . '/storage/' . ltrim($this->avatar_path, '/')
-            : Storage::url($this->avatar_path);
+            : Storage::disk($disk)->url($this->avatar_path);
     }
 
     public function isOfficial(): bool

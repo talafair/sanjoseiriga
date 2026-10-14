@@ -33,7 +33,7 @@ class Setting extends Model
     {
         $path = static::get($key);
 
-        return $path ? Storage::disk('public')->url($path) : $default;
+        return $path ? Storage::disk(config('filesystems.uploads_disk', 'public'))->url($path) : $default;
     }
 }
 

@@ -32,7 +32,7 @@ class Badge extends Model
 
             return $disk === 'public'
                 ? rtrim(request()->getBaseUrl(), '/') . '/storage/' . ltrim($this->image_path, '/')
-                : Storage::url($this->image_path);
+                : Storage::disk($disk)->url($this->image_path);
     }
 
     public function users()
@@ -45,4 +45,3 @@ class Badge extends Model
         return $this->belongsTo(Announcement::class);
     }
 }
-

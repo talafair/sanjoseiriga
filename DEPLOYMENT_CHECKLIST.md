@@ -2,6 +2,34 @@
 
 ## Pre-Deployment Checklist
 
+## TalaFair PWA Push Notifications
+
+Web Push requires HTTPS (except on localhost), a browser with the Push API, and a running Laravel queue worker. Users opt in from **Account → Push notifications**; the browser permission prompt only appears after they select **Enable on this device**. Subscriptions are stored per signed-in user and browser/device.
+
+### Production environment
+
+Generate a VAPID key pair in a secure environment with `php artisan webpush:vapid`, then store the values in the production environment or secret manager. Set:
+
+```dotenv
+VAPID_SUBJECT=https://your-domain.com
+VAPID_PUBLIC_KEY=your-public-vapid-key
+VAPID_PRIVATE_KEY=your-private-vapid-key
+```
+
+`VAPID_SUBJECT` should be the deployed HTTPS origin or a valid `mailto:` contact. The public key is sent to the browser; **never expose or commit `VAPID_PRIVATE_KEY`**. Keep the same key pair after users subscribe: changing it invalidates existing browser subscriptions.
+
+### Deployment steps
+
+1. Install dependencies with `composer install`.
+2. Configure the VAPID variables above in the production secret store.
+3. Apply the additive database migration with `php artisan migrate --force`. Do not use `migrate:fresh`.
+4. Clear and rebuild cached configuration with `php artisan optimize:clear` and `php artisan config:cache`.
+5. Run and supervise a queue worker, for example `php artisan queue:work --tries=3 --timeout=120`. Restart workers after deployment with `php artisan queue:restart`.
+6. Serve TalaFair over HTTPS and verify that `public/sw.js` is reachable at the app's service-worker scope.
+7. Sign in on a supported browser, open **Account**, enable push on that device, then publish a test announcement or survey addressed to that user.
+
+Delivery uses the existing in-app notification records and does not create a second inbox entry. Browsers may defer or suppress system notifications based on their own settings; delivery also requires the push service and device to be reachable. Expired endpoints (HTTP 404/410) are removed automatically, and other delivery failures are logged.
+
 ### Code Review
 - [x] AttendanceController.php: check() method - separation of official/resident flows
 - [x] AttendanceController.php: recordAttendance() - official point exclusion & raffle logic

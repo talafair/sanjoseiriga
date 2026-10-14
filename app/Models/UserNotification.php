@@ -2,11 +2,19 @@
 
 namespace App\Models;
 
+use App\Services\PushNotificationDelivery;
 use Illuminate\Database\Eloquent\Model;
 
 class UserNotification extends Model
 {
     protected $fillable = ['user_id', 'announcement_id', 'survey_id', 'title', 'body', 'read_at', 'created_by'];
+
+    protected static function booted(): void
+    {
+        static::created(function (UserNotification $notification): void {
+            PushNotificationDelivery::queueForNotification($notification);
+        });
+    }
 
     protected function casts(): array
     {

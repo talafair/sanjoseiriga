@@ -6,6 +6,7 @@ use App\Models\Announcement;
 use App\Models\Survey;
 use App\Models\SurveyResponse;
 use App\Models\User;
+use App\Services\PushNotificationDelivery;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -43,15 +44,25 @@ class SuperadminNotificationService
             ? ($action === 'deleted' ? null : $model->getKey())
             : $model->getAttribute('survey_id');
 
+        $title = ucfirst($action) . ' ' . class_basename($model);
+        $body = "{$subject} was {$verb} by {$actor}.";
+
         DB::table('user_notifications')->insert($superadminIds->map(fn (int $userId) => [
             'user_id' => $userId,
             'announcement_id' => $announcementId,
             'survey_id' => $surveyId,
-            'title' => ucfirst($action) . ' ' . class_basename($model),
-            'body' => "{$subject} was {$verb} by {$actor}.",
+            'title' => $title,
+            'body' => $body,
             'created_by' => auth()->id(),
             'created_at' => $now,
             'updated_at' => $now,
         ])->all());
+
+        PushNotificationDelivery::queueForRecipients(
+            $superadminIds,
+            $title,
+            $body,
+            route('notifications.index')
+        );
     }
 }

@@ -8,6 +8,7 @@ use App\Models\UserNotification;
 use App\Models\EventRaffleEntry;
 use App\Models\EventSubstitution;
 use App\Models\User;
+use App\Services\PushNotificationDelivery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -407,6 +408,12 @@ class AnnouncementController extends Controller
                 'created_at' => $now,
                 'updated_at' => $now,
             ])->all());
+            PushNotificationDelivery::queueForRecipients(
+                $newIds,
+                'Event facilitator assignment',
+                "You have been assigned as a facilitator for {$announcement->title}. You may record your attendance using the event QR code.",
+                route('announcements.show', $announcement)
+            );
         }
     }
 
@@ -433,6 +440,12 @@ class AnnouncementController extends Controller
             ])->all();
 
             UserNotification::insert($rows);
+            PushNotificationDelivery::queueForRecipients(
+                $users->modelKeys(),
+                $title,
+                $body,
+                route('announcements.show', $announcement)
+            );
             $count += count($rows);
         });
 

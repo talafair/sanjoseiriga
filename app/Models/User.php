@@ -11,10 +11,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 
 class User extends Authenticatable implements CanResetPasswordContract
 {
-    use HasFactory, Notifiable, Auditable, CanResetPassword;
+    use HasFactory, Notifiable, Auditable, CanResetPassword, HasPushSubscriptions;
 
     public const CATEGORIES = [
         'resident' => 'Resident',

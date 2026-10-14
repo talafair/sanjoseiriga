@@ -17,6 +17,7 @@ use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PrizeController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RsvpController;
 use App\Http\Controllers\SpinController;
 use App\Http\Controllers\UserManagementController;
@@ -56,6 +57,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/account',     [AccountController::class, 'index'])->name('account');
     Route::post('/account/substitute', [AccountController::class, 'assignSubstitute'])->name('account.substitute');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
+    Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
     Route::get('/notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
     Route::get('/surveys', [SurveyController::class, 'index'])->name('surveys.index');

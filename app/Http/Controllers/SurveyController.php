@@ -7,6 +7,7 @@ use App\Models\Survey;
 use App\Models\SurveyResponse;
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Services\PushNotificationDelivery;
 use App\Services\SuperadminNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -218,6 +219,12 @@ class SurveyController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ])->all());
+            PushNotificationDelivery::queueForRecipients(
+                $users->modelKeys(),
+                'New survey: ' . $survey->title,
+                'Share your feedback in the new community survey.',
+                route('surveys.show', $survey)
+            );
         });
     }
 }

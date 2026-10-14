@@ -380,6 +380,29 @@
           </div>
         </div>
 
+        <div class="card yg-card mt-3" id="push-notifications-card"
+             data-public-key="{{ $pushPublicKey ?? '' }}"
+             data-store-url="{{ route('push-subscriptions.store') }}"
+             data-delete-url="{{ route('push-subscriptions.destroy') }}"
+             data-service-worker-url="{{ asset('sw.js') }}"
+             data-csrf-token="{{ csrf_token() }}">
+          <div class="card-body p-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+            <div>
+              <h6 class="fw-bold mb-1"><i class="bi bi-bell me-1 text-yg"></i>Push notifications</h6>
+              <p class="small text-secondary mb-1">Choose whether this device can receive TalaFair announcements, event reminders, and other updates when the app is closed.</p>
+              <p class="small mb-0" id="push-notifications-status" role="status" aria-live="polite">Checking this device…</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" id="push-notifications-enable" class="btn btn-primary fw-semibold">
+                <i class="bi bi-bell-fill me-1"></i>Enable on this device
+              </button>
+              <button type="button" id="push-notifications-disable" class="btn btn-outline-secondary fw-semibold" hidden>
+                <i class="bi bi-bell-slash me-1"></i>Disable on this device
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div class="card yg-card mt-3">
           <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -433,6 +456,138 @@
     accountGroup.addEventListener('change', filterAccountPositions);
     filterAccountPositions();
   }
+
+  (() => {
+    const panel = document.getElementById('push-notifications-card');
+    if (!panel) return;
+
+    const status = document.getElementById('push-notifications-status');
+    const enableButton = document.getElementById('push-notifications-enable');
+    const disableButton = document.getElementById('push-notifications-disable');
+    const publicKey = panel.dataset.publicKey;
+    const supported = window.isSecureContext
+      && 'serviceWorker' in navigator
+      && 'PushManager' in window
+      && 'Notification' in window;
+
+    const showStatus = (message, enabled = false) => {
+      status.textContent = message;
+      enableButton.hidden = enabled;
+      disableButton.hidden = !enabled;
+    };
+
+    const decodeApplicationKey = (key) => {
+      const base64 = key.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+      const binary = window.atob(padded);
+      return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    };
+
+    const request = async (url, method, body) => {
+      const response = await fetch(url, {
+        method,
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': panel.dataset.csrfToken,
+        },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'The notification setting could not be updated.');
+      return result;
+    };
+
+    const refreshStatus = async () => {
+      if (!supported) {
+        showStatus('Push notifications are not supported in this browser or require a secure HTTPS connection.');
+        enableButton.disabled = true;
+        return;
+      }
+
+      if (!publicKey) {
+        showStatus('Push notifications are not configured yet. Contact the site administrator.');
+        enableButton.disabled = true;
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.getRegistration();
+      const subscription = await registration?.pushManager.getSubscription();
+      if (Notification.permission === 'denied') {
+        showStatus(
+          'Notifications are blocked by your browser. Allow them in browser settings to receive push.',
+          Boolean(subscription)
+        );
+        enableButton.disabled = true;
+        return;
+      }
+
+      if (subscription && Notification.permission === 'granted') {
+        showStatus('Push notifications are enabled on this device.', true);
+        return;
+      }
+
+      showStatus('Push notifications are off on this device. You can enable them whenever you like.');
+      enableButton.disabled = false;
+    };
+
+    enableButton.addEventListener('click', async () => {
+      if (!supported || !publicKey) return;
+      enableButton.disabled = true;
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          await refreshStatus();
+          if (permission === 'default') status.textContent = 'Permission was not granted. You can enable notifications later.';
+          return;
+        }
+
+        const registration = await navigator.serviceWorker.register(panel.dataset.serviceWorkerUrl);
+        const existingSubscription = await registration.pushManager.getSubscription();
+        const subscription = existingSubscription || await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: decodeApplicationKey(publicKey),
+        });
+
+        try {
+          await request(panel.dataset.storeUrl, 'POST', subscription.toJSON());
+        } catch (error) {
+          if (!existingSubscription) await subscription.unsubscribe();
+          throw error;
+        }
+
+        showStatus('Push notifications are enabled on this device.', true);
+      } catch (error) {
+        status.textContent = error.message;
+        enableButton.disabled = false;
+      }
+    });
+
+    disableButton.addEventListener('click', async () => {
+      disableButton.disabled = true;
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        const subscription = await registration?.pushManager.getSubscription();
+        if (subscription) {
+          await request(panel.dataset.deleteUrl, 'DELETE', { endpoint: subscription.endpoint });
+          const unsubscribed = await subscription.unsubscribe();
+          if (!unsubscribed) throw new Error('The browser could not disable this device subscription.');
+        }
+        showStatus('Push notifications are disabled on this device.');
+        enableButton.disabled = false;
+      } catch (error) {
+        status.textContent = error.message;
+      } finally {
+        disableButton.disabled = false;
+      }
+    });
+
+    refreshStatus().catch((error) => {
+      status.textContent = error.message;
+      enableButton.disabled = true;
+    });
+  })();
 
 </script>
 @endpush

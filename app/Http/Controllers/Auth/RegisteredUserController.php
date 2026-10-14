@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Services\PushNotificationDelivery;
 use App\Services\UniqueIdGenerator;
 use App\Services\RaffleService;
 use Illuminate\Auth\Events\Registered;
@@ -225,6 +226,12 @@ class RegisteredUserController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ])->all());
+            PushNotificationDelivery::queueForRecipients(
+                $officialIds,
+                'Resident registration needs verification',
+                "{$user->full_name} has registered and is waiting for account verification.",
+                route('notifications.index')
+            );
         }
 
         Auth::login($user);

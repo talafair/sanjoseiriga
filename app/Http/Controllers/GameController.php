@@ -7,6 +7,7 @@ use App\Models\TriviaAnswer;
 use App\Models\GameRun;
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Services\PushNotificationDelivery;
 use App\Services\BadgeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -90,6 +91,12 @@ class GameController extends Controller
                 'created_at' => $now,
                 'updated_at' => $now,
             ])->all());
+            PushNotificationDelivery::queueForRecipients(
+                $users->modelKeys(),
+                'New trivia published',
+                "Trivia \"{$theme->title}\" is now available until {$theme->due_at->format('M j, Y g:i A')}.",
+                route('games.index')
+            );
         });
 
         return back()->with('success', 'Trivia theme published.');

@@ -5,19 +5,19 @@
 @section('content')
 
     {{-- Header --}}
-    <div class="page-header p-4 p-lg-5 mb-4">
+    <div class="page-header p-3 p-lg-4 mb-3">
         <div class="row align-items-center position-relative" style="z-index: 1;">
             <div class="col">
-                <h2 class="fw-bold mb-1"><i class="bi bi-gift-fill me-2"></i>Manage Prizes</h2>
-                <p class="mb-0 opacity-75">Edit the prizes on the spin wheel — changes apply instantly</p>
+                <h2 class="h4 fw-bold mb-1"><i class="bi bi-gift-fill me-2"></i>Manage Prizes</h2>
+                <p class="small mb-0 opacity-75">Edit the prizes on the spin wheel — changes apply instantly</p>
             </div>
             <div class="col-auto d-flex gap-2">
-                <a href="{{ route('spin') }}" class="btn btn-light fw-semibold rounded-3">
-                    <i class="bi bi-arrow-left me-2"></i>Back to Wheel
+                <a href="{{ route('spin') }}" class="btn btn-yg btn-sm fw-semibold rounded-3">
+                    <i class="bi bi-eye me-1"></i>Show wheel
                 </a>
                 @if ($prizes->count() < $maxPrizes)
-                    <button class="btn btn-gold" data-bs-toggle="modal" data-bs-target="#addPrizeModal">
-                        <i class="bi bi-plus-circle me-2"></i>Add Prize
+                    <button class="btn btn-yg btn-sm fw-semibold rounded-3" data-bs-toggle="modal" data-bs-target="#addPrizeModal">
+                        <i class="bi bi-plus-circle me-1"></i>Add Prize
                     </button>
                 @endif
             </div>
@@ -130,4 +130,3 @@
     @endforeach
 
 @endsection
-

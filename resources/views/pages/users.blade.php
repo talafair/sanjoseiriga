@@ -5,17 +5,17 @@
 @section('content')
 
     {{-- Header --}}
-    <div class="page-header p-4 p-lg-5 mb-4">
+    <div class="page-header p-3 p-lg-4 mb-3">
         <div class="row align-items-center position-relative" style="z-index: 1;">
             <div class="col">
-                <h2 class="fw-bold mb-1"><i class="bi bi-people-fill me-2"></i>Manage Users</h2>
-                <p class="mb-0 opacity-75">View and manage every account on the platform</p>
+                <h2 class="h4 fw-bold mb-1"><i class="bi bi-people-fill me-2"></i>Manage Users</h2>
+                <p class="small mb-0 opacity-75">View and manage every account on the platform</p>
             </div>
             <div class="col-auto">
-                <a href="{{ route('users.create') }}" class="btn btn-yg me-2">
+                <a href="{{ route('users.create') }}" class="btn btn-yg btn-sm me-2">
                     <i class="bi bi-person-plus me-1"></i>Add User
                 </a>
-                <span class="badge bg-white text-yg rounded-pill px-3 py-2 fs-6">
+                <span class="badge bg-white text-yg rounded-pill px-2 py-1">
                     <i class="bi bi-person-check me-1"></i>{{ $users->count() }} {{ Str::plural('member', $users->count()) }}
                 </span>
             </div>

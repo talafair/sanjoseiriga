@@ -1229,6 +1229,7 @@ html[data-theme="dark"] {
     --bs-body-color: #e5ebe6;
     --bs-emphasis-color: #f4f7f4;
     --bs-secondary-color: #b2beb4;
+    --bs-secondary-rgb: 178, 190, 180;
     --bs-tertiary-color: #9ba99d;
     --bs-tertiary-bg: #252e27;
     --bs-secondary-bg: #202821;
@@ -1344,6 +1345,14 @@ html[data-theme="dark"] .role-pick input[type="radio"]:checked + .role-card {
 html[data-theme="dark"] .podium-1 { background: linear-gradient(160deg, #3d3822, #202821); }
 html[data-theme="dark"] .podium-2 { background: linear-gradient(160deg, #343c3d, #202821); }
 html[data-theme="dark"] .podium-3 { background: linear-gradient(160deg, #402f25, #202821); }
+html[data-theme="dark"] .leader-table .link-dark { color: var(--yg-text) !important; }
+html[data-theme="dark"] .leader-table .family-details {
+    color: var(--yg-text);
+    background: #1b231d;
+}
+html[data-theme="dark"] .leader-table .family-member-list { background: #202821; }
+html[data-theme="dark"] .leader-table .family-member-row { border-color: var(--bs-border-color); }
+html[data-theme="dark"] .leader-table .family-total-row { border-color: #58675a; }
 html[data-theme="dark"] .announcement-page .yg-card h5,
 html[data-theme="dark"] .announcement-page .yg-card h4 { color: var(--yg-text); }
 html[data-theme="dark"] .announcement-page .yg-card p.text-secondary { color: #c0cbc1 !important; }

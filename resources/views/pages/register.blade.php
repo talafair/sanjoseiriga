@@ -298,6 +298,15 @@
             <input id="password_confirmation" name="password_confirmation" type="password" required
                    autocomplete="new-password" class="form-control">
           </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="save_account" value="1" id="saveAccount"
+                     @checked(old('save_account'))>
+              <label class="form-check-label small text-secondary" for="saveAccount">
+                Remember this account on this device <span class="d-block">Saves your username and display profile, never your password.</span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
     </div>

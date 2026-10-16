@@ -49,6 +49,248 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_login_attempts_are_rate_limited(): void
+    {
+        for ($attempt = 1; $attempt <= 5; $attempt++) {
+            $this->post(route('login.attempt'), [
+                'login' => 'unknown-user',
+                'password' => 'WrongPassword123!',
+            ])->assertSessionHasErrors('login');
+        }
+
+        $this->post(route('login.attempt'), [
+            'login' => 'unknown-user',
+            'password' => 'WrongPassword123!',
+        ])->assertTooManyRequests();
+    }
+
+    public function test_switch_account_logs_out_invalidates_the_session_and_protects_authenticated_pages(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->withSession([
+            'switch-account-marker' => 'must be removed',
+        ]);
+
+        $sessionId = session()->getId();
+        $csrfToken = session()->token();
+
+        $this->post(route('logout'))
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertFalse(session()->has('switch-account-marker'));
+        $this->assertNotSame($sessionId, session()->getId());
+        $this->assertNotSame($csrfToken, session()->token());
+
+        $this->get(route('home'))->assertRedirect(route('login'));
+        $this->get(route('account'))->assertRedirect(route('login'));
+    }
+
+    public function test_successful_login_can_save_only_a_display_profile_when_requested(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'resident',
+            'password' => 'Password123!',
+        ]);
+
+        $this->post(route('login.attempt'), [
+            'login' => $user->username,
+            'password' => 'Password123!',
+            'save_account' => '1',
+        ])
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('savedAccountProfile', [
+                'username' => $user->username,
+                'name' => $user->full_name,
+                'avatar' => $user->avatar_url,
+                'role' => 'Resident',
+            ]);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('talafair.savedAccounts.v1')
+            ->assertSee('localStorage.setItem');
+    }
+
+    public function test_saved_account_can_be_added_during_registration_only_when_opted_in(): void
+    {
+        $this->post(route('register.store'), $this->registrationPayload([
+            'save_account' => '1',
+        ]))->assertRedirect(route('id-card.show'));
+
+        $user = User::where('username', 'registered-user')->firstOrFail();
+        $this->assertAuthenticatedAs($user);
+        $this->assertSame([
+            'username' => $user->username,
+            'name' => $user->full_name,
+            'avatar' => $user->avatar_url,
+            'role' => 'Resident',
+        ], session('savedAccountProfile'));
+    }
+
+    public function test_add_account_logs_out_and_offers_to_save_the_next_profile(): void
+    {
+        $user = User::factory()->create(['role' => 'resident']);
+
+        $this->actingAs($user)->withSession(['private-marker' => 'discard'])
+            ->post(route('saved-accounts.add'))
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('save_account_after_login', true);
+
+        $this->assertGuest();
+        $this->assertFalse(session()->has('private-marker'));
+
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('name="save_account"', false)
+            ->assertSee('value="1" id="saveAccount"', false)
+            ->assertSee('checked', false);
+    }
+
+    public function test_selecting_a_saved_account_logs_out_before_requiring_its_password(): void
+    {
+        $current = User::factory()->create([
+            'role' => 'resident',
+            'username' => 'current-resident',
+            'password' => 'CurrentPassword123!',
+        ]);
+        $saved = User::factory()->create([
+            'role' => 'resident',
+            'username' => 'saved-resident',
+            'password' => 'SavedPassword123!',
+        ]);
+
+        $this->actingAs($current)->withSession(['private-marker' => 'discard']);
+        $oldSessionId = session()->getId();
+
+        $this->post(route('switch-account'), [
+            'saved_login' => $saved->username,
+        ])
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('pending_saved_login', $saved->username);
+
+        $this->assertGuest();
+        $this->assertFalse(session()->has('private-marker'));
+        $this->assertNotSame($oldSessionId, session()->getId());
+
+        $loggedOutSessionId = session()->getId();
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('id="loginField"', false)
+            ->assertSee('value="' . $saved->username . '"', false)
+            ->assertSee('readonly', false);
+
+        $this->post(route('login.attempt'), [
+            'login' => $saved->username,
+            'password' => 'CurrentPassword123!',
+        ])->assertSessionHasErrors('login');
+        $this->assertGuest();
+
+        $this->post(route('login.attempt'), [
+            'login' => $saved->username,
+            'password' => 'SavedPassword123!',
+        ])->assertRedirect(route('home'));
+        $this->assertAuthenticatedAs($saved);
+        $this->assertNotSame($loggedOutSessionId, session()->getId());
+    }
+
+    public function test_forged_saved_username_cannot_authenticate_a_different_account(): void
+    {
+        $current = User::factory()->create(['role' => 'resident']);
+        $other = User::factory()->create([
+            'role' => 'resident',
+            'username' => 'real-account',
+            'password' => 'RealPassword123!',
+        ]);
+
+        $this->actingAs($current)
+            ->post(route('switch-account'), ['saved_login' => 'unknown-saved-account'])
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('pending_saved_login', '');
+
+        $this->assertGuest();
+        $this->post(route('login.attempt'), [
+            'login' => $other->username,
+            'password' => 'RealPassword123!',
+        ])->assertSessionHasErrors('login');
+        $this->assertGuest();
+    }
+
+    public function test_resident_credentials_cannot_switch_into_an_official_or_administrator_account(): void
+    {
+        $resident = User::factory()->create([
+            'role' => 'resident',
+            'username' => 'switch-resident',
+            'password' => 'ResidentPassword123!',
+        ]);
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'kagawad',
+            'username' => 'switch-official',
+            'password' => 'OfficialPassword123!',
+            'is_verified' => true,
+        ]);
+        $administrator = User::factory()->create([
+            'role' => User::SUPERADMIN_ROLE,
+            'username' => 'switch-administrator',
+            'password' => 'AdministratorPassword123!',
+        ]);
+
+        $this->actingAs($resident)
+            ->post(route('switch-account'), ['saved_login' => $official->username])
+            ->assertRedirect(route('login'));
+
+        $this->post(route('login.attempt'), [
+            'login' => $resident->username,
+            'password' => 'ResidentPassword123!',
+        ])->assertSessionHasErrors('login');
+        $this->assertGuest();
+
+        $this->get(route('login', ['another' => 1]));
+        $this->actingAs($resident)
+            ->post(route('switch-account'), ['saved_login' => $administrator->username])
+            ->assertRedirect(route('login'));
+
+        $this->post(route('login.attempt'), [
+            'login' => $resident->username,
+            'password' => 'ResidentPassword123!',
+        ])->assertSessionHasErrors('login');
+        $this->assertGuest();
+
+        $this->post(route('login.attempt'), [
+            'login' => $administrator->username,
+            'password' => 'AdministratorPassword123!',
+        ])->assertRedirect(route('home'));
+        $this->assertAuthenticatedAs($administrator);
+    }
+
+    public function test_switching_to_an_unverified_official_does_not_bypass_verification(): void
+    {
+        $resident = User::factory()->create(['role' => 'resident']);
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'kagawad',
+            'username' => 'unverified-switch-target',
+            'password' => 'OfficialPassword123!',
+            'is_verified' => false,
+        ]);
+
+        $this->actingAs($resident)
+            ->post(route('switch-account'), ['saved_login' => $official->username])
+            ->assertRedirect(route('login'));
+
+        $this->post(route('login.attempt'), [
+            'login' => $official->username,
+            'password' => 'OfficialPassword123!',
+        ])->assertRedirect(route('home'));
+        $this->assertAuthenticatedAs($official);
+
+        $this->get(route('prizes.index'))->assertRedirect(route('account'));
+    }
+
     public function test_registration_accepts_a_valid_email(): void
     {
         $this->post(route('register.store'), $this->registrationPayload([

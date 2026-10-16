@@ -180,6 +180,32 @@
                     @endif
                     @include('partials.theme-toggle')
                     <li class="nav-item">
+                        <button class="nav-link border-0 bg-transparent switch-account-toggle" id="switchAccountToggle"
+                                type="button" aria-label="Switch Account" title="Switch Account"
+                                aria-controls="switchAccountPopover" aria-expanded="false">
+                            <i class="bi bi-arrow-left-right nav-icon" aria-hidden="true"></i><span class="nav-label">Switch Account</span>
+                            <span class="switch-account-avatar-stack" id="switchAccountAvatars" aria-hidden="true"></span>
+                        </button>
+                        <div class="switch-account-popover" id="switchAccountPopover" hidden>
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                <h2 class="h6 fw-bold mb-0">Switch Account</h2>
+                                <button type="button" class="btn-close" id="closeSwitchAccount"
+                                        aria-label="Close account switcher"></button>
+                            </div>
+                            <p class="small text-secondary mb-2">Choose a saved profile, then enter its password.</p>
+                            <div class="switch-account-list" id="switchAccountList"></div>
+                            <div class="switch-account-empty small text-secondary py-2" id="switchAccountEmpty" hidden>
+                                No accounts saved on this device yet.
+                            </div>
+                            <form action="{{ route('saved-accounts.add') }}" method="POST" class="mt-2">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-yg-outline w-100">
+                                    <i class="bi bi-person-plus me-1" aria-hidden="true"></i>Add Account
+                                </button>
+                            </form>
+                        </div>
+                    </li>
+                    <li class="nav-item">
                         <form action="{{ route('logout') }}" method="POST" class="d-inline">
                             @csrf
                             <button type="submit" class="nav-link text-logout border-0 bg-transparent">
@@ -311,6 +337,212 @@
 
         desktop.addEventListener('change', syncViewport);
         syncViewport();
+    })();
+</script>
+@if (session('savedAccountProfile'))
+<script>
+    (() => {
+        const key = 'talafair.savedAccounts.v1';
+        const profile = @json(session('savedAccountProfile'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+
+        try {
+            const saved = JSON.parse(localStorage.getItem(key) || '[]');
+            const accounts = Array.isArray(saved)
+                ? saved
+                    .filter((account) => account
+                        && typeof account.username === 'string'
+                        && /^[a-zA-Z0-9_-]{3,30}$/.test(account.username)
+                        && typeof account.name === 'string')
+                    .filter((account) => account.username !== profile.username)
+                    .map((account) => ({
+                        username: account.username.slice(0, 30),
+                        name: account.name.slice(0, 255),
+                        avatar: typeof account.avatar === 'string' ? account.avatar.slice(0, 2048) : '',
+                        role: typeof account.role === 'string' ? account.role.slice(0, 64) : 'Account',
+                    }))
+                : [];
+            accounts.unshift(profile);
+            localStorage.setItem(key, JSON.stringify(accounts));
+        } catch (error) {
+            console.error('Unable to save this TalaFair profile on this device.', error);
+            window.alert('Your account was signed in, but this browser could not save its profile.');
+        }
+    })();
+</script>
+@endif
+<script>
+    (() => {
+        const toggle = document.getElementById('switchAccountToggle');
+        const popover = document.getElementById('switchAccountPopover');
+        if (!toggle || !popover) return;
+
+        document.body.append(popover);
+
+        const storageKey = 'talafair.savedAccounts.v1';
+        const list = document.getElementById('switchAccountList');
+        const empty = document.getElementById('switchAccountEmpty');
+        const avatarStack = document.getElementById('switchAccountAvatars');
+        const close = document.getElementById('closeSwitchAccount');
+        const switchUrl = @json(route('switch-account'));
+        const csrfToken = @json(csrf_token());
+        const fallbackAvatar = @json(asset('images/default-avatar.svg'));
+
+        const readAccounts = () => {
+            try {
+                const data = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                return Array.isArray(data)
+                    ? data.filter((account) => account
+                        && typeof account.username === 'string'
+                        && /^[a-zA-Z0-9_-]{3,30}$/.test(account.username)
+                        && typeof account.name === 'string')
+                    : [];
+            } catch (error) {
+                console.error('Unable to read saved TalaFair accounts.', error);
+                return [];
+            }
+        };
+
+        const renderButtonAvatars = (accounts) => {
+            avatarStack.replaceChildren(...accounts.slice(0, 3).map((account) => {
+                const avatar = document.createElement('img');
+                avatar.alt = '';
+                avatar.width = 24;
+                avatar.height = 24;
+                avatar.className = 'switch-account-nav-avatar rounded-circle object-fit-cover';
+                avatar.src = fallbackAvatar;
+                if (typeof account.avatar === 'string') {
+                    try {
+                        const candidate = new URL(account.avatar, window.location.href);
+                        if (candidate.origin === window.location.origin) avatar.src = candidate.href;
+                    } catch (error) {
+                        console.error('Unable to load saved account avatar.', error);
+                    }
+                }
+                return avatar;
+            }));
+        };
+
+        const makeAccount = (account) => {
+            const item = document.createElement('div');
+            item.className = 'switch-account-item';
+
+            const form = document.createElement('form');
+            form.action = switchUrl;
+            form.method = 'POST';
+            form.className = 'switch-account-select';
+            form.addEventListener('submit', (event) => {
+                if (!window.confirm(`You will be logged out. Enter the password for ${account.name} to switch accounts.`)) {
+                    event.preventDefault();
+                    return;
+                }
+                form.querySelector('button[type="submit"]').disabled = true;
+            });
+
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = csrfToken;
+            const username = document.createElement('input');
+            username.type = 'hidden';
+            username.name = 'saved_login';
+            username.value = account.username;
+
+            const select = document.createElement('button');
+            select.type = 'submit';
+            select.className = 'switch-account-profile';
+            const avatar = document.createElement('img');
+            avatar.alt = '';
+            avatar.width = 38;
+            avatar.height = 38;
+            avatar.className = 'rounded-circle object-fit-cover flex-shrink-0';
+            avatar.src = fallbackAvatar;
+            if (typeof account.avatar === 'string') {
+                try {
+                    const candidate = new URL(account.avatar, window.location.href);
+                    if (candidate.origin === window.location.origin) avatar.src = candidate.href;
+                } catch (error) {
+                    console.error('Unable to load saved profile picture.', error);
+                }
+            }
+            const labels = document.createElement('span');
+            labels.className = 'min-w-0 text-start';
+            const name = document.createElement('span');
+            name.className = 'd-block text-truncate fw-semibold';
+            name.textContent = account.name.slice(0, 255);
+            const role = document.createElement('span');
+            role.className = 'd-block small opacity-75';
+            role.textContent = typeof account.role === 'string' ? account.role.slice(0, 64) : 'Account';
+            labels.append(name, role);
+            select.append(avatar, labels);
+            form.append(token, username, select);
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'btn btn-sm btn-outline-light switch-account-remove';
+            remove.setAttribute('aria-label', `Remove ${account.name} from this device`);
+            remove.title = 'Remove from this device';
+            remove.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i>';
+            remove.addEventListener('click', () => {
+                try {
+                    const remaining = readAccounts().filter((saved) => saved.username !== account.username);
+                    localStorage.setItem(storageKey, JSON.stringify(remaining));
+                    render();
+                } catch (error) {
+                    console.error('Unable to remove the saved TalaFair account.', error);
+                    window.alert('This browser could not remove the saved account.');
+                }
+            });
+
+            item.append(form, remove);
+            return item;
+        };
+
+        const render = () => {
+            const accounts = readAccounts();
+            list.replaceChildren(...accounts.map(makeAccount));
+            empty.hidden = accounts.length > 0;
+            renderButtonAvatars(accounts);
+        };
+
+        const position = () => {
+            if (popover.hidden) return;
+            const bounds = toggle.getBoundingClientRect();
+            const width = Math.min(288, window.innerWidth - 16);
+            popover.style.width = `${width}px`;
+            popover.style.left = `${Math.max(8, Math.min(bounds.right + 8, window.innerWidth - width - 8))}px`;
+            popover.style.top = `${Math.max(8, Math.min(bounds.top, window.innerHeight - popover.offsetHeight - 8))}px`;
+        };
+
+        const closePopover = () => {
+            popover.hidden = true;
+            toggle.setAttribute('aria-expanded', 'false');
+        };
+
+        toggle.addEventListener('click', () => {
+            if (!popover.hidden) {
+                closePopover();
+                return;
+            }
+            render();
+            popover.hidden = false;
+            toggle.setAttribute('aria-expanded', 'true');
+            position();
+        });
+        close.addEventListener('click', closePopover);
+        window.addEventListener('resize', position);
+        window.addEventListener('scroll', position, true);
+        window.addEventListener('storage', (event) => {
+            if (event.key === storageKey) render();
+        });
+        document.addEventListener('click', (event) => {
+            if (!popover.hidden && !popover.contains(event.target) && !toggle.contains(event.target)) closePopover();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !popover.hidden) {
+                closePopover();
+                toggle.focus();
+            }
+        });
     })();
 </script>
 <script>

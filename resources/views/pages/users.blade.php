@@ -61,7 +61,7 @@
         <form id="bulk-id-print-form" method="POST" action="{{ route('users.id-cards.print-selected') }}" target="_blank">
             @csrf
             <div class="border-bottom p-3">
-                <button type="button" class="btn btn-outline-primary btn-sm" id="toggle-id-selection" aria-expanded="false" aria-controls="id-selection-controls">
+                <button type="button" class="btn btn-yg-outline btn-sm" id="toggle-id-selection" aria-expanded="false" aria-controls="id-selection-controls">
                     <i class="bi bi-check2-square me-1"></i>Select IDs to print
                 </button>
                 <div id="id-selection-controls" class="d-none flex-wrap align-items-center gap-2 mt-2">
@@ -71,7 +71,7 @@
                         <option value="letter">8.5 × 11 in</option>
                         <option value="long">8.5 × 13 in</option>
                     </select>
-                    <button type="submit" class="btn btn-primary btn-sm" id="print-selected-ids" disabled>
+                    <button type="submit" class="btn btn-yg btn-sm" id="print-selected-ids" disabled>
                         <i class="bi bi-printer me-1"></i>Print Selected IDs
                     </button>
                     <span id="selected-id-count" class="small text-secondary" aria-live="polite">No resident IDs selected</span>

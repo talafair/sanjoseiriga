@@ -88,6 +88,7 @@ class RegisteredUserController extends Controller
             'email'    => ['nullable', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => ['required', Rule::in(self::PUBLIC_REGISTRATION_ROLES)],
+            'save_account' => ['nullable', 'boolean'],
         ], [
             'head_of_family_name.required_if' => 'Please name the head of your family.',
             'head_of_family_id.required'      => 'Select a registered Household Head before registering this household member.',
@@ -225,6 +226,15 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+
+        if ($request->boolean('save_account')) {
+            $request->session()->flash('savedAccountProfile', [
+                'username' => $user->username,
+                'name' => $user->full_name,
+                'avatar' => $user->avatar_url,
+                'role' => User::ROLE_LABELS[$user->role] ?? 'Account',
+            ]);
+        }
 
         return redirect()->route('id-card.show')
             ->with('success', $user->isOfficial()

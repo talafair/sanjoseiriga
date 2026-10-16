@@ -45,6 +45,13 @@
                         <p class="text-secondary mb-0">Sign in to continue your journey</p>
                     </div>
 
+                    @if ($targetAccountSelected)
+                        <div class="alert alert-info rounded-3 small" role="status">
+                            <i class="bi bi-person-check me-1"></i>Enter the password for the selected saved account to switch.
+                            <a href="{{ route('login', ['another' => 1]) }}" class="d-block mt-2">Sign in to a different account</a>
+                        </div>
+                    @endif
+
                     @if (session('status'))
                         <div class="alert alert-success rounded-3 py-2 small" role="alert">
                             <i class="bi bi-check-circle-fill me-1"></i>{{ session('status') }}
@@ -63,9 +70,10 @@
                             <label for="loginField" class="form-label fw-semibold">Username, Email, or Phone Number</label>
                             <div class="input-group">
                                 <span class="input-group-text yg-addon"><i class="bi bi-person"></i></span>
-                                <input type="text" name="login" value="{{ old('login') }}"
+                                <input type="text" name="login" value="{{ old('login', $pendingSavedLogin) }}"
                                        class="form-control yg-input @error('login') is-invalid @enderror" id="loginField"
-                                       placeholder="Username, email, or 09171234567" autocomplete="username" required autofocus>
+                                       placeholder="Username, email, or 09171234567" autocomplete="username" required autofocus
+                                       @if ($targetAccountSelected) readonly @endif>
                             </div>
                         </div>
 
@@ -90,7 +98,15 @@
                             <a href="{{ route('password.request') }}" class="small fw-semibold text-yg text-decoration-none">Forgot password?</a>
                         </div>
 
-                        <button type="submit" class="btn btn-yg w-100 py-2 mb-3">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="save_account" value="1" id="saveAccount"
+                                   @checked($saveAccountRequested || old('save_account'))>
+                            <label class="form-check-label small text-secondary" for="saveAccount">
+                                Remember this account on this device <span class="d-block">Saves your username and display profile, never your password.</span>
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-yg w-100 py-2 mb-3" id="signInButton">
                             <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                         </button>
                     </form>
@@ -124,15 +140,30 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('togglePassword').addEventListener('click', function () {
-        const input = document.getElementById('loginPassword');
-        const icon = this.querySelector('i');
-        const show = input.type === 'password';
-        input.type = show ? 'text' : 'password';
-        icon.classList.toggle('bi-eye', !show);
-        icon.classList.toggle('bi-eye-slash', show);
-        this.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
-    });
+    (() => {
+        const password = document.getElementById('loginPassword');
+        const form = password.form;
+        const button = document.getElementById('signInButton');
+
+        document.getElementById('togglePassword').addEventListener('click', function () {
+            const icon = this.querySelector('i');
+            const show = password.type === 'password';
+            password.type = show ? 'text' : 'password';
+            icon.classList.toggle('bi-eye', !show);
+            icon.classList.toggle('bi-eye-slash', show);
+            this.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        });
+
+        form.addEventListener('submit', () => {
+            if (!form.reportValidity()) return;
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Signing in…';
+        });
+
+        window.addEventListener('pagehide', () => {
+            password.value = '';
+        });
+    })();
 </script>
 </body>
 </html>

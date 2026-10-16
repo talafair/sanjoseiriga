@@ -33,7 +33,7 @@ Route::get('/', [HomeController::class, 'index'])->middleware('auth')->name('hom
 */
 Route::middleware('guest')->group(function () {
     Route::get('/login',  [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login.attempt');
     Route::get('/forgot-password', [PasswordResetController::class, 'requestForm'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
     Route::get('/reset-password/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
@@ -53,6 +53,8 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::post('/switch-account', [AuthController::class, 'switchAccount'])->name('switch-account');
+    Route::post('/saved-accounts/add', [AuthController::class, 'addAccount'])->name('saved-accounts.add');
 
     Route::get('/account',     [AccountController::class, 'index'])->name('account');
     Route::post('/account/substitute', [AccountController::class, 'assignSubstitute'])->name('account.substitute');

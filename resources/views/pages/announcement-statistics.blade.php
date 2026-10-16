@@ -211,7 +211,7 @@
   .raffle-stage { background: radial-gradient(circle at center, #244d30 0, #102318 52%, #07110b 100%); color: #fff; }
   .raffle-stage-wheel { width: min(72vw, 34rem); aspect-ratio: 1; border-radius: 50%; border: .8rem solid #fbc02d; box-shadow: 0 0 0 1rem rgba(251, 192, 45, .15), 0 1.5rem 4rem rgba(0,0,0,.45); position: relative; overflow: hidden; transition: transform 5.2s cubic-bezier(.12,.7,.08,1); }
   .raffle-stage-wheel::after { content: ''; position: absolute; inset: 43%; border-radius: 50%; background: #fff; border: .45rem solid #fbc02d; box-shadow: 0 .3rem .8rem rgba(0,0,0,.35); }
-  .raffle-wheel-label { position: absolute; left: 50%; top: 50%; width: 42%; transform-origin: 0 0; font-weight: 700; font-size: clamp(.7rem, 2vw, 1rem); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .raffle-wheel-label { position: absolute; transform-origin: center; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
   .raffle-pointer { position: absolute; z-index: 2; top: -1rem; left: calc(50% - 1rem); width: 0; height: 0; border-left: 1rem solid transparent; border-right: 1rem solid transparent; border-top: 2.2rem solid #fff; filter: drop-shadow(0 .2rem .2rem rgba(0,0,0,.5)); }
   .raffle-stage[hidden] { display: none !important; }
 </style>
@@ -260,6 +260,39 @@
     return assigned;
   };
 
+  const renderRaffleParticipants = (wheel, names, segmentColors) => {
+    const radius = wheel.clientWidth / 2;
+    const center = radius;
+    const labelRadius = radius * 0.7;
+    const maxLabelWidth = radius * 0.34;
+    const angle = 360 / Math.max(names.length, 1);
+    const sliceSpacing = 2 * labelRadius * Math.sin(Math.PI / Math.max(names.length, 1));
+    const baseFontSize = Math.max(7, Math.min(16, radius * 0.06, sliceSpacing * 0.62));
+
+    wheel.innerHTML = '';
+    names.forEach((name, index) => {
+      const midpoint = (index + 0.5) * angle;
+      const radialAngle = midpoint - 90;
+      let textAngle = ((radialAngle % 360) + 360) % 360;
+      if (textAngle > 90 && textAngle < 270) textAngle += 180;
+
+      const label = document.createElement('span');
+      const fontSize = Math.max(7, Math.min(baseFontSize, maxLabelWidth / Math.max(name.length * 0.56, 1)));
+      label.className = 'raffle-wheel-label';
+      label.textContent = name;
+      label.title = name;
+      label.setAttribute('role', 'img');
+      label.setAttribute('aria-label', name);
+      label.style.color = segmentColors[index].text;
+      label.style.left = `${center + Math.sin(midpoint * Math.PI / 180) * labelRadius}px`;
+      label.style.top = `${center - Math.cos(midpoint * Math.PI / 180) * labelRadius}px`;
+      label.style.width = `${maxLabelWidth}px`;
+      label.style.fontSize = `${fontSize}px`;
+      label.style.transform = `translate(-50%, -50%) rotate(${textAngle}deg)`;
+      wheel.appendChild(label);
+    });
+  };
+
   let activeRaffleForm = null;
 
   const openRaffleStage = form => {
@@ -279,18 +312,22 @@
     status.textContent = 'Ready to draw';
     startButton.hidden = false;
     startButton.disabled = false;
-    wheel.innerHTML = '';
     wheel.style.transform = 'rotate(0deg)';
     wheel.style.background = `conic-gradient(${segmentColors.map((color, index) => `${color.background} ${index * angle}deg ${(index + 1) * angle}deg`).join(', ')})`;
-    names.forEach((name, index) => {
-      const label = document.createElement('span');
-      label.className = 'raffle-wheel-label';
-      label.textContent = name;
-      label.style.color = segmentColors[index].text;
-      label.style.transform = `rotate(${index * angle + angle / 2 - 90}deg) translateX(-100%)`;
-      wheel.appendChild(label);
-    });
+    renderRaffleParticipants(wheel, names, segmentColors);
   };
+
+  window.addEventListener('resize', () => {
+    const stage = document.getElementById('raffleStage');
+    const startButton = document.getElementById('raffleStageStart');
+    if (stage.hidden || !activeRaffleForm || startButton.disabled || startButton.hidden) return;
+
+    renderRaffleParticipants(
+      document.getElementById('raffleStageWheel'),
+      raffleParticipants.map(participant => participant.name),
+      buildWheelColors(raffleParticipants.length)
+    );
+  });
 
   const spinRaffle = async () => {
     if (!activeRaffleForm) return;

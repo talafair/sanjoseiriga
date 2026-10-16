@@ -1,4 +1,4 @@
-const CACHE_NAME = 'talafair-shell-v4';
+const CACHE_NAME = 'talafair-shell-v6';
 const APP_SHELL = [
   new URL('./manifest.json', self.location).href,
   new URL('./images/talafair-logo.png', self.location).href,
@@ -71,15 +71,17 @@ self.addEventListener('fetch', (event) => {
   if (!isSameOrigin && !isQrLibrary) return;
 
   const networkFirst = event.request.mode === 'navigate';
+  const cacheResponse = (response) => {
+    if (/\bno-store\b/i.test(response.headers.get('Cache-Control') || '')) {
+      return response;
+    }
+
+    const copy = response.clone();
+    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+    return response;
+  };
+
   event.respondWith(
-    (networkFirst ? fetch(event.request).then((response) => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-      return response;
-    }).catch(() => caches.match(event.request)) : caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-      return response;
-    })).catch(() => caches.match(event.request)))
+    (networkFirst ? fetch(event.request).then(cacheResponse).catch(() => caches.match(event.request)) : caches.match(event.request).then((cached) => cached || fetch(event.request).then(cacheResponse)).catch(() => caches.match(event.request)))
   );
 });

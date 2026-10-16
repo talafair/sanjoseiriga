@@ -12,6 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(\App\Http\Middleware\TrackRequestDuration::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\PreventAuthenticatedPageCaching::class);
         $middleware->alias([
             'official' => \App\Http\Middleware\EnsureOfficial::class,
             'verified' => \App\Http\Middleware\EnsureVerified::class,

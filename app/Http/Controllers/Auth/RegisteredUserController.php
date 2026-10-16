@@ -20,6 +20,8 @@ use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
 {
+    private const PUBLIC_REGISTRATION_ROLES = ['resident', 'guest'];
+
     public function create(Request $request): View
     {
         // Heads of family already registered, so a new member can point to theirs
@@ -28,7 +30,7 @@ class RegisteredUserController extends Controller
             ->get(['id', 'first_name', 'middle_name', 'last_name', 'suffix', 'house_no', 'street', 'zone']);
 
         $role = $request->query('role', 'resident');
-        abort_unless(array_key_exists($role, User::CATEGORIES), 404);
+        abort_unless(in_array($role, self::PUBLIC_REGISTRATION_ROLES, true), 404);
 
         return view('pages.register', compact('heads', 'role'));
     }
@@ -85,9 +87,7 @@ class RegisteredUserController extends Controller
             'username' => ['required', 'string', 'min:3', 'max:30', 'alpha_dash', 'unique:users,username'],
             'email'    => ['nullable', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'role' => ['required', Rule::in(array_keys(User::CATEGORIES))],
-            'official_group' => ['nullable', 'required_if:role,official', 'in:' . implode(',', array_keys(config('talafair.official_positions')))],
-            'official_position' => ['nullable', 'required_if:role,official', 'in:' . implode(',', collect(config('talafair.official_positions'))->flatMap(fn ($group) => array_keys($group['positions']))->all())],
+            'role' => ['required', Rule::in(self::PUBLIC_REGISTRATION_ROLES)],
         ], [
             'head_of_family_name.required_if' => 'Please name the head of your family.',
             'head_of_family_id.required'      => 'Select a registered Household Head before registering this household member.',
@@ -95,17 +95,6 @@ class RegisteredUserController extends Controller
             'gender_identity_other.required_if' => 'Please specify your gender identity.',
             'contact_number.regex'            => 'Use digits only, with optional +, -, spaces or brackets.',
         ]);
-
-        if ($data['role'] === 'official' && ! in_array($data['official_position'], array_keys(config("talafair.official_positions.{$data['official_group']}.positions")), true)) {
-            return back()->withErrors(['official_position' => 'Select a position from the selected official group.'])->withInput();
-        }
-
-        if ($data['role'] === 'official') {
-            $limit = config("talafair.official_position_limits.{$data['official_group']}.{$data['official_position']}");
-            if ($limit !== null && User::where('role', 'official')->where('official_group', $data['official_group'])->where('official_position', $data['official_position'])->count() >= $limit) {
-                return back()->withErrors(['official_position' => "The selected position is already filled (maximum {$limit})."])->withInput();
-            }
-        }
 
         $isHead = (bool) ($data['is_head_of_family'] ?? false);
 
@@ -183,8 +172,8 @@ class RegisteredUserController extends Controller
                 'email'    => $data['email'] ?? null,
                 'password' => Hash::make($data['password']),
                 'role'              => $data['role'],
-                'official_group'    => $data['role'] === 'official' ? $data['official_group'] : null,
-                'official_position' => $data['role'] === 'official' ? $data['official_position'] : null,
+                'official_group'    => null,
+                'official_position' => null,
             ]);
 
             // Z2-26000000001

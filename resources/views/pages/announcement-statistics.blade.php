@@ -53,37 +53,39 @@
 
     <p>Turnout against confirmations: <span class="fw-bold text-yg">{{ $stats['turnout_rate'] }}%</span></p>
 
-    <div class="card yg-card overflow-hidden mb-4">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center gap-3 flex-wrap">
-        <span class="fw-bold">Check-in log</span>
-        <form method="GET" class="d-flex gap-2">
-          <label for="attendanceUserName" class="visually-hidden">Filter by user name</label>
-          <input id="attendanceUserName" name="user_name" value="{{ $userName }}" class="form-control form-control-sm" placeholder="Search user name" autocomplete="off">
-          <button class="btn btn-yg btn-sm" type="submit"><i class="bi bi-search me-1"></i>Search</button>
-          @if ($userName !== '')
-            <a href="{{ route('announcements.statistics', $announcement) }}" class="btn btn-outline-secondary btn-sm" title="Clear filter"><i class="bi bi-x-lg"></i></a>
-          @endif
-        </form>
-      </div>
-      <div class="list-group list-group-flush">
-        @forelse ($attendees as $row)
-          <div class="list-group-item d-flex justify-content-between align-items-center gap-3">
-            <div>
-              <div class="fw-semibold">{{ $row->user->full_name }}</div>
-              <div class="small font-monospace text-secondary">{{ $row->user->unique_id }}</div>
-            </div>
-            <div class="text-end">
-              <div>{{ $row->scanned_at->format('g:i A') }}</div>
-              <div class="small {{ $row->is_early ? 'text-warning-emphasis' : 'text-secondary' }}">
-                {!! $row->is_early ? 'Early &middot; +10%' : 'On time' !!} &middot; +{{ $row->points_awarded }}
+    @if ($canViewDetails)
+      <div class="card yg-card overflow-hidden mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center gap-3 flex-wrap">
+          <span class="fw-bold">Check-in log</span>
+          <form method="GET" class="d-flex gap-2">
+            <label for="attendanceUserName" class="visually-hidden">Filter by user name</label>
+            <input id="attendanceUserName" name="user_name" value="{{ $userName }}" class="form-control form-control-sm" placeholder="Search user name" autocomplete="off">
+            <button class="btn btn-yg btn-sm" type="submit"><i class="bi bi-search me-1"></i>Search</button>
+            @if ($userName !== '')
+              <a href="{{ route('announcements.statistics', $announcement) }}" class="btn btn-outline-secondary btn-sm" title="Clear filter"><i class="bi bi-x-lg"></i></a>
+            @endif
+          </form>
+        </div>
+        <div class="list-group list-group-flush">
+          @forelse ($attendees as $row)
+            <div class="list-group-item d-flex justify-content-between align-items-center gap-3">
+              <div>
+                <div class="fw-semibold">{{ $row->user->full_name }}</div>
+                <div class="small font-monospace text-secondary">{{ $row->user->unique_id }}</div>
+              </div>
+              <div class="text-end">
+                <div>{{ $row->scanned_at->format('g:i A') }}</div>
+                <div class="small {{ $row->is_early ? 'text-warning-emphasis' : 'text-secondary' }}">
+                  {!! $row->is_early ? 'Early &middot; +10%' : 'On time' !!} &middot; +{{ $row->points_awarded }}
+                </div>
               </div>
             </div>
-          </div>
-        @empty
-          <div class="list-group-item text-center text-secondary py-5">No one has checked in yet.</div>
-        @endforelse
+          @empty
+            <div class="list-group-item text-center text-secondary py-5">No one has checked in yet.</div>
+          @endforelse
+        </div>
       </div>
-    </div>
+    @endif
 
     @if ($announcement->raffle_enabled)
       <div class="card yg-card overflow-hidden mb-4">
@@ -160,7 +162,7 @@
       </div>
     @endif
 
-    @if (auth()->user()->isOfficial() && $stats['reasons']->isNotEmpty())
+    @if ($canViewDetails && $stats['reasons']->isNotEmpty())
       <div class="card yg-card overflow-hidden">
         <div class="card-header bg-white fw-bold">Why residents cannot attend</div>
         <ul class="list-group list-group-flush">
@@ -324,4 +326,3 @@
   }));
 </script>
 @endpush
-

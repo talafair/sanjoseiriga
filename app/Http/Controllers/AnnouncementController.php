@@ -280,7 +280,7 @@ class AnnouncementController extends Controller
      | Statistics — visible to officials and to the audience
      * ------------------------------------------------------------------*/
 
-    public function statistics(Announcement $announcement): array
+    public function statistics(Announcement $announcement, bool $includePrivateDetails = false): array
     {
         $audience = (clone $announcement->audienceQuery())->count();
 
@@ -308,28 +308,32 @@ class AnnouncementController extends Controller
             'early'             => $early,
             'on_time'           => $scanned - $early,
             'turnout_rate'      => $attending > 0 ? round($residentScanned / $attending * 100, 1) : 0.0,
-            'reasons'           => $announcement->rsvps()
-                                    ->where('status', 'not_attending')
-                                    ->whereNotNull('reason')
-                                    ->latest('responded_at')
-                                    ->limit(50)
-                                    ->get(['user_id', 'reason', 'responded_at']),
+            'reasons'           => $includePrivateDetails
+                ? $announcement->rsvps()
+                    ->where('status', 'not_attending')
+                    ->whereNotNull('reason')
+                    ->latest('responded_at')
+                    ->limit(50)
+                    ->get(['user_id', 'reason', 'responded_at'])
+                : collect(),
         ];
     }
 
     public function statisticsPage(Announcement $announcement)
     {
-        $userName = trim(request()->string('user_name')->toString());
+        $canViewDetails = request()->user()->isOfficial();
+        $userName = $canViewDetails ? trim(request()->string('user_name')->toString()) : '';
 
         return view('pages.announcement-statistics', [
             'announcement' => $announcement,
-            'stats'        => $this->statistics($announcement),
-            'attendees'    => $announcement->attendances()
+            'stats'        => $this->statistics($announcement, $canViewDetails),
+            'canViewDetails' => $canViewDetails,
+            'attendees'    => $canViewDetails ? $announcement->attendances()
                                 ->with('user')
                                 ->when($userName !== '', fn ($query) => $query->whereHas('user', fn ($userQuery) => $userQuery->where('name', 'like', '%' . $userName . '%')))
                                 ->orderBy('scanned_at')
-                                ->get(),
-            'raffleAttendees' => $announcement->raffle_enabled
+                                ->get() : collect(),
+            'raffleAttendees' => $canViewDetails && $announcement->raffle_enabled
                                 ? $announcement->attendances()->with('user')->orderBy('scanned_at')->get()
                                 : collect(),
             'userName'     => $userName,

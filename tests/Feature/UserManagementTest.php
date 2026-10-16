@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -73,6 +74,47 @@ class UserManagementTest extends TestCase
             'email' => 'keep-this@example.test',
             'username' => 'keep-this-user',
             'first_name' => 'Updated',
+        ]);
+    }
+
+    public function test_password_update_is_audited_separately_and_notifies_superadmins_without_exposing_password(): void
+    {
+        $superadmin = $this->managementSuperadmin();
+        $target = User::factory()->create([
+            'role' => 'resident',
+            'username' => 'password-target',
+            'email' => 'password-target@example.test',
+        ]);
+        $newPassword = 'NeverExposeThisPassword123!';
+        $payload = $this->userPayload('resident', 30);
+        $payload['username'] = $target->username;
+        $payload['email'] = $target->email;
+        $payload['password'] = $newPassword;
+        $payload['password_confirmation'] = $newPassword;
+
+        $this->actingAs($superadmin)
+            ->put(route('users.update', $target), $payload)
+            ->assertRedirect();
+
+        $passwordAudit = AuditLog::query()
+            ->where('auditable_type', User::class)
+            ->where('auditable_id', $target->id)
+            ->where('action', 'password_updated')
+            ->sole();
+        $profileAudit = AuditLog::query()
+            ->where('auditable_type', User::class)
+            ->where('auditable_id', $target->id)
+            ->where('action', 'updated')
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame(['password_changed' => true], $passwordAudit->new_values);
+        $this->assertStringNotContainsString($newPassword, json_encode($passwordAudit->getAttributes()));
+        $this->assertArrayNotHasKey('password', $profileAudit->new_values ?? []);
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $superadmin->id,
+            'title' => 'User Password Updated',
+            'body' => 'Updated the password for Account "Managed Test User" by ' . $superadmin->full_name . '.',
         ]);
     }
 

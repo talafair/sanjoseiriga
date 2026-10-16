@@ -80,6 +80,41 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_public_registration_rejects_forged_official_and_superadmin_roles(): void
+    {
+        foreach ([
+            'official' => [
+                'official_group' => 'barangay_council',
+                'official_position' => 'kagawad',
+            ],
+            'superadmin' => [],
+        ] as $role => $extra) {
+            $username = "forged-{$role}";
+
+            $this->from(route('register'))
+                ->post(route('register.store'), $this->registrationPayload([
+                    ...$extra,
+                    'role' => $role,
+                    'username' => $username,
+                ]))
+                ->assertRedirect(route('register'))
+                ->assertSessionHasErrors('role');
+
+            $this->assertGuest();
+            $this->assertDatabaseMissing('users', ['username' => $username]);
+        }
+    }
+
+    public function test_public_registration_form_does_not_offer_official_role(): void
+    {
+        $this->get(route('register', ['role' => 'official']))
+            ->assertNotFound();
+
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertDontSee('Official</a>', false);
+    }
+
     public function test_registration_rejects_an_invalid_email(): void
     {
         $this->from(route('register'))

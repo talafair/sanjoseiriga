@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Announcement;
 use App\Models\User;
+use App\Services\SuperadminNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -136,5 +137,13 @@ class SuperadminAccountPageTest extends TestCase
             'user_id' => $superadmin->id,
             'body' => 'Announcement "' . $announcement->title . '" was created by ' . $actor->full_name . '.',
         ]);
+    }
+
+    public function test_superadmin_notification_service_rejects_unsupported_data_change_actions(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unsupported data change action: restored');
+
+        SuperadminNotificationService::notifyDataChange(new User(), 'restored');
     }
 }

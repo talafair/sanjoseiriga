@@ -442,7 +442,7 @@ class AttendanceController extends Controller
     {
         abort_unless($announcement->is_event, 404);
 
-        $stats = app(\App\Http\Controllers\AnnouncementController::class)->statistics($announcement);
+        $stats = app(\App\Http\Controllers\AnnouncementController::class)->statistics($announcement, true);
         $attendees = $announcement->attendances()->with('user')->orderBy('scanned_at')->get();
 
         return $this->pdfResponse(

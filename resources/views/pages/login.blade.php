@@ -103,19 +103,14 @@
                     </div>
 
                     <div class="row g-2 login-signup-row">
-                        <div class="col-4">
+                        <div class="col-6">
                             <a href="{{ route('register', ['role' => 'resident']) }}" class="btn btn-yg-outline w-100 login-signup-button">
                                 <i class="bi bi-house-heart me-1"></i>Resident
                             </a>
                         </div>
-                        <div class="col-4">
+                        <div class="col-6">
                             <a href="{{ route('register', ['role' => 'guest']) }}" class="btn btn-yg-outline w-100 login-signup-button">
                                 <i class="bi bi-ticket-perforated me-1"></i>Guest
-                            </a>
-                        </div>
-                        <div class="col-4">
-                            <a href="{{ route('register', ['role' => 'official']) }}" class="btn btn-yg-outline w-100 login-signup-button">
-                                <i class="bi bi-person-badge me-1"></i>Official
                             </a>
                         </div>
                     </div>

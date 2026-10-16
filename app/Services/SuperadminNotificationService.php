@@ -18,6 +18,7 @@ class SuperadminNotificationService
             'created' => 'created',
             'updated' => 'updated',
             'deleted' => 'deleted',
+            'password_updated' => 'updated the password for',
             default => throw new \InvalidArgumentException("Unsupported data change action: {$action}"),
         };
         $subject = match (true) {
@@ -44,8 +45,12 @@ class SuperadminNotificationService
             ? ($action === 'deleted' ? null : $model->getKey())
             : $model->getAttribute('survey_id');
 
-        $title = ucfirst($action) . ' ' . class_basename($model);
-        $body = "{$subject} was {$verb} by {$actor}.";
+        $title = $action === 'password_updated'
+            ? 'User Password Updated'
+            : ucfirst($action) . ' ' . class_basename($model);
+        $body = $action === 'password_updated'
+            ? ucfirst($verb) . " {$subject} by {$actor}."
+            : "{$subject} was {$verb} by {$actor}.";
 
         DB::table('user_notifications')->insert($superadminIds->map(fn (int $userId) => [
             'user_id' => $userId,

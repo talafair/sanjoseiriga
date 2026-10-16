@@ -33,6 +33,21 @@ class UploadedImageStorageTest extends TestCase
         $this->assertSame(Storage::disk('uploaded-media')->url('backgrounds/home.png'), Setting::url('home_background'));
     }
 
+    public function test_announcement_banner_url_uses_the_configured_public_disk_url(): void
+    {
+        Config::set('filesystems.uploads_disk', 'public');
+        Config::set('filesystems.disks.public.url', 'https://media.example.test/storage');
+        Storage::forgetDisk('public');
+
+        $announcement = new Announcement(['banner_path' => 'banners/event.png']);
+
+        $this->assertSame(
+            Storage::disk('public')->url('banners/event.png'),
+            $announcement->banner_url
+        );
+        $this->assertNull((new Announcement(['banner_path' => null]))->banner_url);
+    }
+
     public function test_profile_picture_replacement_and_removal_use_the_configured_upload_disk(): void
     {
         Storage::fake('uploaded-media');

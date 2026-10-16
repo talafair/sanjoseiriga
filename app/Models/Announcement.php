@@ -91,9 +91,7 @@ class Announcement extends Model
 
         $disk = config('filesystems.uploads_disk', 'public');
 
-        return $disk === 'public'
-            ? rtrim(request()->getBaseUrl(), '/') . '/storage/' . ltrim($this->banner_path, '/')
-            : Storage::disk($disk)->url($this->banner_path);
+        return Storage::disk($disk)->url($this->banner_path);
     }
 
     /* ------------------------------------------------------------------

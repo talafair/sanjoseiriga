@@ -185,7 +185,7 @@
         <span class="raffle-pointer"></span>
       </div>
       <button id="raffleStageStart" type="button" class="btn btn-warning btn-lg fw-bold mt-4 px-5">
-        <i class="bi bi-play-fill me-1"></i>Start drawing
+        <i class="bi bi-play-fill me-1"></i>Spin now
       </button>
       <p class="small opacity-75 mt-4 mb-0">The wheel animation reveals the winner selected securely by the server.</p>
     </div>
@@ -260,22 +260,25 @@
     return assigned;
   };
 
-  const openRaffleStage = (form, data) => {
+  let activeRaffleForm = null;
+
+  const openRaffleStage = form => {
     const stage = document.getElementById('raffleStage');
     const wheel = document.getElementById('raffleStageWheel');
     const title = document.getElementById('raffleStageTitle');
     const status = document.getElementById('raffleStageStatus');
     const names = raffleParticipants.map(participant => participant.name);
-    const winnerIndex = raffleParticipants.findIndex(participant => participant.id === data.winner_user_id);
     const angle = 360 / Math.max(names.length, 1);
     const segmentColors = buildWheelColors(names.length);
+    const startButton = document.getElementById('raffleStageStart');
 
+    activeRaffleForm = form;
     stage.hidden = false;
     document.documentElement.requestFullscreen?.().catch(() => {});
     title.textContent = form.closest('.list-group-item').querySelector('.fw-semibold').textContent;
-    status.textContent = 'Drawing a winner...';
-    document.getElementById('raffleStageStart').hidden = true;
-    document.getElementById('raffleStageStart').disabled = true;
+    status.textContent = 'Ready to draw';
+    startButton.hidden = false;
+    startButton.disabled = false;
     wheel.innerHTML = '';
     wheel.style.transform = 'rotate(0deg)';
     wheel.style.background = `conic-gradient(${segmentColors.map((color, index) => `${color.background} ${index * angle}deg ${(index + 1) * angle}deg`).join(', ')})`;
@@ -287,14 +290,39 @@
       label.style.transform = `rotate(${index * angle + angle / 2 - 90}deg) translateX(-100%)`;
       wheel.appendChild(label);
     });
+  };
 
-    window.requestAnimationFrame(() => {
-      wheel.style.transform = `rotate(${360 * 6 + (360 - ((winnerIndex < 0 ? 0 : winnerIndex) * angle + angle / 2))}deg)`;
-    });
-    window.setTimeout(() => {
-      status.innerHTML = `<span class="text-warning">Congratulations!</span><br><strong>${data.winner}</strong><br><span>${data.prize_type}${data.points_awarded ? ` · +${data.points_awarded} points` : ''}</span>`;
-      window.setTimeout(() => window.location.reload(), 2200);
-    }, 5400);
+  const spinRaffle = async () => {
+    if (!activeRaffleForm) return;
+
+    const form = activeRaffleForm;
+    const button = document.getElementById('raffleStageStart');
+    const status = document.getElementById('raffleStageStatus');
+    button.disabled = true;
+    status.textContent = 'Drawing a winner...';
+
+    try {
+      const response = await fetch(form.action, {method: 'POST', headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value}});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'The draw could not be completed.');
+
+      updatePrizeAfterDraw(form, data);
+      button.hidden = true;
+      const wheel = document.getElementById('raffleStageWheel');
+      const winnerIndex = raffleParticipants.findIndex(participant => participant.id === data.winner_user_id);
+      const angle = 360 / Math.max(raffleParticipants.length, 1);
+      window.requestAnimationFrame(() => {
+        wheel.style.transform = `rotate(${360 * 6 + (360 - ((winnerIndex < 0 ? 0 : winnerIndex) * angle + angle / 2))}deg)`;
+      });
+      window.setTimeout(() => {
+        status.innerHTML = `<span class="text-warning">Congratulations!</span><br><strong>${data.winner}</strong><br><span>${data.prize_type}${data.points_awarded ? ` · +${data.points_awarded} points` : ''}</span>`;
+        window.setTimeout(() => window.location.reload(), 2200);
+      }, 5400);
+    } catch (error) {
+      window.alert(error.message);
+      status.textContent = 'Ready to draw';
+      button.disabled = false;
+    }
   };
 
   const updatePrizeAfterDraw = (form, data) => {
@@ -309,20 +337,11 @@
     }
   };
 
-  document.querySelectorAll('.raffle-draw-form').forEach(form => form.addEventListener('submit', async event => {
+  document.getElementById('raffleStageStart').addEventListener('click', spinRaffle);
+
+  document.querySelectorAll('.raffle-draw-form').forEach(form => form.addEventListener('submit', event => {
     event.preventDefault();
-    const button = form.querySelector('button');
-    button.disabled = true;
-    try {
-      const response = await fetch(form.action, {method: 'POST', headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value}});
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'The draw could not be completed.');
-      openRaffleStage(form, data);
-      updatePrizeAfterDraw(form, data);
-    } catch (error) {
-      window.alert(error.message);
-      button.disabled = false;
-    }
+    openRaffleStage(form);
   }));
 </script>
 @endpush

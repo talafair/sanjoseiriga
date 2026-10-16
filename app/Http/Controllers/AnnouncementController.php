@@ -321,7 +321,7 @@ class AnnouncementController extends Controller
 
     public function statisticsPage(Announcement $announcement)
     {
-        $canViewDetails = request()->user()->isOfficial();
+        $canViewDetails = request()->user()->canAccessOfficialFeatures();
         $userName = $canViewDetails ? trim(request()->string('user_name')->toString()) : '';
 
         return view('pages.announcement-statistics', [

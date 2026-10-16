@@ -221,6 +221,16 @@ class User extends Authenticatable implements CanResetPasswordContract
             && $this->official_group !== 'personnel';
     }
 
+    public function isUnverifiedOfficial(): bool
+    {
+        return $this->role === 'official' && ! $this->is_verified;
+    }
+
+    public function canAccessOfficialFeatures(): bool
+    {
+        return $this->isOfficial() && ! $this->isUnverifiedOfficial();
+    }
+
     public function isSuperadmin(): bool
     {
         return $this->role === self::SUPERADMIN_ROLE;
@@ -282,7 +292,7 @@ class User extends Authenticatable implements CanResetPasswordContract
                 'youth'         => $age !== null && $age >= 15 && $age <= 30,
                 'senior'        => $age !== null && $age >= 60,
                 'family_heads'  => (bool) $this->is_head_of_family,
-                'officials'     => $this->isOfficial(),
+                'officials'     => $this->canAccessOfficialFeatures(),
                 default         => false,
             };
 
@@ -322,6 +332,10 @@ class User extends Authenticatable implements CanResetPasswordContract
                             ->where(function (Builder $groupQuery) {
                                 $groupQuery->whereNull('official_group')
                                     ->orWhere('official_group', '!=', 'personnel');
+                            })
+                            ->where(function (Builder $verificationQuery) {
+                                $verificationQuery->where('role', self::SUPERADMIN_ROLE)
+                                    ->orWhere('is_verified', true);
                             });
                     }),
                     default => null,

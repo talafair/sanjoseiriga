@@ -11,7 +11,7 @@
     </a>
     <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-4">
       <h4 class="fw-bold mt-1 mb-0">Attendance statistics</h4>
-      @if (auth()->user()->isOfficial())
+      @if ($canViewDetails)
         <div class="dropdown">
           <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-file-earmark-arrow-down me-1"></i>Export reports
@@ -94,7 +94,7 @@
         </div>
         <div class="card-body">
           <p class="small text-secondary mb-3">Eligible attendees are entered automatically, and winners are selected fairly from successful event check-ins.</p>
-          @if (auth()->user()->isOfficial())
+          @if ($canViewDetails)
             @if ($raffleWinners->isNotEmpty())
               <div class="alert alert-info border-0 mb-3">
                 <i class="bi bi-info-circle me-2"></i><strong>{{ $raffleWinners->count() }} winner(s) announced</strong>
@@ -118,7 +118,7 @@
                   <span class="small text-secondary raffle-prize-count" data-prize-id="{{ $prize->id }}" data-quantity="{{ $prize->quantity }}">{{ $prize->winners_count }} / {{ $prize->quantity }} winners</span>
                 </div>
                 @if ($prize->description)<div class="small text-secondary">{{ $prize->description }}</div>@endif
-                @if (auth()->user()->isOfficial())
+                @if ($canViewDetails)
                   <div class="d-flex flex-wrap gap-2 mt-2">
                   @if ($prize->winners_count < $prize->quantity)
                     <form method="POST" action="{{ route('announcements.raffle.draw', [$announcement, $prize]) }}" class="raffle-draw-form">

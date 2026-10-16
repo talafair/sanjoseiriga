@@ -104,6 +104,12 @@
                                 <i class="bi bi-stars nav-icon" aria-hidden="true"></i><span class="nav-label">Spin the Wheel</span>
                             </a>
                         </li>
+                    @elseif (auth()->user()->role === 'resident')
+                        <li class="nav-item">
+                            <span class="nav-link text-secondary disabled" aria-disabled="true" title="A Barangay Official must verify your resident account before you can spin.">
+                                <i class="bi bi-stars nav-icon" aria-hidden="true"></i><span class="nav-label">Spin the Wheel</span>
+                            </span>
+                        </li>
                     @endif
                 @endauth
                 @auth
@@ -124,6 +130,7 @@
                 </li>
                 @auth
                     @if (auth()->user()->isOfficial())
+                        @php($isUnverifiedOfficial = auth()->user()->isUnverifiedOfficial())
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle {{ request()->is('prizes') || request()->is('users') || request()->is('manage/badges') || request()->is('audit-logs') || request()->is('manage/games') ? 'active' : '' }}"
                                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Manage" title="Manage">
@@ -136,22 +143,22 @@
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item fw-semibold py-2" href="{{ route('prizes.index') }}">
+                                    <a class="dropdown-item fw-semibold py-2 {{ $isUnverifiedOfficial ? 'text-secondary disabled' : '' }}" href="{{ $isUnverifiedOfficial ? '#' : route('prizes.index') }}" @if ($isUnverifiedOfficial) aria-disabled="true" tabindex="-1" title="Verification is required to access official features." @endif>
                                         <i class="bi bi-gift me-2 text-yg"></i>Prizes
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item fw-semibold py-2" href="{{ route('users.index') }}">
+                                    <a class="dropdown-item fw-semibold py-2 {{ $isUnverifiedOfficial ? 'text-secondary disabled' : '' }}" href="{{ $isUnverifiedOfficial ? '#' : route('users.index') }}" @if ($isUnverifiedOfficial) aria-disabled="true" tabindex="-1" title="Verification is required to access official features." @endif>
                                         <i class="bi bi-people me-2 text-yg"></i>Users
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item fw-semibold py-2" href="{{ route('badges.index') }}">
+                                    <a class="dropdown-item fw-semibold py-2 {{ $isUnverifiedOfficial ? 'text-secondary disabled' : '' }}" href="{{ $isUnverifiedOfficial ? '#' : route('badges.index') }}" @if ($isUnverifiedOfficial) aria-disabled="true" tabindex="-1" title="Verification is required to access official features." @endif>
                                         <i class="bi bi-award me-2 text-yg"></i>Badges
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item fw-semibold py-2" href="{{ route('audit-logs.index') }}">
+                                    <a class="dropdown-item fw-semibold py-2 {{ $isUnverifiedOfficial ? 'text-secondary disabled' : '' }}" href="{{ $isUnverifiedOfficial ? '#' : route('audit-logs.index') }}" @if ($isUnverifiedOfficial) aria-disabled="true" tabindex="-1" title="Verification is required to access official features." @endif>
                                         <i class="bi bi-clock-history me-2 text-yg"></i>System log
                                     </a>
                                 </li>
@@ -161,10 +168,13 @@
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item fw-semibold py-2" href="{{ route('surveys.manage') }}">
+                                    <a class="dropdown-item fw-semibold py-2 {{ $isUnverifiedOfficial ? 'text-secondary disabled' : '' }}" href="{{ $isUnverifiedOfficial ? '#' : route('surveys.manage') }}" @if ($isUnverifiedOfficial) aria-disabled="true" tabindex="-1" title="Verification is required to access official features." @endif>
                                         <i class="bi bi-bar-chart-line me-2 text-yg"></i>Manage surveys
                                     </a>
                                 </li>
+                                @if ($isUnverifiedOfficial)
+                                    <li><span class="dropdown-item-text small text-secondary text-wrap">Verification by a Barangay Administrator is required to use official management features.</span></li>
+                                @endif
                             </ul>
                         </li>
                     @endif
@@ -186,6 +196,17 @@
     <div class="app-content">
       <main class="py-4 py-lg-5">
         <div class="container">
+        @auth
+            @if (auth()->user()->isUnverifiedOfficial())
+                <div class="alert alert-warning rounded-3" role="alert">
+                    <i class="bi bi-hourglass-split me-1"></i>Your official account is unverified. A Barangay Administrator must verify your account before you can use official management and attendance features.
+                </div>
+            @elseif (auth()->user()->role === 'resident' && ! auth()->user()->is_verified)
+                <div class="alert alert-warning rounded-3" role="alert">
+                    <i class="bi bi-hourglass-split me-1"></i>Your resident account is unverified. A Barangay Official must verify your account before you can use attendance scanning or Spin the Wheel. Your account, announcements, surveys, and logout remain available.
+                </div>
+            @endif
+        @endauth
         @if (session('success'))
             <div class="alert alert-success rounded-3 alert-dismissible fade show" role="alert">
                 <i class="bi bi-check-circle-fill me-1"></i>{{ session('success') }}
@@ -208,7 +229,11 @@
         <span class="d-flex align-items-center gap-3">
             @auth
                 @if (auth()->user()->isOfficial())
-                    <a href="{{ route('audit-logs.index') }}" class="text-reset text-decoration-none"><i class="bi bi-clock-history me-1 text-yg"></i>View system log</a>
+                    @if (auth()->user()->isUnverifiedOfficial())
+                        <span class="text-secondary" title="Verification is required to access official features." aria-disabled="true"><i class="bi bi-clock-history me-1"></i>View system log</span>
+                    @else
+                        <a href="{{ route('audit-logs.index') }}" class="text-reset text-decoration-none"><i class="bi bi-clock-history me-1 text-yg"></i>View system log</a>
+                    @endif
                 @endif
             @endauth
             <span>Made by Team Athena <i class="bi bi-heart-fill text-yg"></i> </span>

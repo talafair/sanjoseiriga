@@ -127,7 +127,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/users',            [UserManagementController::class, 'index'])->name('users.index');
         Route::get('/users/create',     [UserManagementController::class, 'create'])->name('users.create');
         Route::post('/users',           [UserManagementController::class, 'store'])->name('users.store');
+        Route::post('/users/id-cards/print', [IdCardController::class, 'printSelected'])->name('users.id-cards.print-selected');
         Route::get('/users/{user}/edit', [UserManagementController::class, 'edit'])->name('users.edit');
+        Route::get('/users/{user}/id-card', [IdCardController::class, 'printUser'])->name('users.id-card.print');
         Route::get('/manage/announcements/{announcement}/summary.pdf', [AttendanceController::class, 'summaryPdf'])->name('announcements.summary.download');
         Route::get('/manage/announcements/{announcement}/summary/print', [AttendanceController::class, 'printSummary'])->name('announcements.summary.print');
         Route::get('/manage/announcements/{announcement}/attendance-sheet.pdf', [AttendanceController::class, 'attendanceSheetPdf'])->name('announcements.attendance.download');

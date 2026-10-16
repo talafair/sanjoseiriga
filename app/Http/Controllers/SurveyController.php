@@ -131,7 +131,7 @@ class SurveyController extends Controller
 
     public function show(Request $request, Survey $survey): View
     {
-        abort_unless($request->user()->isOfficial() || $this->audienceQuery($survey)->whereKey($request->user()->id)->exists(), 403);
+        abort_unless($request->user()->canAccessOfficialFeatures() || $this->audienceQuery($survey)->whereKey($request->user()->id)->exists(), 403);
 
         return view('pages.survey-show', [
             'survey' => $survey,

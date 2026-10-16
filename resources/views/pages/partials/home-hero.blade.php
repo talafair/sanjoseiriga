@@ -24,7 +24,7 @@
     </div>
 
     <div class="d-flex flex-wrap gap-2">
-      @if (auth()->user()->isOfficial() || auth()->user()->is_verified)
+      @if (auth()->user()->canAccessOfficialFeatures() || auth()->user()->is_verified)
         <a href="{{ route('attendance.scanner') }}" class="btn btn-light fw-semibold">
           <i class="bi bi-qr-code-scan me-1"></i>Scan attendance
           @if ($scanNow > 0)
@@ -32,7 +32,7 @@
           @endif
         </a>
       @else
-        <span class="btn btn-light fw-semibold disabled" title="Your account is waiting for verification">
+        <span class="btn btn-light fw-semibold disabled" aria-disabled="true" title="A Barangay Official must verify your resident account before you can scan attendance.">
           <i class="bi bi-hourglass-split me-1"></i>Verification pending
         </span>
       @endif
@@ -41,7 +41,7 @@
           <i class="bi bi-person-badge me-1"></i>My resident ID
         </a>
       @endunless
-      @if (auth()->user()->isOfficial())
+      @if (auth()->user()->canAccessOfficialFeatures())
         <a href="{{ route('badges.index') }}" class="btn btn-outline-light fw-semibold">
           <i class="bi bi-award me-1"></i>Manage badges
         </a>

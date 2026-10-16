@@ -10,10 +10,18 @@ class EnsureOfficial
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->user() || ! $request->user()->isOfficial()) {
+        $user = $request->user();
+
+        if (! $user || ! $user->isOfficial()) {
             return redirect()
                 ->route('announcements')
                 ->with('error', 'Only officials can manage that page.');
+        }
+
+        if ($user->isUnverifiedOfficial()) {
+            return redirect()
+                ->route('account')
+                ->with('error', 'Your official account is unverified. A Barangay Administrator must verify it before you can access official features.');
         }
 
         return $next($request);

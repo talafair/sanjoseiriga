@@ -19,7 +19,7 @@
     @endphp
 
     @php
-        $isOfficial = auth()->user()->isOfficial();
+        $isOfficial = auth()->user()->canAccessOfficialFeatures();
         $calendarData = $calendarAnnouncements->map(fn ($announcement) => [
             'id' => $announcement->id,
             'title' => $announcement->title,

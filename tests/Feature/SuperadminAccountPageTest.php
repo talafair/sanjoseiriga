@@ -90,7 +90,11 @@ class SuperadminAccountPageTest extends TestCase
     public function test_official_audience_notifications_include_superadmins_but_not_personnel(): void
     {
         $superadmin = User::factory()->create(['role' => User::SUPERADMIN_ROLE]);
-        $official = User::factory()->create(['role' => 'official', 'official_group' => 'barangay_council']);
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'is_verified' => true,
+        ]);
         $personnel = User::factory()->create(['role' => 'official', 'official_group' => 'personnel']);
         $resident = User::factory()->create(['role' => 'resident']);
 

@@ -30,7 +30,7 @@
         </div>
     </div>
 
-    @if ($canPlay && auth()->user()->isOfficial())
+    @if ($canPlay && auth()->user()->canAccessOfficialFeatures())
         <div class="card yg-card mb-4">
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -99,7 +99,7 @@
             </div>
         @else
             @foreach ($themes as $theme)
-                @if (($canPlay && auth()->user()->isOfficial()) || $theme->due_at?->isPast())
+                @if (($canPlay && auth()->user()->canAccessOfficialFeatures()) || $theme->due_at?->isPast())
                     <div class="px-3 pt-3">
                         <h6 class="fw-bold mb-2">{{ $theme->title }}</h6>
                         <div class="table-responsive">
@@ -127,7 +127,7 @@
         @endif
     </div>
 
-    @if ($canPlay && auth()->user()->isOfficial() && $themes->isNotEmpty())
+    @if ($canPlay && auth()->user()->canAccessOfficialFeatures() && $themes->isNotEmpty())
         <div class="card yg-card"><div class="card-header py-3"><i class="bi bi-collection me-2 text-yg"></i>Published themes</div><div class="list-group list-group-flush">@foreach ($themes as $theme)<div class="list-group-item d-flex justify-content-between align-items-center px-4"><span><strong>{{ $theme->title }}</strong><span class="small text-secondary ms-2">{{ count($theme->questions) }} questions</span></span><form method="POST" action="{{ route('games.themes.destroy', $theme) }}" onsubmit="return confirm('Remove this trivia theme?');">@csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm rounded-3" title="Remove theme"><i class="bi bi-trash"></i></button></form></div>@endforeach</div></div>
     @endif
 @endsection

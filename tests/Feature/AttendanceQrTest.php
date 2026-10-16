@@ -428,6 +428,7 @@ class AttendanceQrTest extends TestCase
             'role' => 'official',
             'official_group' => 'barangay_council',
             'official_position' => 'barangay_captain',
+            'is_verified' => true,
         ]);
         $resident = User::factory()->create([
             'role' => 'resident',

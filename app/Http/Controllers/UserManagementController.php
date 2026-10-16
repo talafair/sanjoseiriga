@@ -174,6 +174,7 @@ class UserManagementController extends Controller
 
     public function toggleVerification(Request $request, User $user)
     {
+        abort_if($request->user()->is($user), Response::HTTP_FORBIDDEN);
         $this->authorizeTarget($user);
 
         $user->update(['is_verified' => ! $user->is_verified]);

@@ -58,10 +58,27 @@
 
     {{-- Users table --}}
     <div class="card yg-card overflow-hidden">
+        <form id="bulk-id-print-form" method="POST" action="{{ route('users.id-cards.print-selected') }}" target="_blank">
+            @csrf
+            <div class="d-flex flex-wrap align-items-center gap-2 border-bottom p-3">
+                <label for="bulk-id-paper-size" class="small text-secondary mb-0">Paper</label>
+                <select id="bulk-id-paper-size" name="paper_size" class="form-select form-select-sm" style="width: auto;">
+                    <option value="a4" selected>A4</option>
+                    <option value="letter">US Letter</option>
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm" id="print-selected-ids" disabled>
+                    <i class="bi bi-printer me-1"></i>Print Selected IDs
+                </button>
+                <span id="selected-id-count" class="small text-secondary" aria-live="polite">No resident IDs selected</span>
+            </div>
+        </form>
         <div class="table-responsive">
             <table class="table user-management-table align-middle mb-0">
                 <thead>
                     <tr class="small text-secondary text-uppercase">
+                        <th class="ps-3 py-3 text-center">
+                            <input type="checkbox" id="select-all-resident-ids" class="form-check-input" aria-label="Select all visible residents">
+                        </th>
                         <th class="ps-4 py-3 user-member-column">Member</th>
                         <th class="py-3 text-center">Category</th>
                         <th class="py-3 text-center">Status</th>
@@ -71,7 +88,12 @@
                 </thead>
                 <tbody>
                     @foreach ($users as $i => $member)
-                        <tr class="user-management-row" data-user-toggle="user-details-{{ $member->id }}" data-user-name="{{ strtolower($member->full_name) }}" data-user-category="{{ $member->role }}" data-user-status="{{ $member->isOfficial() ? 'official' : ($member->is_verified ? 'verified' : 'unverified') }}">
+                        <tr class="user-management-row" data-user-toggle="user-details-{{ $member->id }}" data-user-name="{{ strtolower($member->full_name) }}" data-user-category="{{ $member->role }}" data-user-status="{{ $member->role === 'official' ? ($member->is_verified ? 'verified' : 'unverified') : ($member->isOfficial() ? 'official' : ($member->is_verified ? 'verified' : 'unverified')) }}">
+                            <td class="text-center">
+                                @if ($member->role === 'resident' && $member->unique_id)
+                                    <input type="checkbox" class="form-check-input resident-id-selection" name="resident_ids[]" value="{{ $member->id }}" form="bulk-id-print-form" aria-label="Select TalaFair ID for {{ $member->full_name }}">
+                                @endif
+                            </td>
                             <td class="ps-4 user-member-cell">
                                 <button type="button" class="btn btn-link link-dark text-decoration-none p-0 d-flex align-items-center gap-3 text-start" data-bs-toggle="collapse" data-bs-target="#user-details-{{ $member->id }}" aria-expanded="false" aria-controls="user-details-{{ $member->id }}">
                                     <img src="{{ $member->avatar_url }}" data-image-fallback="{{ asset('images/default-avatar.svg') }}" alt="{{ $member->name }}" class="avatar avatar-sm object-fit-cover">
@@ -95,6 +117,10 @@
                             <td class="text-center">
                                 @if ($member->isSuperadmin())
                                     <span class="badge bg-dark rounded-pill"><i class="bi bi-lock-fill me-1"></i>Protected</span>
+                                @elseif ($member->role === 'official' && $member->is_verified)
+                                    <span class="badge bg-success-subtle text-success-emphasis rounded-pill"><i class="bi bi-patch-check-fill me-1"></i>Verified</span>
+                                @elseif ($member->role === 'official')
+                                    <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill"><i class="bi bi-hourglass-split me-1"></i>Unverified</span>
                                 @elseif ($member->isOfficial())
                                     <span class="badge badge-gold rounded-pill"><i class="bi bi-shield-check me-1"></i>Official</span>
                                 @elseif ($member->is_verified)
@@ -121,6 +147,13 @@
                                                 </li>
                                             @endif
 
+                                            @if ($member->role === 'resident')
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('users.id-card.print', $member) }}" target="_blank" rel="noopener">
+                                                        <i class="bi bi-printer me-2"></i>Print TalaFair ID
+                                                    </a>
+                                                </li>
+                                            @endif
 
                                             <li><a class="dropdown-item" href="{{ route('users.edit', $member) }}"><i class="bi bi-pencil me-2"></i>Edit</a></li>
                                             <li>
@@ -138,7 +171,7 @@
                             </td>
                         </tr>
                         <tr class="collapse user-details-row" id="user-details-{{ $member->id }}">
-                            <td colspan="5" class="p-0">
+                            <td colspan="6" class="p-0">
                                 <div class="user-profile-details">
                                     <div class="fw-bold mb-3"><i class="bi bi-person-lines-fill text-yg me-1"></i>Profile Information</div>
                                     <div class="row g-4 align-items-start">
@@ -148,7 +181,7 @@
                                             <div class="col-md-6"><span class="detail-label">Username</span><div>{{ '@' . $member->username }}</div></div>
                                             <div class="col-md-6"><span class="detail-label">Email</span><div>{{ $member->email }}</div></div>
                                             <div class="col-md-6"><span class="detail-label">Category</span><div>{{ \App\Models\User::ROLE_LABELS[$member->role] ?? 'Unassigned' }}</div></div>
-                                            <div class="col-md-6"><span class="detail-label">Verification</span><div>{{ $member->isSuperadmin() ? 'Protected' : ($member->isOfficial() ? 'Official' : ($member->is_verified ? 'Verified' : 'Unverified')) }}</div></div>
+                                            <div class="col-md-6"><span class="detail-label">Verification</span><div>{{ $member->isSuperadmin() ? 'Protected' : ($member->is_verified ? 'Verified' : 'Unverified') }}</div></div>
                                             <div class="col-md-6"><span class="detail-label">Points</span><div>{{ number_format($member->points) }}</div></div>
                                             <div class="col-md-6"><span class="detail-label">Joined</span><div>{{ $member->created_at?->format('M j, Y') ?: '—' }}</div></div>
                                             <div class="col-md-6"><span class="detail-label">Resident ID</span><div>{{ $member->unique_id ?: '—' }}</div></div>
@@ -221,7 +254,8 @@
             rows.forEach((row) => {
                 const show = (!term || row.dataset.userName.includes(term))
                     && (categoryValue === 'all' || row.dataset.userCategory === categoryValue)
-                    && (statusValue === 'all' || row.dataset.userStatus === statusValue);
+                    && (statusValue === 'all'
+                        || (statusValue === 'official' ? row.dataset.userCategory === 'official' || row.dataset.userCategory === 'superadmin' : row.dataset.userStatus === statusValue));
                 const details = document.getElementById(row.dataset.userToggle);
                 row.classList.toggle('d-none', !show);
                 details?.classList.toggle('d-none', !show);
@@ -232,6 +266,27 @@
             count.textContent = `${visible} ${visible === 1 ? 'user' : 'users'}`;
             empty.classList.toggle('d-none', visible !== 0);
         }
+
+        const selectAll = document.getElementById('select-all-resident-ids');
+        const printSelected = document.getElementById('print-selected-ids');
+        const selectedCount = document.getElementById('selected-id-count');
+        const residentSelections = [...document.querySelectorAll('.resident-id-selection')];
+
+        function updateIdSelection() {
+            const checked = residentSelections.filter((input) => input.checked);
+            printSelected.disabled = checked.length === 0;
+            selectedCount.textContent = checked.length
+                ? `${checked.length} resident ${checked.length === 1 ? 'ID' : 'IDs'} selected`
+                : 'No resident IDs selected';
+            selectAll.checked = residentSelections.length > 0 && residentSelections.every((input) => input.checked);
+            selectAll.indeterminate = checked.length > 0 && checked.length < residentSelections.length;
+        }
+
+        selectAll.addEventListener('change', () => {
+            residentSelections.forEach((input) => { input.checked = selectAll.checked; });
+            updateIdSelection();
+        });
+        residentSelections.forEach((input) => input.addEventListener('change', updateIdSelection));
 
         search.addEventListener('input', applyUserFilters);
         category.addEventListener('change', applyUserFilters);

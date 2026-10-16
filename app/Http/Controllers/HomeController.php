@@ -15,7 +15,7 @@ class HomeController extends Controller
         $user = request()->user();
         $now = now();
         $visibleAnnouncements = Announcement::latest('created_at')->get()
-            ->filter(fn (Announcement $announcement) => $user->isOfficial()
+            ->filter(fn (Announcement $announcement) => $user->canAccessOfficialFeatures()
                 || $user->belongsToAudience($announcement->audiences ?: ['public']));
         $activeAnnouncements = $visibleAnnouncements
             ->filter(fn (Announcement $announcement) => ! $announcement->is_event

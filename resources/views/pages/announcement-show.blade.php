@@ -20,10 +20,10 @@
           @include('pages.partials.announcement-details', ['announcement' => $announcement])
         </div>
 
-        @if ($announcement->is_event && (! $announcement->isParticipationActivity() || auth()->user()->isOfficial()))
+        @if ($announcement->is_event && (! $announcement->isParticipationActivity() || auth()->user()->canAccessOfficialFeatures()))
           <a href="{{ route('announcements.scan', $announcement) }}" class="btn btn-primary mt-3">
             <i class="bi bi-qr-code-scan me-1"></i>
-            {{ $announcement->isParticipationActivity() ? 'Scan participants' : (auth()->user()->isOfficial() ? 'Scan resident ID' : 'Scan event QR') }}
+            {{ $announcement->isParticipationActivity() ? 'Scan participants' : (auth()->user()->canAccessOfficialFeatures() ? 'Scan resident ID' : 'Scan event QR') }}
           </a>
           @if ($announcement->isParticipationActivity())
             <span class="small text-secondary ms-2">{{ $announcement->participation_points }} points per resident</span>
@@ -219,7 +219,7 @@
     @endif
 
     {{-- Official controls --}}
-    @if ($announcement->is_event && auth()->user()->isOfficial())
+    @if ($announcement->is_event && auth()->user()->canAccessOfficialFeatures())
       <div class="card yg-card">
         <div class="card-body p-4">
           <h6 class="fw-bold mb-3"><i class="bi bi-sliders me-1 text-yg"></i>Official controls</h6>

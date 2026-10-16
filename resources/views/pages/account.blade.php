@@ -16,7 +16,11 @@
             <span class="badge bg-white text-yg rounded-pill px-3 py-2">
               <i class="bi bi-person-badge me-1"></i>{{ $user->unique_id ?? 'ID pending' }}
             </span>
-            @if ($user->isOfficial())
+            @if ($user->role === 'official' && $user->is_verified)
+              <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-3 py-2"><i class="bi bi-patch-check-fill me-1"></i>Verified official</span>
+            @elseif ($user->role === 'official')
+              <span class="badge bg-warning text-dark rounded-pill px-3 py-2"><i class="bi bi-hourglass-split me-1"></i>Unverified official</span>
+            @elseif ($user->isOfficial())
               <span class="badge badge-gold rounded-pill px-3 py-2"><i class="bi bi-shield-check me-1"></i>Official account</span>
             @elseif ($user->is_verified)
               <span class="badge badge-yg rounded-pill px-3 py-2"><i class="bi bi-patch-check-fill me-1"></i>Verified resident</span>

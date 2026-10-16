@@ -33,8 +33,14 @@ class AttendanceController extends Controller
         /** @var User $viewer */
         $viewer = Auth::user();
 
-        if (! $viewer->isOfficial() && ! $viewer->isGuest() && ! $viewer->is_verified) {
-            return $this->fail('Your account must be verified by an official before you can scan attendance.');
+        if ($viewer->role === 'resident' && ! $viewer->is_verified) {
+            return redirect()
+                ->route('account')
+                ->with('error', 'Your resident account is unverified. Please ask a Barangay Official to verify it before scanning attendance.');
+        }
+
+        if ($viewer->isUnverifiedOfficial() || (! $viewer->isOfficial() && ! $viewer->isGuest() && ! $viewer->is_verified)) {
+            return $this->fail('Your account must be verified before you can scan attendance.');
         }
         abort_if($announcement && $viewer->isGuest() && ! $announcement->allow_guest_scanning, 403, 'Guest scanning is not enabled for this event.');
         abort_if($announcement?->isParticipationActivity() && ! $viewer->isOfficial(), 403);
@@ -74,8 +80,12 @@ class AttendanceController extends Controller
             'accuracy'  => ['nullable', 'numeric'],
         ]);
 
-        if (! $viewer->isOfficial() && ! $viewer->isGuest() && ! $viewer->is_verified) {
-            return $this->fail('Your account must be verified by an official before attendance can be recorded.');
+        if ($viewer->role === 'resident' && ! $viewer->is_verified) {
+            return $this->fail('Your resident account must be verified by a Barangay Official before attendance can be recorded.');
+        }
+
+        if ($viewer->isUnverifiedOfficial() || (! $viewer->isOfficial() && ! $viewer->isGuest() && ! $viewer->is_verified)) {
+            return $this->fail('Your account must be verified before attendance can be recorded.');
         }
 
         // The QR may hold the full URL — pull the token out of it.

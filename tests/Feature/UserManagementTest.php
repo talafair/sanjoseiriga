@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\AuditLog;
+use App\Models\Announcement;
+use App\Models\Attendance;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -267,17 +269,101 @@ class UserManagementTest extends TestCase
     public function test_superadmin_can_verify_and_unverify_an_official(): void
     {
         $superadmin = $this->managementSuperadmin();
+        $householdHead = User::factory()->create([
+            'role' => 'resident',
+            'is_head_of_family' => true,
+        ]);
+        $official = $this->managementOfficial();
+        $official->forceFill([
+            'is_verified' => false,
+            'points' => 375,
+            'head_of_family_id' => $householdHead->id,
+            'unique_id' => 'OFFICIAL-PRESERVE-1',
+        ])->save();
+        $event = Announcement::create([
+            'title' => 'Verification preservation event',
+            'category' => 'events',
+            'body' => 'Attendance remains linked after verification.',
+            'is_event' => true,
+            'event_start_at' => now()->subHour(),
+            'event_end_at' => now()->addHour(),
+            'qr_token' => 'verification-preservation-event',
+            'audiences' => ['public'],
+        ]);
+        Attendance::create([
+            'announcement_id' => $event->id,
+            'user_id' => $official->id,
+            'user_category' => 'official',
+            'attendance_method' => 'event_qr_scan',
+            'scanned_at' => now(),
+            'points_awarded' => 25,
+        ]);
+
+        $this->actingAs($superadmin)
+            ->patch(route('users.verification.toggle', $official))
+            ->assertRedirect();
+        $this->assertDatabaseHas('users', [
+            'id' => $official->id,
+            'is_verified' => true,
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'kagawad',
+            'points' => 375,
+            'head_of_family_id' => $householdHead->id,
+            'unique_id' => 'OFFICIAL-PRESERVE-1',
+        ]);
+        $this->assertDatabaseHas('attendances', [
+            'announcement_id' => $event->id,
+            'user_id' => $official->id,
+            'points_awarded' => 25,
+        ]);
+
+        $this->actingAs($superadmin)
+            ->patch(route('users.verification.toggle', $official))
+            ->assertRedirect();
+        $this->assertDatabaseHas('users', [
+            'id' => $official->id,
+            'is_verified' => false,
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'kagawad',
+            'points' => 375,
+            'head_of_family_id' => $householdHead->id,
+            'unique_id' => 'OFFICIAL-PRESERVE-1',
+        ]);
+        $this->assertDatabaseHas('attendances', [
+            'announcement_id' => $event->id,
+            'user_id' => $official->id,
+            'points_awarded' => 25,
+        ]);
+    }
+
+    public function test_official_status_column_uses_the_shared_verification_field(): void
+    {
+        $superadmin = $this->managementSuperadmin();
+        $verified = $this->managementOfficial();
+        $verified->forceFill(['is_verified' => true])->save();
+        $unverified = $this->managementOfficial();
+
+        $this->actingAs($superadmin)
+            ->get(route('users.index'))
+            ->assertOk()
+            ->assertSee('Verified')
+            ->assertSee('Unverified');
+    }
+
+    public function test_official_cannot_change_own_verification_status(): void
+    {
         $official = $this->managementOfficial();
 
-        $this->actingAs($superadmin)
+        $this->actingAs($official)
             ->patch(route('users.verification.toggle', $official))
-            ->assertRedirect();
-        $this->assertDatabaseHas('users', ['id' => $official->id, 'is_verified' => true]);
+            ->assertForbidden();
 
-        $this->actingAs($superadmin)
-            ->patch(route('users.verification.toggle', $official))
-            ->assertRedirect();
-        $this->assertDatabaseHas('users', ['id' => $official->id, 'is_verified' => false]);
+        $this->assertDatabaseHas('users', [
+            'id' => $official->id,
+            'is_verified' => true,
+        ]);
     }
 
     public function test_superadmin_cannot_be_deleted_or_demoted(): void
@@ -285,7 +371,7 @@ class UserManagementTest extends TestCase
         $superadmin = $this->managementSuperadmin();
 
         $this->actingAs($superadmin)->delete(route('users.destroy', $superadmin))->assertForbidden();
-        $this->actingAs(User::factory()->create(['role' => 'official']))
+        $this->actingAs(User::factory()->create(['role' => 'official', 'is_verified' => true]))
             ->patch(route('users.verification.toggle', $superadmin))
             ->assertForbidden();
         $this->assertDatabaseHas('users', ['id' => $superadmin->id, 'role' => User::SUPERADMIN_ROLE]);
@@ -312,6 +398,7 @@ class UserManagementTest extends TestCase
             'role' => 'official',
             'official_group' => 'barangay_council',
             'official_position' => 'kagawad',
+            'is_verified' => true,
         ]);
     }
 

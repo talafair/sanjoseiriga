@@ -38,7 +38,7 @@ class NotificationController extends Controller
 
         if ($notification->survey) {
             if ($notification->survey->audienceQuery()->whereKey($request->user()->id)->exists()
-                || $request->user()->isOfficial()) {
+                || $request->user()->canAccessOfficialFeatures()) {
                 return redirect()->route('surveys.show', $notification->survey);
             }
 

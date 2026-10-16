@@ -12,17 +12,23 @@ class EnsureVerified
     {
         $user = $request->user();
 
-        if ($user && ($user->isOfficial() || $user->is_verified)) {
+        if ($user && ($user->isSuperadmin() || $user->is_verified)) {
             return $next($request);
         }
 
         if ($request->expectsJson()) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Your account must be verified by a barangay official before you can use attendance scanning.',
+                'message' => $user?->isUnverifiedOfficial()
+                    ? 'Your official account must be verified by a Barangay Administrator before you can use this feature.'
+                    : 'Your resident account must be verified by a Barangay Official before you can use this feature.',
             ], 403);
         }
 
-        return redirect()->route('account')->with('error', 'Your account is unverified. Please ask a barangay official to verify your resident record.');
+        $message = $user?->isUnverifiedOfficial()
+            ? 'Your official account is unverified. Please ask a Barangay Administrator to verify it before using this feature.'
+            : 'Your resident account is unverified. Please ask a Barangay Official to verify it before using this feature.';
+
+        return redirect()->route('account')->with('error', $message);
     }
 }

@@ -29,6 +29,7 @@ class AnnouncementStatisticsAuthorizationTest extends TestCase
             User::factory()->create(['role' => 'resident']),
             User::factory()->create(['role' => 'guest']),
             User::factory()->create(['role' => 'official', 'official_group' => 'personnel']),
+            User::factory()->create(['role' => 'official', 'official_group' => 'barangay_council', 'is_verified' => false]),
         ];
 
         foreach ($viewers as $viewer) {
@@ -48,7 +49,7 @@ class AnnouncementStatisticsAuthorizationTest extends TestCase
     {
         [$event, $attendee] = $this->eventWithAttendance();
         $viewers = [
-            User::factory()->create(['role' => 'official', 'official_group' => 'barangay_council']),
+            User::factory()->create(['role' => 'official', 'official_group' => 'barangay_council', 'is_verified' => true]),
             User::factory()->create(['role' => User::SUPERADMIN_ROLE]),
         ];
 
@@ -90,7 +91,7 @@ class AnnouncementStatisticsAuthorizationTest extends TestCase
     {
         [$event] = $this->eventWithAttendance();
         $viewers = [
-            User::factory()->create(['role' => 'official', 'official_group' => 'barangay_council']),
+            User::factory()->create(['role' => 'official', 'official_group' => 'barangay_council', 'is_verified' => true]),
             User::factory()->create(['role' => User::SUPERADMIN_ROLE]),
         ];
         $exportRoutes = [

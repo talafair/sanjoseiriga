@@ -48,7 +48,7 @@ class IdCardController extends Controller
         ]);
     }
 
-    /** Print selected residents' existing cards on A4 or US Letter paper. */
+    /** Print selected residents' existing cards on supported paper sizes. */
     public function printSelected(Request $request)
     {
         $data = $request->validate([
@@ -59,7 +59,7 @@ class IdCardController extends Controller
                 'distinct',
                 Rule::exists('users', 'id')->where(fn ($query) => $query->where('role', 'resident')),
             ],
-            'paper_size' => ['required', Rule::in(['a4', 'letter'])],
+            'paper_size' => ['required', Rule::in(['a4', 'letter', 'long'])],
         ]);
 
         $residents = User::whereIn('id', $data['resident_ids'])

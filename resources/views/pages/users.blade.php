@@ -60,23 +60,29 @@
     <div class="card yg-card overflow-hidden">
         <form id="bulk-id-print-form" method="POST" action="{{ route('users.id-cards.print-selected') }}" target="_blank">
             @csrf
-            <div class="d-flex flex-wrap align-items-center gap-2 border-bottom p-3">
-                <label for="bulk-id-paper-size" class="small text-secondary mb-0">Paper</label>
-                <select id="bulk-id-paper-size" name="paper_size" class="form-select form-select-sm" style="width: auto;">
-                    <option value="a4" selected>A4</option>
-                    <option value="letter">US Letter</option>
-                </select>
-                <button type="submit" class="btn btn-primary btn-sm" id="print-selected-ids" disabled>
-                    <i class="bi bi-printer me-1"></i>Print Selected IDs
+            <div class="border-bottom p-3">
+                <button type="button" class="btn btn-outline-primary btn-sm" id="toggle-id-selection" aria-expanded="false" aria-controls="id-selection-controls">
+                    <i class="bi bi-check2-square me-1"></i>Select IDs to print
                 </button>
-                <span id="selected-id-count" class="small text-secondary" aria-live="polite">No resident IDs selected</span>
+                <div id="id-selection-controls" class="d-none flex-wrap align-items-center gap-2 mt-2">
+                    <label for="bulk-id-paper-size" class="small text-secondary mb-0">Paper</label>
+                    <select id="bulk-id-paper-size" name="paper_size" class="form-select form-select-sm" style="width: auto;">
+                        <option value="a4" selected>A4</option>
+                        <option value="letter">8.5 × 11 in</option>
+                        <option value="long">8.5 × 13 in</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm" id="print-selected-ids" disabled>
+                        <i class="bi bi-printer me-1"></i>Print Selected IDs
+                    </button>
+                    <span id="selected-id-count" class="small text-secondary" aria-live="polite">No resident IDs selected</span>
+                </div>
             </div>
         </form>
         <div class="table-responsive">
             <table class="table user-management-table align-middle mb-0">
                 <thead>
                     <tr class="small text-secondary text-uppercase">
-                        <th class="ps-3 py-3 text-center">
+                        <th class="id-selection-column ps-3 py-3 text-center d-none">
                             <input type="checkbox" id="select-all-resident-ids" class="form-check-input" aria-label="Select all visible residents">
                         </th>
                         <th class="ps-4 py-3 user-member-column">Member</th>
@@ -89,7 +95,7 @@
                 <tbody>
                     @foreach ($users as $i => $member)
                         <tr class="user-management-row" data-user-toggle="user-details-{{ $member->id }}" data-user-name="{{ strtolower($member->full_name) }}" data-user-category="{{ $member->role }}" data-user-status="{{ $member->role === 'official' ? ($member->is_verified ? 'verified' : 'unverified') : ($member->isOfficial() ? 'official' : ($member->is_verified ? 'verified' : 'unverified')) }}">
-                            <td class="text-center">
+                            <td class="id-selection-column text-center d-none">
                                 @if ($member->role === 'resident' && $member->unique_id)
                                     <input type="checkbox" class="form-check-input resident-id-selection" name="resident_ids[]" value="{{ $member->id }}" form="bulk-id-print-form" aria-label="Select TalaFair ID for {{ $member->full_name }}">
                                 @endif
@@ -271,6 +277,20 @@
         const printSelected = document.getElementById('print-selected-ids');
         const selectedCount = document.getElementById('selected-id-count');
         const residentSelections = [...document.querySelectorAll('.resident-id-selection')];
+        const toggleIdSelection = document.getElementById('toggle-id-selection');
+        const idSelectionControls = document.getElementById('id-selection-controls');
+        const idSelectionColumns = [...document.querySelectorAll('.id-selection-column')];
+
+        toggleIdSelection.addEventListener('click', () => {
+            const isExpanded = toggleIdSelection.getAttribute('aria-expanded') === 'true';
+            toggleIdSelection.setAttribute('aria-expanded', String(!isExpanded));
+            toggleIdSelection.innerHTML = isExpanded
+                ? '<i class="bi bi-check2-square me-1"></i>Select IDs to print'
+                : '<i class="bi bi-x-lg me-1"></i>Hide ID selection';
+            idSelectionControls.classList.toggle('d-none', isExpanded);
+            idSelectionControls.classList.toggle('d-flex', !isExpanded);
+            idSelectionColumns.forEach((column) => column.classList.toggle('d-none', isExpanded));
+        });
 
         function updateIdSelection() {
             const checked = residentSelections.filter((input) => input.checked);

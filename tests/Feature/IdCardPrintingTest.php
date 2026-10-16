@@ -223,8 +223,18 @@ class IdCardPrintingTest extends TestCase
                 'paper_size' => 'letter',
             ])
             ->assertOk()
-            ->assertSee('US Letter paper')
+            ->assertSee('8.5 × 11 in paper')
             ->assertSee('size: letter portrait', false);
+
+        $this->actingAs($official)
+            ->post(route('users.id-cards.print-selected'), [
+                'resident_ids' => $residents->pluck('id')->all(),
+                'paper_size' => 'long',
+            ])
+            ->assertOk()
+            ->assertSee('8.5 × 13 in paper')
+            ->assertSee('size: 215.9mm 330.2mm portrait', false)
+            ->assertSee('height: 314.2mm', false);
     }
 
     public function test_bulk_print_rejects_nonresident_ids_and_unauthorized_users(): void

@@ -162,7 +162,13 @@ class Announcement extends Model
 
     public function audienceLabels(): array
     {
-        return collect($this->audiences ?: [])
+        $audiences = $this->audiences ?: ['public'];
+
+        if (in_array('public', $audiences, true)) {
+            return [self::AUDIENCES['public']];
+        }
+
+        return collect($audiences)
             ->map(fn ($k) => self::AUDIENCES[$k] ?? $k)
             ->all();
     }

@@ -28,6 +28,7 @@
             'date' => ($announcement->event_start_at ?: $announcement->created_at)->toDateString(),
             'time' => $announcement->event_start_at?->format('g:i A'),
             'endTime' => $announcement->event_end_at?->format('g:i A'),
+            'endDateLabel' => $announcement->event_end_at?->format('M j, Y'),
             'dateLabel' => ($announcement->event_start_at ?: $announcement->created_at)->format('M j, Y'),
             'description' => $announcement->body,
             'location' => $announcement->venue_name,
@@ -670,7 +671,8 @@
 
         function showEventDetails(item) {
             document.getElementById('calendarEventModalLabel').textContent = item.title;
-            document.getElementById('calendarEventModalMeta').innerHTML = `<div><i class="bi bi-calendar-event me-2 text-yg"></i>${item.dateLabel}${item.time ? ` · ${item.time}${item.endTime ? ` - ${item.endTime}` : ''}` : ''}</div>${item.location ? `<div><i class="bi bi-geo-alt me-2 text-yg"></i>${item.location}</div>` : ''}${item.creator ? `<div><i class="bi bi-person me-2 text-yg"></i>${item.creator}</div>` : ''}`;
+            const endDate = item.endDateLabel && item.endDateLabel !== item.dateLabel ? `${item.endDateLabel} ` : '';
+            document.getElementById('calendarEventModalMeta').innerHTML = `<div><i class="bi bi-calendar-event me-2 text-yg"></i>${item.dateLabel}${item.time ? ` · ${item.time}${item.endTime ? ` - ${endDate}${item.endTime}` : ''}` : ''}</div>${item.location ? `<div><i class="bi bi-geo-alt me-2 text-yg"></i>${item.location}</div>` : ''}${item.creator ? `<div><i class="bi bi-person me-2 text-yg"></i>${item.creator}</div>` : ''}`;
             document.getElementById('calendarEventModalDescription').textContent = item.description || 'No description provided.';
             document.getElementById('calendarEventModalLink').href = item.url;
             bootstrap.Modal.getOrCreateInstance(document.getElementById('calendarEventModal')).show();

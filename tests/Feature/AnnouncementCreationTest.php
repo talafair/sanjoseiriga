@@ -70,6 +70,45 @@ class AnnouncementCreationTest extends TestCase
         $this->assertNotNull($announcement->qr_token);
     }
 
+    public function test_event_details_show_the_end_date_when_the_event_spans_multiple_days(): void
+    {
+        $official = $this->official();
+        $start = now()->addDays(2)->setTime(22, 15);
+        $end = now()->addDays(6)->setTime(11, 45);
+
+        $this->actingAs($official)->post(route('announcements.store'), [
+            ...$this->eventPayload(),
+            'event_start_at' => $start->format('Y-m-d H:i'),
+            'event_end_at' => $end->format('Y-m-d H:i'),
+            'rsvp_due_at' => $start->copy()->subHour()->format('Y-m-d H:i'),
+        ])->assertRedirect();
+
+        $announcement = Announcement::query()->latest('id')->firstOrFail();
+
+        $this->actingAs($official)
+            ->get(route('announcements.show', $announcement))
+            ->assertOk()
+            ->assertSee($start->format('M j, Y g:i A') . ' to ' . $end->format('M j, Y g:i A'));
+    }
+
+    public function test_event_details_show_all_residents_without_listing_other_audiences(): void
+    {
+        $official = $this->official();
+
+        $this->actingAs($official)->post(route('announcements.store'), [
+            ...$this->eventPayload(),
+            'audiences' => ['public', 'youth'],
+        ])->assertRedirect();
+
+        $announcement = Announcement::query()->latest('id')->firstOrFail();
+
+        $this->actingAs($official)
+            ->get(route('announcements.show', $announcement))
+            ->assertOk()
+            ->assertSee('For:</strong> All residents', false)
+            ->assertDontSee('For:</strong> All residents, Youth', false);
+    }
+
     public function test_event_can_be_published_without_facilitators(): void
     {
         $official = $this->official();

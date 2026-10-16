@@ -19,11 +19,11 @@
 
     <form method="GET" class="card yg-card p-3 mb-4">
         <div class="row g-3 align-items-end">
-            <div class="col-md-4">
+            <div class="col-12 col-lg-3">
                 <label for="logUserName" class="form-label fw-semibold">Search</label>
                 <input id="logUserName" name="user_name" value="{{ request('user_name') }}" class="form-control" placeholder="Search user name" autocomplete="off">
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-lg-2">
                 <label for="logType" class="form-label fw-semibold">Filter by area</label>
                 <select id="logType" name="type" class="form-select">
                     <option value="">All areas</option>
@@ -32,7 +32,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-lg-2">
                 <label for="logAction" class="form-label fw-semibold">Filter by action</label>
                 <select id="logAction" name="action" class="form-select">
                     <option value="">All actions</option>
@@ -41,9 +41,14 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-2 d-flex gap-2">
-                <button class="btn btn-yg flex-fill d-none" type="submit"><i class="bi bi-funnel me-1"></i>Apply filters</button>
-                <a href="{{ route('audit-logs.index') }}" class="btn btn-outline-secondary" title="Clear filters"><i class="bi bi-x-lg"></i></a>
+            <div class="col-8 col-lg-3">
+                <label for="logDate" class="form-label fw-semibold">Jump to date</label>
+                <input id="logDate" name="date" type="date" value="{{ $selectedDate }}"
+                       max="{{ $today }}" class="form-control">
+            </div>
+            <div class="col-4 col-lg-2 d-flex gap-1">
+                <button class="btn btn-yg flex-fill px-2" type="submit"><i class="bi bi-funnel me-1"></i>Apply</button>
+                <a href="{{ route('audit-logs.index') }}" class="btn btn-outline-secondary px-2" title="Clear filters" aria-label="Clear filters"><i class="bi bi-x-lg"></i></a>
             </div>
         </div>
     </form>
@@ -118,8 +123,8 @@
     </div>
 
     @if ($logs->hasPages())
-        <nav class="mt-4" aria-label="System log pagination">
-            {{ $logs->links() }}
+        <nav class="system-log-pagination mt-4" aria-label="System log pagination">
+            {{ $logs->links('pagination::bootstrap-5') }}
         </nav>
     @endif
 @endsection
@@ -131,6 +136,7 @@
         const input = document.getElementById('logUserName');
         const type = document.getElementById('logType');
         const action = document.getElementById('logAction');
+        const date = document.getElementById('logDate');
         let timer;
 
         input?.addEventListener('input', () => {
@@ -138,7 +144,7 @@
             timer = setTimeout(() => form?.requestSubmit(), 350);
         });
 
-        [type, action].forEach((select) => select?.addEventListener('change', () => form?.requestSubmit()));
+        [type, action, date].forEach((control) => control?.addEventListener('change', () => form?.requestSubmit()));
     })();
 </script>
 @endpush

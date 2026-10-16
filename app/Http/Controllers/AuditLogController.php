@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -21,8 +22,13 @@ class AuditLogController extends Controller
         ];
         $actions = ['login' => 'Login', 'created' => 'Created', 'updated' => 'Updated', 'password_updated' => 'Password updated', 'deleted' => 'Deleted'];
         $userName = trim($request->string('user_name')->toString());
+        $validated = $request->validate([
+            'date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+        $selectedDate = $validated['date'] ?? '';
 
         $logs = AuditLog::with(['user', 'auditable'])
+            ->when($selectedDate !== '', fn ($query) => $query->whereDate('created_at', $selectedDate))
             ->when($userName !== '', function ($query) use ($userName) {
                 $query->whereHas('user', fn ($userQuery) => $userQuery->where('name', 'like', '%' . $userName . '%'));
             })
@@ -36,6 +42,12 @@ class AuditLogController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        return view('pages.audit-logs', compact('logs', 'types', 'actions'));
+        return view('pages.audit-logs', [
+            'logs' => $logs,
+            'types' => $types,
+            'actions' => $actions,
+            'selectedDate' => $selectedDate,
+            'today' => Carbon::today()->toDateString(),
+        ]);
     }
 }

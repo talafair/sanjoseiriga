@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\AuditLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -149,5 +150,91 @@ class NavigationLayoutTest extends TestCase
         $response = $this->get(route('login'));
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
         $this->get('/saved-accounts')->assertNotFound();
+    }
+
+    public function test_system_log_uses_bootstrap_pagination_and_preserves_filters_across_pages(): void
+    {
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'barangay_captain',
+            'is_verified' => true,
+        ]);
+
+        foreach (range(1, 26) as $index) {
+            AuditLog::create([
+                'user_id' => $official->id,
+                'actor_unique_id' => $official->unique_id,
+                'action' => 'login',
+                'auditable_type' => User::class,
+                'auditable_id' => $official->id,
+                'new_values' => ['index' => $index],
+            ]);
+        }
+
+        $this->actingAs($official)
+            ->get(route('audit-logs.index', [
+                'user_name' => $official->name,
+                'type' => 'User',
+                'action' => 'login',
+            ]))
+            ->assertOk()
+            ->assertSee('aria-label="System log pagination"', false)
+            ->assertSee('class="pagination"', false)
+            ->assertSee('Showing')
+            ->assertSee('type=User')
+            ->assertSee('action=login')
+            ->assertSee('page=2');
+
+        $this->get(route('audit-logs.index', [
+            'user_name' => $official->name,
+            'type' => 'User',
+            'action' => 'login',
+            'page' => 2,
+        ]))
+            ->assertOk()
+            ->assertSee('aria-label="System log pagination"', false)
+            ->assertSee('rel="prev"', false)
+            ->assertSee('aria-current="page"', false);
+    }
+
+    public function test_system_log_can_be_filtered_by_date_and_navigated_by_day(): void
+    {
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'barangay_captain',
+            'is_verified' => true,
+        ]);
+
+        foreach ([now()->subDays(2), now()->subDay(), now()] as $dayIndex => $day) {
+            $entries = $dayIndex === 1 ? 26 : 1;
+            for ($index = 0; $index < $entries; $index++) {
+                $log = AuditLog::create([
+                    'user_id' => $official->id,
+                    'actor_unique_id' => $official->unique_id,
+                    'action' => 'login',
+                    'auditable_type' => User::class,
+                    'auditable_id' => $official->id,
+                    'new_values' => ['index' => $index],
+                ]);
+                $log->forceFill(['created_at' => $day->copy()->setTime(10, 0)->addSeconds($index)])->saveQuietly();
+            }
+        }
+
+        $date = now()->subDay()->toDateString();
+        $this->actingAs($official)
+            ->get(route('audit-logs.index', ['date' => $date, 'action' => 'login']))
+            ->assertOk()
+            ->assertSee('name="date"', false)
+            ->assertSee('value="' . $date . '"', false)
+            ->assertDontSee('Yesterday')
+            ->assertDontSee('Today')
+            ->assertSee('action=login')
+            ->assertSee('26 entries');
+
+        $this->actingAs($official)
+            ->get(route('audit-logs.index', ['date' => 'not-a-date']))
+            ->assertRedirect();
     }
 }

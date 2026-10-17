@@ -353,12 +353,15 @@ class AuthenticationTest extends TestCase
 
     public function test_official_registration_creates_an_unverified_official_account(): void
     {
-        $this->post(route('register.store'), $this->registrationPayload([
+        $payload = $this->registrationPayload([
             'role' => 'official',
             'official_group' => 'barangay_council',
             'official_position' => 'kagawad',
             'username' => 'new-official',
-        ]))
+        ]);
+        unset($payload['is_head_of_family']);
+
+        $this->post(route('register.store'), $payload)
             ->assertRedirect(route('id-card.show'));
 
         $official = User::where('username', 'new-official')->firstOrFail();
@@ -385,6 +388,40 @@ class AuthenticationTest extends TestCase
             ->assertSessionHasErrors('official_position');
 
         $this->assertDatabaseMissing('users', ['username' => 'invalid-official']);
+    }
+
+    public function test_guest_registration_uses_a_separate_zone_based_id_without_household_fields(): void
+    {
+        $this->get(route('register', ['role' => 'guest']))
+            ->assertOk()
+            ->assertSee('Zone number')
+            ->assertSee('starts with GZ')
+            ->assertDontSee('>Household</h6>', false)
+            ->assertDontSee('name="head_of_family_id"', false)
+            ->assertDontSee('name="is_head_of_family"', false);
+
+        $payload = $this->registrationPayload([
+            'role' => 'guest',
+            'birthdate' => '',
+            'zone' => '2',
+            'barangay' => 'Guest Village',
+            'city' => 'Iriga City',
+            'province' => 'Camarines Sur',
+            'country' => 'Philippines',
+            'postal_code' => '4431',
+            'username' => 'registered-guest',
+        ]);
+        unset($payload['is_head_of_family']);
+
+        $this->post(route('register.store'), $payload)
+            ->assertRedirect(route('id-card.show'));
+
+        $guest = User::where('username', 'registered-guest')->firstOrFail();
+        $this->assertAuthenticatedAs($guest);
+        $this->assertStringStartsWith('GZ2-', $guest->unique_id);
+        $this->assertFalse($guest->is_head_of_family);
+        $this->assertNull($guest->head_of_family_id);
+        $this->assertNull($guest->head_of_family_name);
     }
 
     public function test_registration_rejects_an_invalid_email(): void

@@ -72,20 +72,31 @@ class RegisteredUserController extends Controller
 
             'house_no'     => ['required', 'string', 'max:255'],
             'street'       => ['required', 'string', 'max:255'],
-            'zone'         => [$isGuest ? 'nullable' : 'required', 'string', 'max:10'],
+            'zone'         => ['required', 'string', 'max:10'],
             'barangay'     => [$isGuest ? 'required' : 'nullable', 'string', 'max:255'],
             'city'         => [$isGuest ? 'required' : 'nullable', 'string', 'max:255'],
             'province'     => [$isGuest ? 'required' : 'nullable', 'string', 'max:255'],
             'country'      => [$isGuest ? 'required' : 'nullable', 'string', 'max:255'],
             'postal_code'  => [$isGuest ? 'required' : 'nullable', 'string', 'max:20'],
 
-            'is_head_of_family'   => ['nullable', 'boolean'],
+            'is_head_of_family'   => [
+                Rule::prohibitedIf(fn () => $request->input('role') !== 'resident'),
+                'nullable',
+                'boolean',
+            ],
             'head_of_family_id'   => [
+                Rule::prohibitedIf(fn () => $request->input('role') !== 'resident'),
                 'nullable',
                 Rule::requiredIf($requiresHouseholdHead),
                 Rule::exists('users', 'id')->where(fn ($query) => $query->where('is_head_of_family', true)),
             ],
-            'head_of_family_name' => ['exclude_if:is_head_of_family,1', 'nullable', 'string', 'max:255'],
+            'head_of_family_name' => [
+                Rule::prohibitedIf(fn () => $request->input('role') !== 'resident'),
+                'exclude_if:is_head_of_family,1',
+                'nullable',
+                'string',
+                'max:255',
+            ],
 
             'username' => ['required', 'string', 'min:3', 'max:30', 'alpha_dash', 'unique:users,username'],
             'email'    => ['nullable', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
@@ -108,7 +119,7 @@ class RegisteredUserController extends Controller
             'contact_number.regex'            => 'Use digits only, with optional +, -, spaces or brackets.',
         ]);
 
-        $isHead = $data['role'] !== 'official' && (bool) ($data['is_head_of_family'] ?? false);
+        $isHead = $data['role'] === 'resident' && (bool) ($data['is_head_of_family'] ?? false);
 
         if (! $isHead && $requiresHouseholdHead) {
             $selectedHead = User::familyHeads()->find($data['head_of_family_id']);
@@ -119,7 +130,7 @@ class RegisteredUserController extends Controller
             }
 
             $data['head_of_family_name'] = $selectedHead->full_name;
-        } elseif (! $isHead && $data['role'] !== 'official') {
+        } elseif ($data['role'] === 'resident' && ! $isHead) {
             $headQuery = User::where('is_head_of_family', true)
                 ->whereRaw('LOWER(TRIM(house_no)) = ?', [strtolower(trim($data['house_no']))])
                 ->whereRaw('LOWER(TRIM(street)) = ?', [strtolower(trim($data['street']))]);
@@ -156,15 +167,15 @@ class RegisteredUserController extends Controller
                 'birthdate'      => $data['birthdate'] ?? null,
                 'contact_number' => $data['contact_number'] ?? null,
                 'is_student'     => (bool) ($data['is_student'] ?? false),
-                'student_level'  => $data['is_student'] ? ($data['student_level'] ?? null) : null,
+                'student_level'  => (bool) ($data['is_student'] ?? false) ? ($data['student_level'] ?? null) : null,
                 'is_pwd'         => (bool) ($data['is_pwd'] ?? false),
                 'is_4ps_member'  => (bool) ($data['is_4ps_member'] ?? false),
                 'is_solo_parent' => (bool) ($data['is_solo_parent'] ?? false),
                 'is_sjtoda'      => (bool) ($data['is_sjtoda'] ?? false),
                 'is_bpc'         => (bool) ($data['is_bpc'] ?? false),
                 'is_out_of_school_youth' => (bool) ($data['is_out_of_school_youth'] ?? false),
-                'school'         => $data['is_student'] ? (strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? 'Other' : $data['school']) : null,
-                'school_other'   => $data['is_student'] && strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? ($data['school_other'] ?? null) : null,
+                'school'         => (bool) ($data['is_student'] ?? false) ? (strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? 'Other' : $data['school']) : null,
+                'school_other'   => (bool) ($data['is_student'] ?? false) && strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? ($data['school_other'] ?? null) : null,
                 'occupation'     => $data['occupation'] ?? null,
 
                 'house_no'    => $data['house_no'],

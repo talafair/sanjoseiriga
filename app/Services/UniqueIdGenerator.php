@@ -6,8 +6,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Builds resident IDs in the format  Z{zone}-{yy}{9-digit sequence}
- * Example: zone 2, year 2026, 1st resident  ->  Z2-26000000001
+ * Builds resident IDs as Z{zone}-{yy}{9-digit sequence} and guest IDs as
+ * GZ{zone}-{yy}{9-digit sequence}, keeping guest IDs separate from resident IDs.
  */
 class UniqueIdGenerator
 {
@@ -16,8 +16,10 @@ class UniqueIdGenerator
         $zone = preg_replace('/[^0-9A-Za-z]/', '', (string) $user->zone) ?: '0';
         $yy   = $user->created_at?->format('y') ?? now()->format('y');
 
-        return DB::transaction(function () use ($zone, $yy) {
-            $prefix = "Z{$zone}-{$yy}";
+        $idPrefix = $user->isGuest() ? 'GZ' : 'Z';
+
+        return DB::transaction(function () use ($zone, $yy, $idPrefix) {
+            $prefix = "{$idPrefix}{$zone}-{$yy}";
 
             $last = User::where('unique_id', 'like', $prefix . '%')
                 ->lockForUpdate()

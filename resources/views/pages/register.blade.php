@@ -176,13 +176,16 @@
             <label for="street" class="form-label">Street</label>
             <input id="street" name="street" type="text" required value="{{ old('street') }}" class="form-control" data-title-case>
           </div>
-          @if ($role !== 'guest')
-            <div class="col-md-4">
-              <label for="zone" class="form-label">Zone number (ex. 1, 2, 3, 4)</label>
-              <input id="zone" name="zone" type="text" inputmode="numeric" required value="{{ old('zone') }}" class="form-control">
-              <div class="form-text">Your zone prefixes your ID (Zone 2 &rarr; Z2-…).</div>
-            </div>
-          @else
+          <div class="col-md-4">
+            <label for="zone" class="form-label">Zone number</label>
+            <input id="zone" name="zone" type="text" inputmode="numeric" required value="{{ old('zone') }}" class="form-control">
+            @if ($role === 'guest')
+              <div class="form-text">Used for your guest ID, which starts with GZ and is separate from resident IDs.</div>
+            @else
+              <div class="form-text">Your zone prefixes your resident ID (Zone 2 &rarr; Z2-…).</div>
+            @endif
+          </div>
+          @if ($role === 'guest')
             <div class="col-md-4">
               <label for="barangay" class="form-label">Barangay / village</label>
               <input id="barangay" name="barangay" type="text" required value="{{ old('barangay') }}" class="form-control" data-title-case>
@@ -216,7 +219,7 @@
       </div>
     </div>
 
-    @if ($role !== 'official')
+    @if ($role === 'resident')
     {{-- Household --}}
     <div class="card yg-card mb-4">
       <div class="card-body p-4">

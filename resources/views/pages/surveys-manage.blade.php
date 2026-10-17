@@ -53,7 +53,46 @@
   </form>
 </div></div>
 
-<div class="card yg-card"><div class="card-header py-3 fw-bold">Published surveys</div><div class="list-group list-group-flush">@forelse ($surveys as $survey)<div class="list-group-item d-flex justify-content-between align-items-center gap-3"><div><div class="fw-semibold">{{ $survey->title }}</div><div class="small text-secondary">{{ count($survey->questions) }} questions · Due {{ $survey->due_at?->format('M j, Y g:i A') }} · {{ $survey->audience === 'event_attendees' ? 'Event attendees' : ucfirst(str_replace('_', ' ', $survey->audience)) }}</div></div><div class="d-flex gap-2"><a class="btn btn-outline-secondary btn-sm" href="#surveySummary{{ $survey->id }}">Summary</a><a class="btn btn-light btn-sm" href="{{ route('surveys.edit', $survey) }}" title="Edit survey"><i class="bi bi-pencil"></i></a><form method="POST" action="{{ route('surveys.destroy', $survey) }}" onsubmit="return confirm('Delete this survey and its responses?');">@csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm" title="Delete survey"><i class="bi bi-trash"></i></button></form></div></div>@empty<div class="list-group-item text-secondary">No surveys published yet.</div>@endforelse</div></div>
+<div class="card yg-card">
+  <div class="card-header py-3 fw-bold">Published surveys</div>
+  <div class="list-group list-group-flush">
+    @forelse ($surveys as $survey)
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+          <div>
+            <div class="fw-semibold">{{ $survey->title }}</div>
+            <div class="small text-secondary">
+              {{ count($survey->questions) }} questions · Due {{ $survey->due_at?->format('M j, Y g:i A') }}
+              · {{ $survey->audience === 'event_attendees' ? 'Event attendees' : ucfirst(str_replace('_', ' ', $survey->audience)) }}
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="#surveySummary{{ $survey->id }}">Summary</a>
+            <a class="btn btn-light btn-sm" href="{{ route('surveys.edit', $survey) }}" title="Edit survey"><i class="bi bi-pencil"></i></a>
+            <form method="POST" action="{{ route('surveys.destroy', $survey) }}" onsubmit="return confirm('Delete this survey and its responses?');">
+              @csrf @method('DELETE')
+              <button class="btn btn-outline-danger btn-sm" title="Delete survey"><i class="bi bi-trash"></i></button>
+            </form>
+          </div>
+        </div>
+        @if ($survey->due_at && now()->lessThan($survey->due_at))
+          <form method="POST" action="{{ route('surveys.remind', $survey) }}" class="border-top mt-3 pt-3">
+            @csrf
+            <label class="form-label fw-semibold" for="surveyReminderMessage{{ $survey->id }}">Remind the audience</label>
+            <select name="kind" class="form-select" aria-label="Reminder type" required>
+              <option value="survey_closing">Remind audience to complete this survey</option>
+            </select>
+            <input id="surveyReminderMessage{{ $survey->id }}" name="message" class="form-control mt-2" maxlength="500"
+                   placeholder="Optional note" value="{{ old('message') }}">
+            <button class="btn btn-primary btn-sm fw-semibold mt-2">Send reminder</button>
+          </form>
+        @endif
+      </div>
+    @empty
+      <div class="list-group-item text-secondary">No surveys published yet.</div>
+    @endforelse
+  </div>
+</div>
 
 @foreach ($surveys as $survey)
   @php

@@ -6,7 +6,7 @@
 <div class="row justify-content-center">
   <div class="col-lg-9">
 
-    <a href="{{ route('announcements.show', $announcement) }}" class="small link-secondary">
+    <a href="{{ route('announcements.show', $announcement) }}" class="btn btn-outline-secondary btn-sm rounded-3 mb-3">
       <i class="bi bi-arrow-left me-1"></i>{{ $announcement->title }}
     </a>
     <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-4">

@@ -70,6 +70,91 @@ class AnnouncementCreationTest extends TestCase
         $this->assertNotNull($announcement->qr_token);
     }
 
+    public function test_event_reminders_can_be_sent_anytime_and_survey_reminders_are_not_offered_here(): void
+    {
+        $official = $this->official();
+        $resident = User::factory()->create(['role' => 'resident']);
+        $event = Announcement::create([
+            'title' => 'Upcoming community meeting',
+            'category' => 'events',
+            'body' => 'Event details.',
+            'is_event' => true,
+            'event_start_at' => now()->addDays(5),
+            'rsvp_due_at' => now()->addDays(4),
+            'audiences' => ['public'],
+            'created_by' => $official->id,
+        ]);
+
+        $this->actingAs($official)
+            ->from(route('announcements.show', $event))
+            ->post(route('announcements.remind', $event), [
+                'kind' => 'event_reminder',
+                'target' => 'everyone',
+            ])
+            ->assertRedirect(route('announcements.show', $event))
+            ->assertSessionHas('success', 'Reminder sent to 2 resident(s).');
+
+        $this->assertDatabaseHas('event_reminders', [
+            'announcement_id' => $event->id,
+            'kind' => 'event_reminder',
+            'recipients_count' => 2,
+        ]);
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $resident->id,
+            'announcement_id' => $event->id,
+            'title' => 'Event reminder: Upcoming community meeting',
+        ]);
+
+        $this->actingAs($official)
+            ->get(route('announcements.show', $event))
+            ->assertOk()
+            ->assertSee('Remind everyone about this event')
+            ->assertSee('Ask audience members who have not responded to RSVP')
+            ->assertDontSee('Survey is closing');
+    }
+
+    public function test_event_rsvp_reminder_only_notifies_audience_members_who_have_not_responded(): void
+    {
+        $official = $this->official();
+        $responded = User::factory()->create(['role' => 'resident']);
+        $pending = User::factory()->create(['role' => 'resident']);
+        $event = Announcement::create([
+            'title' => 'Upcoming community meeting',
+            'category' => 'events',
+            'body' => 'Event details.',
+            'is_event' => true,
+            'event_start_at' => now()->addDays(5),
+            'rsvp_due_at' => now()->addDays(4),
+            'audiences' => ['public'],
+            'created_by' => $official->id,
+        ]);
+        \App\Models\EventRsvp::create([
+            'announcement_id' => $event->id,
+            'user_id' => $responded->id,
+            'status' => 'attending',
+            'responded_at' => now(),
+        ]);
+
+        $this->actingAs($official)
+            ->post(route('announcements.remind', $event), [
+                'kind' => 'event_reminder',
+                'target' => 'pending_rsvp',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $pending->id,
+            'announcement_id' => $event->id,
+            'title' => 'Please RSVP: Upcoming community meeting',
+        ]);
+        $this->assertDatabaseMissing('user_notifications', [
+            'user_id' => $responded->id,
+            'announcement_id' => $event->id,
+            'title' => 'Please RSVP: Upcoming community meeting',
+        ]);
+    }
+
     public function test_event_details_show_the_end_date_when_the_event_spans_multiple_days(): void
     {
         $official = $this->official();
@@ -107,6 +192,56 @@ class AnnouncementCreationTest extends TestCase
             ->assertOk()
             ->assertSee('For:</strong> All residents', false)
             ->assertDontSee('For:</strong> All residents, Youth', false);
+    }
+
+    public function test_event_qr_is_prominently_available_to_verified_officials_only(): void
+    {
+        $official = $this->official();
+        $this->actingAs($official)->post(route('announcements.store'), $this->eventPayload())->assertRedirect();
+        $event = Announcement::query()->latest('id')->firstOrFail();
+
+        $this->actingAs($official)
+            ->get(route('announcements.show', $event))
+            ->assertOk()
+            ->assertSee('Event check-in QR')
+            ->assertSee('Display or print this QR for attendees to scan at the event.')
+            ->assertSee('href="' . route('announcements.qr', $event) . '"', false)
+            ->assertSee('Display Event QR');
+
+        $resident = User::factory()->create(['role' => 'resident']);
+        $this->actingAs($resident)
+            ->get(route('announcements.show', $event))
+            ->assertOk()
+            ->assertDontSee('Display Event QR');
+    }
+
+    public function test_announcement_cards_open_from_the_card_title_without_a_read_more_button(): void
+    {
+        $official = $this->official();
+        $announcement = Announcement::create([
+            'title' => 'Clickable community update',
+            'category' => 'updates',
+            'body' => 'Details for the community.',
+            'audiences' => ['public'],
+            'created_by' => $official->id,
+        ]);
+        $featured = Announcement::create([
+            'title' => 'Clickable featured update',
+            'category' => 'updates',
+            'body' => 'Featured details for the community.',
+            'audiences' => ['public'],
+            'is_featured' => true,
+            'created_by' => $official->id,
+        ]);
+
+        $this->actingAs($official)
+            ->get(route('announcements'))
+            ->assertOk()
+            ->assertSee('href="' . route('announcements.show', $announcement) . '" class="stretched-link text-body text-decoration-none"', false)
+            ->assertSee('href="' . route('announcements.show', $featured) . '" class="stretched-link text-white text-decoration-none"', false)
+            ->assertSee('Clickable community update')
+            ->assertSee('Clickable featured update')
+            ->assertDontSee('Read More');
     }
 
     public function test_event_can_be_published_without_facilitators(): void

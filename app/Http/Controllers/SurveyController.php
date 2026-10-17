@@ -129,6 +129,52 @@ class SurveyController extends Controller
         return back()->with('success', 'Survey deleted.');
     }
 
+    public function remind(Request $request, Survey $survey): RedirectResponse
+    {
+        $data = $request->validate([
+            'kind' => ['required', 'in:survey_closing'],
+            'message' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if (! $survey->due_at || now()->greaterThanOrEqualTo($survey->due_at)) {
+            return back()->with('error', 'Reminders can only be sent while the survey is open.');
+        }
+
+        $title = 'Reminder: complete survey — ' . $survey->title;
+        $body = filled($data['message'] ?? null)
+            ? $data['message']
+            : 'Please share your response before the survey closes.';
+        $count = 0;
+
+        $this->audienceQuery($survey)
+            ->whereNotIn('id', SurveyResponse::query()
+                ->select('user_id')
+                ->where('survey_id', $survey->id))
+            ->select('id')
+            ->chunkById(500, function ($users) use ($survey, $request, $title, $body, &$count) {
+                $rows = $users->map(fn ($user) => [
+                    'user_id' => $user->id,
+                    'survey_id' => $survey->id,
+                    'title' => $title,
+                    'body' => $body,
+                    'created_by' => $request->user()->id,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])->all();
+
+                UserNotification::insert($rows);
+                PushNotificationDelivery::queueForRecipients(
+                    $users->modelKeys(),
+                    $title,
+                    $body,
+                    route('surveys.show', $survey)
+                );
+                $count += count($rows);
+            });
+
+        return back()->with('success', "Survey reminder sent to {$count} audience member(s) who have not responded.");
+    }
+
     public function show(Request $request, Survey $survey): View
     {
         abort_unless($request->user()->canAccessOfficialFeatures() || $this->audienceQuery($survey)->whereKey($request->user()->id)->exists(), 403);
@@ -141,7 +187,7 @@ class SurveyController extends Controller
 
     public function respond(Request $request, Survey $survey): RedirectResponse
     {
-        abort_if($survey->due_at && $survey->due_at->isPast(), 410, 'This survey is closed.');
+        abort_if($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at), 410, 'This survey is closed.');
         abort_unless($this->audienceQuery($survey)->whereKey($request->user()->id)->exists(), 403);
         abort_if(SurveyResponse::where('survey_id', $survey->id)->where('user_id', $request->user()->id)->exists(), 409, 'You already answered this survey.');
 
@@ -150,6 +196,8 @@ class SurveyController extends Controller
             'answers.*' => ['required', 'integer', 'between:1,5'],
             'suggestion' => [$survey->suggestion_enabled ? 'nullable' : 'prohibited', 'string', 'max:2000'],
         ]);
+
+        abort_if($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at), 410, 'This survey is closed.');
 
         $response = SurveyResponse::create([
             'survey_id' => $survey->id,

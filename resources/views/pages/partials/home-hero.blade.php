@@ -38,12 +38,12 @@
       @endif
       @unless (auth()->user()->isSuperadmin())
         <a href="{{ route('id-card.show') }}" class="btn btn-outline-light fw-semibold">
-          <i class="bi bi-person-badge me-1"></i>My resident ID
+          <i class="bi bi-person-badge me-1"></i>My {{ auth()->user()->isGuest() ? 'guest' : 'resident' }} ID
         </a>
       @endunless
       @if (auth()->user()->canAccessOfficialFeatures())
-        <a href="{{ route('badges.index') }}" class="btn btn-outline-light fw-semibold">
-          <i class="bi bi-award me-1"></i>Manage badges
+        <a href="{{ route('users.index') }}" class="btn btn-outline-light fw-semibold">
+          <i class="bi bi-people me-1"></i>Manage Users
         </a>
       @endif
     </div>

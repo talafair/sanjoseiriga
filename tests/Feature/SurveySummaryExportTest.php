@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Survey;
 use App\Models\SurveyResponse;
 use App\Models\User;
+use App\Models\UserNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,6 +20,7 @@ class SurveySummaryExportTest extends TestCase
             'role' => 'official',
             'official_group' => 'barangay',
             'official_position' => 'captain',
+            'is_verified' => true,
         ]);
 
         $survey = Survey::create([
@@ -65,6 +67,7 @@ class SurveySummaryExportTest extends TestCase
             'role' => 'official',
             'official_group' => 'barangay',
             'official_position' => 'captain',
+            'is_verified' => true,
         ]);
 
         $this->actingAs($official)->post(route('surveys.store'), [
@@ -129,6 +132,7 @@ class SurveySummaryExportTest extends TestCase
             'role' => 'official',
             'official_group' => 'barangay',
             'official_position' => 'captain',
+            'is_verified' => true,
         ]);
         $questions = array_map(fn ($number) => 'Question '.$number, range(1, 21));
 
@@ -143,5 +147,136 @@ class SurveySummaryExportTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertCount(21, Survey::where('title', 'Long survey')->firstOrFail()->questions);
+    }
+
+    public function test_official_can_remind_unanswered_survey_audience_anytime_while_survey_is_open(): void
+    {
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'barangay_captain',
+            'is_verified' => true,
+        ]);
+        $pendingUser = User::factory()->create(['role' => 'resident']);
+        $answeredUser = User::factory()->create(['role' => 'resident']);
+        $survey = Survey::create([
+            'title' => 'Community feedback',
+            'due_at' => now()->addDays(2),
+            'points' => 0,
+            'questions' => ['Question one'],
+            'audience' => 'public',
+            'created_by' => $official->id,
+        ]);
+        SurveyResponse::create([
+            'survey_id' => $survey->id,
+            'user_id' => $answeredUser->id,
+            'answers' => [5],
+            'submitted_at' => now(),
+        ]);
+        SurveyResponse::create([
+            'survey_id' => $survey->id,
+            'user_id' => $official->id,
+            'answers' => [5],
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($official)->get(route('surveys.show', $survey))
+            ->assertOk()
+            ->assertDontSee('Remind the audience');
+
+        $this->actingAs($official)->get(route('surveys.manage'))
+            ->assertOk()
+            ->assertSee('Remind the audience')
+            ->assertSee('Remind audience to complete this survey')
+            ->assertSee('Optional note');
+
+        $this->actingAs($official)->post(route('surveys.remind', $survey), [
+            'kind' => 'survey_closing',
+            'message' => 'Please answer before it closes.',
+        ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Survey reminder sent to 1 audience member(s) who have not responded.');
+
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $pendingUser->id,
+            'survey_id' => $survey->id,
+            'title' => 'Reminder: complete survey — Community feedback',
+            'body' => 'Please answer before it closes.',
+            'created_by' => $official->id,
+        ]);
+        $this->assertDatabaseMissing('user_notifications', [
+            'user_id' => $answeredUser->id,
+            'survey_id' => $survey->id,
+        ]);
+    }
+
+    public function test_survey_reminders_are_rejected_after_the_survey_closes(): void
+    {
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'barangay_captain',
+            'is_verified' => true,
+        ]);
+        $survey = Survey::create([
+            'title' => 'Community feedback',
+            'due_at' => now()->subSecond(),
+            'points' => 0,
+            'questions' => ['Question one'],
+            'audience' => 'public',
+            'created_by' => $official->id,
+        ]);
+
+        $this->actingAs($official)
+            ->post(route('surveys.remind', $survey), ['kind' => 'survey_closing'])
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Reminders can only be sent while the survey is open.');
+
+        $this->assertDatabaseMissing('user_notifications', [
+            'survey_id' => $survey->id,
+            'title' => 'Reminder: complete survey — Community feedback',
+        ]);
+    }
+
+    public function test_survey_rejects_responses_at_or_after_its_closing_time(): void
+    {
+        $resident = User::factory()->create(['role' => 'resident']);
+        $dueAt = now()->addHour();
+        $survey = Survey::create([
+            'title' => 'Closing survey',
+            'due_at' => $dueAt,
+            'points' => 10,
+            'questions' => ['Question one'],
+            'audience' => 'public',
+            'created_by' => $resident->id,
+        ]);
+
+        $this->actingAs($resident)->get(route('surveys.show', $survey))
+            ->assertOk()
+            ->assertSee('name="answers[0]"', false);
+
+        $this->travelTo($dueAt);
+
+        $this->actingAs($resident)->get(route('surveys.show', $survey))
+            ->assertOk()
+            ->assertSee('Responses are no longer accepted.')
+            ->assertDontSee('name="answers[0]"', false)
+            ->assertDontSee('Submit response');
+
+        $this->post(route('surveys.respond', $survey), [
+            'answers' => [5],
+        ])->assertGone();
+
+        $this->travelBack();
+        $this->travelTo($dueAt->copy()->addSecond());
+
+        $this->post(route('surveys.respond', $survey), [
+            'answers' => [5],
+        ])->assertGone();
+
+        $this->assertDatabaseMissing('survey_responses', [
+            'survey_id' => $survey->id,
+            'user_id' => $resident->id,
+        ]);
     }
 }

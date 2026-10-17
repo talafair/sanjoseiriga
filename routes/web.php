@@ -140,6 +140,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/manage/surveys', [SurveyController::class, 'manage'])->name('surveys.manage');
         Route::post('/manage/surveys', [SurveyController::class, 'store'])->name('surveys.store');
         Route::get('/manage/surveys/{survey}/edit', [SurveyController::class, 'edit'])->name('surveys.edit');
+        Route::post('/manage/surveys/{survey}/remind', [SurveyController::class, 'remind'])->name('surveys.remind');
         Route::put('/manage/surveys/{survey}', [SurveyController::class, 'update'])->name('surveys.update');
         Route::delete('/manage/surveys/{survey}', [SurveyController::class, 'destroy'])->name('surveys.destroy');
         Route::put('/users/{user}',     [UserManagementController::class, 'update'])->name('users.update');

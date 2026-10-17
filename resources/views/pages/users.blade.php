@@ -12,7 +12,7 @@
                 <p class="small mb-0 opacity-75">View and manage every account on the platform</p>
             </div>
             <div class="col-auto">
-                <a href="{{ route('users.create') }}" class="btn btn-yg btn-sm me-2">
+                <a href="{{ route('users.create') }}" class="btn btn-yg btn-sm fw-semibold rounded-3">
                     <i class="bi bi-person-plus me-1"></i>Add User
                 </a>
                 <span class="badge bg-white text-yg rounded-pill px-2 py-1">
@@ -222,10 +222,11 @@
     .user-member-cell > button { max-width: 100%; width: 100%; }
 
     @media (max-width: 767.98px) {
-        .page-header .row { align-items: flex-start !important; }
-        .page-header .col-auto { display: flex; flex-direction: column; align-items: stretch; gap: .5rem; margin-top: 1rem; width: 100%; }
-        .page-header .col-auto .btn { margin-right: 0 !important; }
-        .page-header .col-auto .badge { align-self: flex-start; }
+        .page-header .row { align-items: center !important; flex-wrap: nowrap; }
+        .page-header .col { min-width: 0; }
+        .page-header .col-auto { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: .5rem; margin-top: 0; width: auto; }
+        .page-header .col-auto .btn { align-self: flex-end; margin-right: 0 !important; }
+        .page-header .col-auto .badge { align-self: flex-end; }
 
         .user-management-table { min-width: 760px; table-layout: auto; }
         .user-management-table th,

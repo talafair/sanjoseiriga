@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', ($printOnly ?? false) ? 'Print TalaFair ID' : 'My Resident ID')
+@section('title', ($printOnly ?? false) ? 'Print TalaFair ID' : 'My ' . ($user->isGuest() ? 'Guest' : 'Resident') . ' ID')
 
 @section('content')
 <div class="id-preview-shell">
   <div class="id-preview-heading">
-    <h4 class="fw-bold mb-1">{{ ($printOnly ?? false) ? 'Print TalaFair ID' : 'Your resident ID' }}</h4>
+    <h4 class="fw-bold mb-1">{{ ($printOnly ?? false) ? 'Print TalaFair ID' : 'Your ' . ($user->isGuest() ? 'guest' : 'resident') . ' ID' }}</h4>
     <p class="text-secondary mb-0">{{ ($printOnly ?? false) ? 'Print this existing resident ID for ' . $user->full_name . '.' : 'Officials scan this at the barangay hall. Keep a copy on your phone.' }}</p>
   </div>
   @include('pages.partials.id-card', ['user' => $user, 'qrSvg' => $qrSvg])

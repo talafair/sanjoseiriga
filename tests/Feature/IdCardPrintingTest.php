@@ -78,6 +78,30 @@ class IdCardPrintingTest extends TestCase
             ->assertSee($resident->unique_id);
     }
 
+    public function test_guest_can_open_guest_id_even_if_its_id_was_not_created_at_registration(): void
+    {
+        $guest = User::factory()->create([
+            'role' => 'guest',
+            'zone' => '3',
+            'unique_id' => null,
+            'points' => 0,
+        ]);
+
+        $this->actingAs($guest)
+            ->get(route('id-card.show'))
+            ->assertOk()
+            ->assertSee('Your guest ID')
+            ->assertSee('TalaFair Guest ID')
+            ->assertSee($guest->fresh()->unique_id);
+
+        $this->assertStringStartsWith('GZ3-', $guest->fresh()->unique_id);
+
+        $this->actingAs($guest)
+            ->get(route('id-card.qr'))
+            ->assertOk()
+            ->assertHeader('content-type', 'image/svg+xml');
+    }
+
     public function test_resident_cannot_open_another_residents_print_route(): void
     {
         $resident = User::factory()->create([

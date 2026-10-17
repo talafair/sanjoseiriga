@@ -43,6 +43,30 @@ class NotificationFlowTest extends TestCase
         $this->assertNotNull($notification->fresh()->read_at);
     }
 
+    public function test_notifications_use_bootstrap_pagination_like_the_system_log(): void
+    {
+        $user = User::factory()->create();
+        UserNotification::insert(collect(range(1, 16))->map(fn ($index) => [
+            'user_id' => $user->id,
+            'title' => "Update {$index}",
+            'created_at' => now()->subMinutes($index),
+            'updated_at' => now()->subMinutes($index),
+        ])->all());
+
+        $this->actingAs($user)
+            ->get(route('notifications.index'))
+            ->assertOk()
+            ->assertSee('aria-label="Notification pagination"', false)
+            ->assertSee('class="pagination"', false)
+            ->assertSee('page=2');
+
+        $this->get(route('notifications.index', ['page' => 2]))
+            ->assertOk()
+            ->assertSee('aria-label="Notification pagination"', false)
+            ->assertSee('rel="prev"', false)
+            ->assertSee('aria-current="page"', false);
+    }
+
     public function test_announcement_notifications_open_the_linked_announcement(): void
     {
         $user = User::factory()->create();

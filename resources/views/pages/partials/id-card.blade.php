@@ -4,7 +4,7 @@
       <img src="{{ asset('images/talafair-logo.png') }}" alt="TalaFair logo" class="tala-id-logo">
       <div>
         <div class="tala-id-location">Barangay San Jose · Iriga City</div>
-        <div class="tala-id-title">TalaFair Resident ID<span class="text-yg">.</span></div>
+        <div class="tala-id-title">TalaFair {{ $user->isGuest() ? 'Guest' : 'Resident' }} ID<span class="text-yg">.</span></div>
       </div>
     </div>
     <span class="badge {{ $user->is_verified ? 'text-bg-success' : 'text-bg-danger' }} rounded-pill tala-id-status">

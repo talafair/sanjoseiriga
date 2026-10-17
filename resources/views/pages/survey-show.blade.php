@@ -5,7 +5,7 @@
 @section('content')
 <div class="row justify-content-center">
 	<div class="col-lg-8">
-		<a href="{{ route('surveys.index') }}" class="small link-secondary"><i class="bi bi-arrow-left me-1"></i>All surveys</a>
+		<a href="{{ route('surveys.index') }}" class="btn btn-outline-secondary btn-sm rounded-3 mb-3"><i class="bi bi-arrow-left me-1"></i>All surveys</a>
 		<div class="card yg-card mt-3">
 			<div class="card-body p-4">
 				<h3 class="fw-bold">{{ $survey->title }}</h3>
@@ -16,6 +16,10 @@
 
 				@if ($response)
 					<div class="alert alert-success">You submitted this survey on {{ $response->submitted_at->format('M j, Y g:i A') }}.</div>
+				@elseif ($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at))
+					<div class="alert alert-secondary mb-0" role="status">
+						This survey closed on {{ $survey->due_at->format('M j, Y g:i A') }}. Responses are no longer accepted.
+					</div>
 				@else
 					<form method="POST" action="{{ route('surveys.respond', $survey) }}">
 						@csrf

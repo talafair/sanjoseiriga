@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\UniqueIdGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -16,7 +17,7 @@ class IdCardController extends Controller
         $user = Auth::user();
 
         abort_if($user->isSuperadmin(), 404);
-        abort_if(! $user->unique_id, 404, 'This account has no resident ID yet.');
+        $this->ensureUniqueId($user);
 
         return view('pages.my-id', [
             'user'  => $user,
@@ -30,7 +31,7 @@ class IdCardController extends Controller
         $user = Auth::user();
 
         abort_if($user->isSuperadmin(), 404);
-        abort_if(! $user->unique_id, 404, 'This account has no resident ID yet.');
+        $this->ensureUniqueId($user);
 
         return response($this->qrFor($user), 200, ['Content-Type' => 'image/svg+xml']);
     }
@@ -93,5 +94,14 @@ class IdCardController extends Controller
             ->margin(1)
             ->errorCorrection('M')
             ->generate($payload);
+    }
+
+    private function ensureUniqueId(User $user): void
+    {
+        if ($user->unique_id) {
+            return;
+        }
+
+        $user->forceFill(['unique_id' => UniqueIdGenerator::for($user)])->save();
     }
 }

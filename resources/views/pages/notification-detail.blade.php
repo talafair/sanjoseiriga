@@ -5,7 +5,7 @@
 @section('content')
   <div class="row justify-content-center">
     <div class="col-12 col-md-10 col-lg-8">
-      <a href="{{ route('notifications.index') }}" class="small link-secondary">
+      <a href="{{ route('notifications.index') }}" class="btn btn-outline-secondary btn-sm rounded-3 mb-3">
         <i class="bi bi-arrow-left me-1"></i>All notifications
       </a>
 

@@ -57,7 +57,9 @@
     </div>
 
     @if ($notifications->hasPages())
-      <div class="mt-4">{{ $notifications->links() }}</div>
+      <nav class="system-log-pagination mt-4" aria-label="Notification pagination">
+        {{ $notifications->links('pagination::bootstrap-5') }}
+      </nav>
     @endif
   </div>
 @endsection

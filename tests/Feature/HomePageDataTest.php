@@ -60,12 +60,19 @@ class HomePageDataTest extends TestCase
                 'is_verified' => true,
             ]);
 
-            $this->actingAs($user)
+            $response = $this->actingAs($user)
                 ->get(route('home'))
                 ->assertOk()
                 ->assertSee('Officials-only event')
                 ->assertSee('Verified account')
                 ->assertDontSee('Verified resident');
+
+            if ($role === 'official') {
+                $response
+                    ->assertSee('href="' . route('users.index') . '"', false)
+                    ->assertSee('Manage Users')
+                    ->assertDontSee('Manage badges');
+            }
         }
     }
 

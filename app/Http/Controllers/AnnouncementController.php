@@ -238,32 +238,28 @@ class AnnouncementController extends Controller
     public function remind(Request $request, Announcement $announcement): RedirectResponse
     {
         $data = $request->validate([
-            'kind'    => ['required', Rule::in(['event_reminder', 'survey_closing'])],
+            'kind'    => ['required', Rule::in(['event_reminder'])],
+            'target'  => ['required', Rule::in(['everyone', 'pending_rsvp'])],
             'message' => ['nullable', 'string', 'max:500'],
         ]);
 
-        // Guardrail from the spec: reminders are for the day before the event,
-        // or the final hours of the survey window.
-        if ($data['kind'] === 'event_reminder') {
-            abort_unless(
-                $announcement->event_start_at && now()->greaterThanOrEqualTo($announcement->event_start_at->copy()->subDay()),
-                422,
-                'Event reminders can only be sent within 24 hours of the event.'
-            );
-        } else {
-            abort_unless(
-                $announcement->rsvp_due_at && now()->greaterThanOrEqualTo($announcement->rsvp_due_at->copy()->subHours(24))
-                    && now()->lessThanOrEqualTo($announcement->rsvp_due_at),
-                422,
-                'Survey reminders can only be sent in the last 24 hours before the survey closes.'
-            );
+        abort_unless($announcement->is_event, 404);
+
+        $onlyPending = $data['target'] === 'pending_rsvp';
+        if ($onlyPending && ! $announcement->surveyIsOpen()) {
+            return back()->with('error', 'RSVP reminders can only be sent while the confirmation period is open.');
         }
 
-        $title = $data['kind'] === 'event_reminder'
-            ? 'Reminder: ' . $announcement->title . ' is tomorrow'
-            : 'Last call: confirm your attendance for ' . $announcement->title;
+        $title = $onlyPending
+            ? 'Please RSVP: ' . $announcement->title
+            : 'Event reminder: ' . $announcement->title;
+        $body = filled($data['message'] ?? null)
+            ? $data['message']
+            : ($onlyPending
+                ? 'Please confirm whether you can attend this event.'
+                : 'Here is a reminder about this event. View the event details for more information.');
 
-        $count = $this->notifyAudience($announcement, $title, $data['message'] ?? null, onlyPending: $data['kind'] === 'survey_closing');
+        $count = $this->notifyAudience($announcement, $title, $body, onlyPending: $onlyPending);
 
         EventReminder::create([
             'announcement_id'  => $announcement->id,

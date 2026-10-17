@@ -5,7 +5,7 @@
 @section('content')
 <div class="row justify-content-center">
   <div class="col-lg-9">
-    <a href="{{ route('surveys.manage') }}" class="small link-secondary"><i class="bi bi-arrow-left me-1"></i>Manage surveys</a>
+    <a href="{{ route('surveys.manage') }}" class="btn btn-outline-secondary btn-sm rounded-3 mb-3"><i class="bi bi-arrow-left me-1"></i>Manage surveys</a>
     <div class="card yg-card mt-3">
       <div class="card-body p-4">
         <h3 class="fw-bold mb-4">Edit survey</h3>

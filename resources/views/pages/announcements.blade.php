@@ -38,7 +38,7 @@
     @endphp
 
     <div class="page-header p-3 p-lg-4 mb-3">
-        <div class="row align-items-center position-relative" style="z-index: 1;">
+        <div class="row align-items-center position-relative">
             <div class="col">
                 <h2 class="h4 fw-bold mb-1"><i class="bi bi-megaphone-fill me-2"></i>Announcements</h2>
                 <p class="small mb-0 opacity-75">Stay up to date with community news, events, and important notices.</p>
@@ -61,7 +61,7 @@
 
     {{-- Featured announcement --}}
     @if ($featured)
-        <div class="featured-banner p-4 p-lg-5 mb-4">
+        <div class="featured-banner position-relative p-4 p-lg-5 mb-4">
             <span class="deco" style="width: 260px; height: 260px; top: -100px; right: -70px;"></span>
             <span class="deco" style="width: 140px; height: 140px; bottom: -60px; right: 180px;"></span>
             <div class="row align-items-center position-relative" style="z-index: 1;">
@@ -72,18 +72,19 @@
                     @if ($featured->eventStatus())
                         <span class="badge {{ $featured->eventStatus() === 'open' ? 'bg-success-subtle text-success-emphasis' : ($featured->eventStatus() === 'soon' ? 'bg-warning-subtle text-warning-emphasis' : 'bg-secondary-subtle text-secondary') }} rounded-pill px-3 py-2 mb-3 ms-1">{{ ucfirst($featured->eventStatus()) }}</span>
                     @endif
-                    <h2 class="fw-bold mb-2">{{ $featured->title }}</h2>
+                    <h2 class="fw-bold mb-2">
+                        <a href="{{ route('announcements.show', $featured) }}" class="stretched-link text-white text-decoration-none">
+                            {{ $featured->title }}
+                        </a>
+                    </h2>
                     <p class="mb-4 opacity-75" style="max-width: 34rem;">{{ Str::limit($featured->body, 180) }}</p>
                     <div class="d-flex align-items-center gap-3">
-                        <a href="{{ route('announcements.show', $featured) }}" class="btn btn-light fw-bold rounded-3 px-4">
-                            Read More <i class="bi bi-arrow-right ms-2"></i>
-                        </a>
                         <span class="small fw-semibold opacity-75">
                             <i class="bi bi-calendar3 me-1"></i>{{ $featured->created_at->format('M j, Y') }}
                         </span>
                     </div>
                     @if ($isOfficial)
-                        <div class="mt-3 d-flex gap-2">
+                        <div class="featured-announcement-actions mt-3 d-flex gap-2">
                             <button class="btn btn-light btn-sm fw-semibold rounded-3" data-bs-toggle="modal"
                                     data-bs-target="#editAnnouncementModal{{ $featured->id }}">
                                 <i class="bi bi-pencil me-1"></i>Edit
@@ -165,19 +166,12 @@
             <h4 class="fw-bold mb-0" id="calendarMonthLabel"></h4>
             <button type="button" class="btn btn-light btn-sm" id="calendarNext" aria-label="Next period"><i class="bi bi-chevron-right"></i></button>
         </div>
-        <div class="d-flex justify-content-center mb-3">
-            <div class="btn-group announcement-view-switch" role="group" aria-label="Calendar range">
-                <button type="button" class="btn btn-outline-secondary btn-sm active" id="calendarMonthButton">Month</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="calendarYearButton">Year</button>
-            </div>
-        </div>
         <div id="calendarMonthView">
           <div class="calendar-weekdays small fw-semibold text-secondary text-center">
             <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
           </div>
           <div id="calendarGrid" class="calendar-grid"></div>
         </div>
-        <div id="calendarYearView" class="calendar-year-grid d-none"></div>
         <div class="calendar-selection mt-4" aria-live="polite">
             <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
                 <h5 class="fw-bold mb-0" id="calendarSelectedDateLabel">Selected date</h5>
@@ -219,7 +213,7 @@
         @forelse ($announcements as $announcement)
             @php $style = $categoryStyles[$announcement->category] ?? ['badge' => 'badge-soft', 'icon' => 'bi-megaphone']; @endphp
             <div class="col-md-6 col-xl-4 announcement-item" data-category="{{ $announcement->category }}" data-event-status="{{ $announcement->eventStatus() ?? 'none' }}">
-                <div class="card yg-card yg-card-hover h-100">
+                <div class="card yg-card yg-card-hover announcement-card h-100">
                     <div class="card-body p-4 d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <span class="badge {{ $style['badge'] }} rounded-pill px-3">
@@ -232,7 +226,11 @@
                                 <i class="bi bi-circle-fill me-1" style="font-size:.45rem;vertical-align:middle;"></i>{{ ucfirst($announcement->eventStatus()) }}
                             </span>
                         @endif
-                        <h5 class="fw-bold">{{ $announcement->title }}</h5>
+                        <h5 class="fw-bold">
+                            <a href="{{ route('announcements.show', $announcement) }}" class="stretched-link text-body text-decoration-none">
+                                {{ $announcement->title }}
+                            </a>
+                        </h5>
                         <p class="text-secondary small flex-grow-1">{{ Str::limit($announcement->body, 140) }}</p>
                         @if ($announcement->is_event)
                             <div class="small text-secondary mb-3">
@@ -248,11 +246,9 @@
                             </div>
                         @endif
                         <div class="d-flex align-items-center gap-2">
-                            <a href="{{ route('announcements.show', $announcement) }}" class="btn btn-yg-outline btn-sm">
-                                Read More <i class="bi bi-arrow-right ms-1"></i>
-                            </a>
                             @if ($isOfficial)
-                                <button class="btn btn-light btn-sm rounded-3 ms-auto" title="Edit" data-bs-toggle="modal"
+                                <div class="announcement-card-actions d-flex align-items-center gap-2 ms-auto">
+                                <button class="btn btn-light btn-sm rounded-3" title="Edit" data-bs-toggle="modal"
                                         data-bs-target="#editAnnouncementModal{{ $announcement->id }}">
                                     <i class="bi bi-pencil"></i>
                                 </button>
@@ -264,6 +260,7 @@
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
+                                </div>
                             @endif
                         </div>
                     </div>
@@ -404,6 +401,9 @@
 @push('styles')
 <style>
     .announcement-item > .card { min-height: 100%; }
+    .announcement-card { position: relative; }
+    .announcement-card-actions { position: relative; z-index: 2; }
+    .featured-announcement-actions { position: relative; z-index: 2; }
     .filter-dropdown-toggle { background: #fff; border: 2px solid var(--yg-primary); color: var(--yg-secondary); font-weight: 600; border-radius: 50rem; padding: .45rem 1.15rem; }
     .filter-dropdown-toggle:hover, .filter-dropdown-toggle:focus { background: var(--yg-primary); color: var(--yg-ink); }
     .announcement-filter-menu { min-width: 15rem; border: 0; border-radius: 1rem; box-shadow: 0 10px 30px rgba(52, 58, 64, .14); }
@@ -423,22 +423,27 @@
     #announcementCalendar { min-width: 0; overflow: hidden; }
     .calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .45rem; min-width: 0; }
     .calendar-weekdays { margin-bottom: .45rem; }
-    .calendar-day { min-width: 0; min-height: 7rem; background: #fff; border: 1px solid rgba(52, 58, 64, .12); border-radius: .6rem; padding: .5rem; overflow: hidden; }
+    .calendar-grid { grid-auto-rows: minmax(5rem, auto); }
+    .calendar-day { position: relative; min-width: 0; min-height: 5rem; background: #fff; border: 1px solid rgba(52, 58, 64, .12); border-radius: .6rem; padding: .4rem; overflow: hidden; }
     .calendar-day.is-selected { border-color: var(--yg-primary); background: rgba(245, 248, 229, .55); box-shadow: 0 0 0 2px rgba(112, 144, 30, .18); }
     .calendar-day.is-today .calendar-day-number { display: inline-flex; align-items: center; justify-content: center; min-width: 1.55rem; height: 1.55rem; border-radius: 50%; background: var(--yg-primary); color: var(--yg-ink); }
-    .calendar-day-button { display: block; width: 100%; border: 0; padding: 0; background: transparent; text-align: left; color: inherit; }
+    .calendar-day-button { position: absolute; inset: 0; z-index: 0; display: block; width: 100%; height: 100%; border: 0; padding: 0; background: transparent; text-align: left; color: inherit; cursor: pointer; }
+    .calendar-day-button:focus-visible { outline: 2px solid var(--yg-secondary); outline-offset: -2px; border-radius: inherit; }
     .calendar-day.is-past .calendar-day-number { color: #8a9197; }
     .calendar-day.is-other-month { background: #fafafa; }
     .calendar-day.is-other-month .calendar-day-number { color: #adb3b7; }
-    .calendar-day-number { font-size: .8rem; font-weight: 700; color: var(--yg-secondary); }
-    .calendar-entry { display: block; width: 100%; min-width: 0; margin-top: .35rem; padding: .3rem .4rem; border: 0; border-left: 3px solid var(--calendar-event-color, #6c757d); border-radius: .25rem; background: var(--calendar-event-bg, #f1f3f5); color: var(--calendar-event-text, #343a40); font-size: .75rem; line-height: 1.2; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .calendar-day-number { position: absolute; top: .35rem; left: .4rem; font-size: .8rem; font-weight: 700; color: var(--yg-secondary); pointer-events: none; }
+    .calendar-day-events { position: relative; z-index: 1; margin-top: 1.8rem; }
+    .calendar-day-events-compact { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .04rem; }
+    .calendar-entry { position: relative; z-index: 1; display: block; width: 100%; min-width: 0; margin-top: .35rem; padding: .3rem .4rem; border: 0; border-left: 3px solid var(--calendar-event-color, #6c757d); border-radius: .25rem; background: var(--calendar-event-bg, #f1f3f5); color: var(--calendar-event-text, #343a40); font-size: .75rem; line-height: 1.2; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .calendar-entry:hover, .calendar-entry:focus { filter: brightness(.96); outline: 2px solid rgba(52, 58, 64, .14); }
     .calendar-entry::before { content: ''; display: inline-block; width: .42rem; height: .42rem; margin: 0 .3rem .05rem 0; border-radius: 50%; background: var(--calendar-event-color, #6c757d); }
-    .calendar-more { display: block; margin-top: .25rem; border: 0; background: transparent; color: var(--yg-secondary); font-size: .7rem; font-weight: 700; padding: 0; }
+    .calendar-entry-dot { position: relative; display: inline-block; width: 1rem; height: 1rem; margin: .12rem .08rem 0; padding: 0; border: 0; border-radius: 50%; background: transparent; font-size: 0; vertical-align: top; }
+    .calendar-entry-dot::before { position: absolute; top: 50%; left: 50%; width: .48rem; height: .48rem; margin: 0; transform: translate(-50%, -50%); }
+    .calendar-entry-dot:hover, .calendar-entry-dot:focus { background: color-mix(in srgb, var(--calendar-event-color) 16%, transparent); outline: 2px solid color-mix(in srgb, var(--calendar-event-color) 40%, transparent); }
+    .calendar-more { position: relative; z-index: 1; display: block; margin-top: .25rem; border: 0; background: transparent; color: var(--yg-secondary); font-size: .7rem; font-weight: 700; padding: 0; }
+    .calendar-day-events-compact .calendar-more { flex-basis: 100%; margin-top: 0; text-align: center; }
     .calendar-more:hover, .calendar-more:focus { color: var(--yg-ink); text-decoration: underline; }
-    .calendar-year-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
-    .calendar-month-card { min-width: 0; min-height: 8rem; background: rgba(245, 248, 229, .6); border: 1px solid rgba(112, 144, 30, .14); border-radius: .6rem; padding: .75rem; overflow: hidden; }
-    .calendar-month-card h6 { color: var(--yg-secondary); }
     .calendar-agenda-list { display: grid; gap: .55rem; }
     .calendar-agenda-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; border: 1px solid rgba(52, 58, 64, .12); border-radius: .6rem; padding: .65rem .8rem; background: #fff; color: inherit; text-align: left; }
     button.calendar-agenda-item { cursor: pointer; }
@@ -446,33 +451,30 @@
     .calendar-agenda-item-title { min-width: 0; overflow-wrap: anywhere; }
     .calendar-agenda-empty { color: var(--yg-secondary); font-size: .9rem; }
     @media (max-width: 991.98px) {
-        #announcementCalendar { padding: .85rem !important; }
-        .calendar-weekdays, .calendar-grid { gap: .3rem; }
-        .calendar-day { min-height: 5.75rem; padding: .35rem; border-radius: .45rem; }
+        #announcementCalendar { padding: .75rem !important; }
+        .calendar-weekdays, .calendar-grid { gap: .25rem; }
+        .calendar-grid { grid-auto-rows: minmax(3.7rem, auto); }
+        .calendar-day { min-height: 3.7rem; padding: .3rem; border-radius: .4rem; }
         .calendar-day-number { font-size: .72rem; }
-            .calendar-entry { margin-top: .2rem; padding: .25rem .3rem; font-size: .68rem; }
-        .calendar-year-grid { gap: .55rem; }
-        .calendar-month-card { min-height: 6.5rem; padding: .55rem; }
+        .calendar-day-events { margin-top: 1.7rem; }
+        .calendar-selection { margin-top: 1rem !important; }
     }
     @media (max-width: 767.98px) {
-        .calendar-year-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .calendar-weekdays { font-size: .68rem; }
-        .calendar-month-card h6 { font-size: .8rem; margin-bottom: .35rem !important; }
     }
     @media (max-width: 575.98px) {
-        #announcementCalendar { padding: .55rem !important; }
-        .calendar-weekdays, .calendar-grid { gap: .18rem; }
-        .calendar-weekdays { font-size: .58rem; margin-bottom: .18rem; }
-        .calendar-day { min-height: 3.9rem; padding: .2rem; border-radius: .3rem; }
-        .calendar-day-number { font-size: .62rem; }
-        .calendar-entry { margin-top: .12rem; padding: .16rem .2rem; border-radius: .22rem; font-size: .55rem; }
-        .calendar-entry .d-block { font-size: .48rem; }
-        .calendar-year-grid { grid-template-columns: 1fr; gap: .35rem; }
-        .calendar-month-card { min-height: 4.25rem; padding: .4rem; border-radius: .35rem; }
-        .calendar-month-card h6 { font-size: .72rem; }
+        #announcementCalendar { padding: .5rem !important; }
+        .calendar-weekdays, .calendar-grid { gap: .14rem; }
+        .calendar-weekdays { font-size: .62rem; margin-bottom: .14rem; }
+        .calendar-grid { grid-auto-rows: minmax(3.1rem, auto); }
+        .calendar-day { min-height: 3.1rem; padding: .16rem; border-radius: .3rem; }
+        .calendar-day-number { font-size: .68rem; }
+        .calendar-day-events { margin-top: 1.7rem; }
+        .calendar-entry-dot { width: .8rem; height: .8rem; margin: .1rem .04rem 0; }
+        .calendar-entry-dot::before { width: .4rem; height: .4rem; }
+        .calendar-more { font-size: .6rem; margin-top: .1rem; }
         #calendarMonthLabel { font-size: 1rem; }
         #calendarPrevious, #calendarNext { padding: .2rem .4rem; font-size: .7rem; }
-        #calendarMonthButton, #calendarYearButton { padding: .2rem .55rem; font-size: .7rem; }
     }
 </style>
 @endpush
@@ -492,15 +494,12 @@
         const calendarViewButton = document.getElementById('calendarViewButton');
         const calendarGrid = document.getElementById('calendarGrid');
         const calendarMonthView = document.getElementById('calendarMonthView');
-        const calendarYearView = document.getElementById('calendarYearView');
-        const calendarMonthButton = document.getElementById('calendarMonthButton');
-        const calendarYearButton = document.getElementById('calendarYearButton');
         const calendarMonthLabel = document.getElementById('calendarMonthLabel');
         const calendarData = @json($calendarData);
+        const compactCalendarQuery = window.matchMedia('(max-width: 991.98px)');
         let activeFilter = 'all';
         let activeStatus = 'all';
         let activeView = 'cards';
-        let calendarMode = 'month';
         let calendarDate = new Date();
         let selectedDate = new Date();
 
@@ -532,16 +531,14 @@
         function renderCalendar() {
             const year = calendarDate.getFullYear();
             const month = calendarDate.getMonth();
-            if (calendarMode === 'year') {
-                renderYear(year);
-                return;
-            }
+            announcementCalendar.classList.toggle('calendar-compact', compactCalendarQuery.matches);
             calendarMonthLabel.textContent = calendarDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const previousMonthDays = new Date(year, month, 0).getDate();
+            const cellCount = Math.ceil((firstDay + daysInMonth) / 7) * 7;
             calendarGrid.innerHTML = '';
-            for (let index = 0; index < 42; index++) {
+            for (let index = 0; index < cellCount; index++) {
                 const dayOffset = index - firstDay + 1;
                 const cellDate = new Date(year, month, dayOffset);
                 const isOtherMonth = dayOffset < 1 || dayOffset > daysInMonth;
@@ -560,27 +557,32 @@
                 dayButton.appendChild(dayNumber);
                 dayButton.addEventListener('click', () => selectDate(cellDate));
                 cell.appendChild(dayButton);
-                events.slice(0, 3).forEach(item => {
+                const visibleEvents = events.slice(0, compactCalendarQuery.matches ? 5 : 3);
+                const eventMarkers = document.createElement('div');
+                eventMarkers.className = `calendar-day-events${compactCalendarQuery.matches ? ' calendar-day-events-compact' : ''}`;
+                visibleEvents.forEach(item => {
                     const link = document.createElement('button');
                     link.type = 'button';
-                    link.className = 'calendar-entry';
+                    link.className = `calendar-entry${compactCalendarQuery.matches ? ' calendar-entry-dot' : ''}`;
                     const eventStyle = getEventStyle(item);
                     link.style.setProperty('--calendar-event-color', eventStyle.color);
                     link.style.setProperty('--calendar-event-bg', eventStyle.background);
                     link.style.setProperty('--calendar-event-text', eventStyle.text);
                     link.title = `${eventStyle.label}: ${item.title}`;
+                    link.setAttribute('aria-label', `${item.title} on ${cellDate.toLocaleDateString(undefined, { dateStyle: 'long' })}`);
                     link.textContent = item.title;
-                    link.addEventListener('click', () => showEventDetails(item));
-                    cell.appendChild(link);
+                    link.addEventListener('click', () => compactCalendarQuery.matches ? selectDate(cellDate) : showEventDetails(item));
+                    eventMarkers.appendChild(link);
                 });
-                if (events.length > 3) {
+                if (events.length > visibleEvents.length) {
                     const more = document.createElement('button');
                     more.type = 'button';
                     more.className = 'calendar-more';
-                    more.textContent = `+${events.length - 3} more`;
+                    more.textContent = `+${events.length - visibleEvents.length}`;
                     more.addEventListener('click', () => selectDate(cellDate));
-                    cell.appendChild(more);
+                    eventMarkers.appendChild(more);
                 }
+                if (events.length) cell.appendChild(eventMarkers);
                 calendarGrid.appendChild(cell);
             }
         }
@@ -595,46 +597,6 @@
                 maintenance: { color: '#b14b4b', background: '#fbeeee', text: '#7d3333', label: 'Urgent activity' },
             };
             return styles[item.category] || { color: '#2f6f9f', background: '#eaf3f9', text: '#214d70', label: 'General announcement' };
-        }
-
-        function renderYear(year) {
-            calendarMonthLabel.textContent = String(year);
-            calendarYearView.innerHTML = '';
-            for (let month = 0; month < 12; month++) {
-                const card = document.createElement('div');
-                card.className = 'calendar-month-card';
-                const heading = document.createElement('h6');
-                heading.className = 'fw-bold mb-2';
-                heading.textContent = new Date(year, month, 1).toLocaleDateString(undefined, { month: 'long' });
-                card.appendChild(heading);
-                calendarData.filter(item => {
-                    const date = new Date(`${item.date}T00:00:00`);
-                    return date.getFullYear() === year && date.getMonth() === month && calendarMatches(item);
-                }).forEach(item => {
-                    const link = document.createElement('button');
-                    link.type = 'button';
-                    link.className = 'calendar-entry';
-                    const eventStyle = getEventStyle(item);
-                    link.style.setProperty('--calendar-event-color', eventStyle.color);
-                    link.style.setProperty('--calendar-event-bg', eventStyle.background);
-                    link.style.setProperty('--calendar-event-text', eventStyle.text);
-                    link.title = `${eventStyle.label}: ${item.title}`;
-                    link.textContent = `${Number(item.date.slice(8, 10))} - ${item.title}`;
-                    link.addEventListener('click', () => showEventDetails(item));
-                    card.appendChild(link);
-                });
-                calendarYearView.appendChild(card);
-            }
-        }
-
-        function setCalendarMode(mode) {
-            calendarMode = mode;
-            calendarMonthView.classList.toggle('d-none', mode !== 'month');
-            calendarYearView.classList.toggle('d-none', mode !== 'year');
-            calendarMonthButton.classList.toggle('active', mode === 'month');
-            calendarYearButton.classList.toggle('active', mode === 'year');
-            renderCalendar();
-            renderAgenda();
         }
 
         function displayAgendaItem(item) {
@@ -668,6 +630,9 @@
             renderCalendar();
             renderAgenda();
         }
+
+        if (compactCalendarQuery.addEventListener) compactCalendarQuery.addEventListener('change', renderCalendar);
+        else compactCalendarQuery.addListener(renderCalendar);
 
         function showEventDetails(item) {
             document.getElementById('calendarEventModalLabel').textContent = item.title;
@@ -719,19 +684,15 @@
             cardsViewButton.addEventListener('click', () => setView('cards'));
             calendarViewButton.addEventListener('click', () => setView('calendar'));
             document.getElementById('calendarPrevious').addEventListener('click', () => {
-                if (calendarMode === 'year') calendarDate.setFullYear(calendarDate.getFullYear() - 1);
-                else calendarDate.setMonth(calendarDate.getMonth() - 1);
+                calendarDate.setMonth(calendarDate.getMonth() - 1);
                 renderCalendar();
                 renderAgenda();
             });
             document.getElementById('calendarNext').addEventListener('click', () => {
-                if (calendarMode === 'year') calendarDate.setFullYear(calendarDate.getFullYear() + 1);
-                else calendarDate.setMonth(calendarDate.getMonth() + 1);
+                calendarDate.setMonth(calendarDate.getMonth() + 1);
                 renderCalendar();
                 renderAgenda();
             });
-            calendarMonthButton.addEventListener('click', () => setCalendarMode('month'));
-            calendarYearButton.addEventListener('click', () => setCalendarMode('year'));
             setView(activeView);
             renderAgenda();
         })();

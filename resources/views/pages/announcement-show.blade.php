@@ -30,6 +30,18 @@
           @endif
         @endif
 
+        @if ($announcement->is_event && auth()->user()->canAccessOfficialFeatures() && ! $announcement->isParticipationActivity())
+          <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 border rounded-3 bg-body-tertiary p-3 mt-3">
+            <div>
+              <div class="fw-semibold"><i class="bi bi-qr-code me-2 text-yg"></i>Event check-in QR</div>
+              <div class="small text-secondary">Display or print this QR for attendees to scan at the event.</div>
+            </div>
+            <a href="{{ route('announcements.qr', $announcement) }}" class="btn btn-success fw-semibold text-nowrap">
+              <i class="bi bi-qr-code me-1"></i>Display Event QR
+            </a>
+          </div>
+        @endif
+
         <hr>
         <p class="small text-secondary mb-0">
           Posted by {{ $announcement->creator?->full_name ?? 'Barangay office' }}
@@ -140,9 +152,9 @@
     @if ($announcement->is_event)
       <div class="card yg-card mb-4">
         <div class="card-body p-4">
-          <div class="d-flex justify-content-between align-items-baseline mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="fw-bold mb-0"><i class="bi bi-bar-chart me-1 text-yg"></i>Attendance so far</h6>
-            <a href="{{ route('announcements.statistics', $announcement) }}" class="small fw-semibold">Full breakdown</a>
+            <a href="{{ route('announcements.statistics', $announcement) }}" class="btn btn-primary btn-sm rounded-2 fw-semibold">Full breakdown</a>
           </div>
 
           <div class="row g-3 text-center">
@@ -236,26 +248,24 @@
             </div>
 
             <div class="col-md-6">
-              <form method="POST" action="{{ route('announcements.remind', $announcement) }}">
+              <form method="POST" action="{{ route('announcements.remind', $announcement) }}" class="border-top mt-3 pt-3">
                 @csrf
-                <label class="form-label">Remind the audience</label>
-                <select name="kind" class="form-select">
-                  <option value="event_reminder">Event is tomorrow (last 24 hours only)</option>
-                  <option value="survey_closing">Survey is closing (last 24 hours only)</option>
+                <input type="hidden" name="kind" value="event_reminder">
+                <label class="form-label fw-semibold" for="eventReminderTarget">Remind the audience</label>
+                <select id="eventReminderTarget" name="target" class="form-select" aria-label="Reminder type" required>
+                  <option value="everyone">Remind everyone about this event</option>
+                  @if ($announcement->surveyIsOpen())
+                    <option value="pending_rsvp">Ask audience members who have not responded to RSVP</option>
+                  @endif
                 </select>
-                <input name="message" placeholder="Optional note" class="form-control mt-2">
+                <input id="eventReminderMessage" name="message" class="form-control mt-2" maxlength="500"
+                       placeholder="Optional note" value="{{ old('message') }}">
                 <button class="btn btn-primary btn-sm fw-semibold mt-2">Send reminder</button>
               </form>
             </div>
           </div>
 
           <hr>
-          @unless ($announcement->isParticipationActivity())
-            <a href="{{ route('announcements.qr', $announcement) }}" class="btn btn-outline-secondary btn-sm">
-              <i class="bi bi-qr-code me-1"></i>Event QR
-            </a>
-          @endunless
-
           @if ($announcement->reminders()->exists())
             <ul class="small text-secondary mt-3 mb-0 ps-3">
               @foreach ($announcement->reminders()->with('sender')->latest()->take(5)->get() as $reminder)

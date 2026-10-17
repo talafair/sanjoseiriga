@@ -20,7 +20,7 @@
           @include('pages.partials.announcement-details', ['announcement' => $announcement])
         </div>
 
-        @if ($announcement->is_event && (! $announcement->isParticipationActivity() || auth()->user()->canAccessOfficialFeatures()))
+        @if ($announcement->is_event && auth()->check() && (! $announcement->isParticipationActivity() || auth()->user()->canAccessOfficialFeatures()))
           <a href="{{ route('announcements.scan', $announcement) }}" class="btn btn-primary mt-3">
             <i class="bi bi-qr-code-scan me-1"></i>
             {{ $announcement->isParticipationActivity() ? 'Scan participants' : (auth()->user()->canAccessOfficialFeatures() ? 'Scan resident ID' : 'Scan event QR') }}
@@ -30,7 +30,7 @@
           @endif
         @endif
 
-        @if ($announcement->is_event && auth()->user()->canAccessOfficialFeatures() && ! $announcement->isParticipationActivity())
+        @if ($announcement->is_event && auth()->check() && auth()->user()->canAccessOfficialFeatures() && ! $announcement->isParticipationActivity())
           <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 border rounded-3 bg-body-tertiary p-3 mt-3">
             <div>
               <div class="fw-semibold"><i class="bi bi-qr-code me-2 text-yg"></i>Event check-in QR</div>
@@ -231,7 +231,7 @@
     @endif
 
     {{-- Official controls --}}
-    @if ($announcement->is_event && auth()->user()->canAccessOfficialFeatures())
+    @if ($announcement->is_event && auth()->check() && auth()->user()->canAccessOfficialFeatures())
       <div class="card yg-card">
         <div class="card-body p-4">
           <h6 class="fw-bold mb-3"><i class="bi bi-sliders me-1 text-yg"></i>Official controls</h6>

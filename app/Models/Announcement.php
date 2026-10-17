@@ -35,7 +35,7 @@ class Announcement extends Model
     ];
 
     protected $fillable = [
-        'title', 'category', 'body', 'is_featured',
+        'title', 'category', 'body', 'is_featured', 'is_archived',
         'is_event', 'allow_guest_scanning', 'raffle_enabled', 'event_start_at', 'event_end_at', 'rsvp_due_at',
         'audiences', 'base_points', 'confirmation_points', 'weight_points',
         'participation_points',
@@ -48,6 +48,7 @@ class Announcement extends Model
     {
         return [
             'is_featured'    => 'boolean',
+            'is_archived'    => 'boolean',
             'is_event'       => 'boolean',
             'allow_guest_scanning' => 'boolean',
             'raffle_enabled' => 'boolean',

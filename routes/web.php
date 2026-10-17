@@ -24,7 +24,11 @@ use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\SurveyController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [HomeController::class, 'index'])->middleware('auth')->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/account', [AccountController::class, 'index'])->name('account');
+Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard');
+Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements');
+Route::get('/announcements/{announcement}', [AnnouncementController::class, 'show'])->name('announcements.show');
 
 /*
 |--------------------------------------------------------------------------
@@ -56,25 +60,23 @@ Route::middleware('auth')->group(function () {
     Route::post('/switch-account', [AuthController::class, 'switchAccount'])->name('switch-account');
     Route::post('/saved-accounts/add', [AuthController::class, 'addAccount'])->name('saved-accounts.add');
 
-    Route::get('/account',     [AccountController::class, 'index'])->name('account');
     Route::post('/account/substitute', [AccountController::class, 'assignSubstitute'])->name('account.substitute');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
     Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
     Route::get('/notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
-    Route::get('/surveys', [SurveyController::class, 'index'])->name('surveys.index');
-    Route::get('/surveys/{survey}', [SurveyController::class, 'show'])->name('surveys.show');
-    Route::post('/surveys/{survey}/respond', [SurveyController::class, 'respond'])->name('surveys.respond');
-    Route::get('/leaderboard', [LeaderboardController::class, 'index'])->withoutMiddleware('auth')->name('leaderboard');
-    Route::get('/badges',      [BadgeController::class, 'catalog'])->name('badges.catalog');
-    Route::get('/games',       [GameController::class, 'index'])->withoutMiddleware('auth')->name('games.index');
-    Route::post('/games/themes', [GameController::class, 'storeTheme'])->middleware('official')->name('games.themes.store');
-    Route::delete('/games/themes/{triviaTheme}', [GameController::class, 'destroyTheme'])->middleware('official')->name('games.themes.destroy');
-    Route::post('/games/themes/{triviaTheme}/answer', [GameController::class, 'answerTrivia'])->name('games.trivia.answer');
-    Route::post('/games/{game}/finish', [GameController::class, 'finishArcade'])->name('games.arcade.finish');
-    Route::get('/games/{game}/rankings', [GameController::class, 'rankings'])->name('games.arcade.rankings');
-    Route::get('/games-rankings', [GameController::class, 'allRankings'])->withoutMiddleware('auth')->name('games.rankings');
+    Route::get('/surveys', [SurveyController::class, 'index'])->middleware('verified')->name('surveys.index');
+    Route::get('/surveys/{survey}', [SurveyController::class, 'show'])->middleware('verified')->name('surveys.show');
+    Route::post('/surveys/{survey}/respond', [SurveyController::class, 'respond'])->middleware('verified')->name('surveys.respond');
+    Route::get('/badges',      [BadgeController::class, 'catalog'])->middleware('verified')->name('badges.catalog');
+    Route::get('/games',       [GameController::class, 'index'])->middleware('verified')->name('games.index');
+    Route::post('/games/themes', [GameController::class, 'storeTheme'])->middleware(['verified', 'official'])->name('games.themes.store');
+    Route::delete('/games/themes/{triviaTheme}', [GameController::class, 'destroyTheme'])->middleware(['verified', 'official'])->name('games.themes.destroy');
+    Route::post('/games/themes/{triviaTheme}/answer', [GameController::class, 'answerTrivia'])->middleware('verified')->name('games.trivia.answer');
+    Route::post('/games/{game}/finish', [GameController::class, 'finishArcade'])->middleware('verified')->name('games.arcade.finish');
+    Route::get('/games/{game}/rankings', [GameController::class, 'rankings'])->middleware('verified')->name('games.arcade.rankings');
+    Route::get('/games-rankings', [GameController::class, 'allRankings'])->middleware('verified')->name('games.rankings');
 
     /* ---------------- Resident ID ---------------- */
     Route::get('/my-id',    [IdCardController::class, 'show'])->name('id-card.show');
@@ -103,8 +105,6 @@ Route::middleware('auth')->group(function () {
      | /announcements/{announcement}, otherwise Laravel treats the word
      | "announcements" as a model key and 404s.
      */
-    Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements');
-    Route::get('/announcements/{announcement}',            [AnnouncementController::class, 'show'])->name('announcements.show');
     Route::get('/announcements/{announcement}/scan',       [AttendanceController::class, 'scanner'])->name('announcements.scan');
     Route::get('/announcements/{announcement}/statistics', [AnnouncementController::class, 'statisticsPage'])->name('announcements.statistics');
     Route::get('/announcements/{announcement}/raffle/live', [EventRaffleController::class, 'live'])->name('announcements.raffle.live');
@@ -154,6 +154,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/manage/announcements/{announcement}/edit',     [AnnouncementController::class, 'edit'])->name('announcements.edit');
         Route::put('/manage/announcements/{announcement}',          [AnnouncementController::class, 'update'])->name('announcements.update');
         Route::delete('/manage/announcements/{announcement}',       [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+        Route::patch('/manage/announcements/{announcement}/archive', [AnnouncementController::class, 'archive'])->name('announcements.archive');
+        Route::patch('/manage/announcements/{announcement}/restore', [AnnouncementController::class, 'restore'])->name('announcements.restore');
         Route::get('/manage/announcements/{announcement}/qr',       [AnnouncementController::class, 'qr'])->name('announcements.qr');
         Route::post('/manage/announcements/{announcement}/participation', [AttendanceController::class, 'recordParticipation'])->name('announcements.participation');
         Route::patch('/manage/announcements/{announcement}/extend', [AnnouncementController::class, 'extendSurvey'])->name('announcements.extend');

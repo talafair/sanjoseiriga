@@ -41,6 +41,54 @@ class NavigationLayoutTest extends TestCase
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
     }
 
+    public function test_unverified_guest_sees_disabled_links_for_unavailable_features(): void
+    {
+        $guest = User::factory()->create([
+            'role' => 'guest',
+            'is_verified' => false,
+        ]);
+
+        $this->actingAs($guest)
+            ->get(route('home'))
+            ->assertOk()
+            ->assertSee('aria-disabled="true" title="Badges are not available to guest accounts."', false)
+            ->assertSee('aria-disabled="true" title="Games are not available to guest accounts."', false)
+            ->assertSee('aria-disabled="true" title="Surveys are not available to guest accounts."', false)
+            ->assertDontSee('href="' . route('badges.catalog') . '"', false)
+            ->assertDontSee('href="' . route('games.index') . '"', false)
+            ->assertDontSee('href="' . route('surveys.index') . '"', false);
+
+        foreach (['badges.catalog', 'games.index', 'surveys.index'] as $route) {
+            $this->get(route($route))->assertRedirect(route('account'));
+        }
+    }
+
+    public function test_unverified_resident_and_official_see_disabled_links_and_cannot_open_restricted_pages(): void
+    {
+        foreach (['resident', 'official'] as $role) {
+            $user = User::factory()->create([
+                'role' => $role,
+                'official_group' => $role === 'official' ? 'barangay_council' : null,
+                'official_position' => $role === 'official' ? 'kagawad' : null,
+                'is_verified' => false,
+            ]);
+
+            $this->actingAs($user)
+                ->get(route('home'))
+                ->assertOk()
+                ->assertSee('aria-disabled="true" title="Verify your account to access badges."', false)
+                ->assertSee('aria-disabled="true" title="Verify your account to access games."', false)
+                ->assertSee('aria-disabled="true" title="Verify your account to access surveys."', false)
+                ->assertDontSee('href="' . route('badges.catalog') . '"', false)
+                ->assertDontSee('href="' . route('games.index') . '"', false)
+                ->assertDontSee('href="' . route('surveys.index') . '"', false);
+
+            foreach (['badges.catalog', 'games.index', 'surveys.index'] as $route) {
+                $this->get(route($route))->assertRedirect(route('account'));
+            }
+        }
+    }
+
     public function test_official_sees_management_navigation(): void
     {
         $official = User::factory()->create([

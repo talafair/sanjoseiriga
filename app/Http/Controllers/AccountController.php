@@ -14,6 +14,9 @@ class AccountController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        if (! $user) {
+            return view('pages.account-guest');
+        }
 
         $rank = User::where('points', '>', $user->points)->count() + 1;
 

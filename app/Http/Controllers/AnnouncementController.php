@@ -23,13 +23,51 @@ class AnnouncementController extends Controller
 
     public function index()
     {
-        // The featured announcement fills the banner, so keep it out of the grid below it.
-        $featured = Announcement::where('is_featured', true)->latest()->first();
+        $showArchived = request()->boolean('archived') && (request()->user()?->canAccessOfficialFeatures() ?? false);
+        $featured = $showArchived
+            ? null
+            : Announcement::query()
+                ->where('is_featured', true)
+                ->where('is_archived', false)
+                ->when(! auth()->check(), fn ($query) => $query->where(function ($query) {
+                    $query->whereNull('audiences')
+                        ->orWhereJsonContains('audiences', 'public')
+                        ->orWhereJsonLength('audiences', 0);
+                }))
+                ->latest()
+                ->first();
 
-        $announcements = Announcement::latest()
-            ->when($featured, fn ($q) => $q->whereKeyNot($featured->getKey()))
+        $announcements = Announcement::query()
+            ->where('is_archived', $showArchived)
+            ->when(! auth()->check(), fn ($query) => $query->where(function ($query) {
+                $query->whereNull('audiences')
+                    ->orWhereJsonContains('audiences', 'public')
+                    ->orWhereJsonLength('audiences', 0);
+            }))
+            ->reorder()
+            ->orderByRaw(
+                'CASE
+                    WHEN is_event = 1 AND event_start_at IS NOT NULL
+                        AND ((event_end_at IS NOT NULL AND event_end_at < ?)
+                            OR (event_end_at IS NULL AND event_start_at < ?)) THEN 2
+                    WHEN is_event = 1 AND event_start_at IS NOT NULL THEN 0
+                    ELSE 1
+                END',
+                [now(), now()->subHours(Announcement::FALLBACK_SCAN_CLOSE_HOURS)]
+            )
+            ->orderByRaw('CASE WHEN is_event = 1 AND event_start_at IS NOT NULL THEN event_start_at END ASC')
+            ->orderByDesc('created_at')
             ->paginate(15);
-        $calendarAnnouncements = Announcement::with('creator')->latest()->get();
+        $calendarAnnouncements = Announcement::query()
+            ->where('is_archived', $showArchived)
+            ->when(! auth()->check(), fn ($query) => $query->where(function ($query) {
+                $query->whereNull('audiences')
+                    ->orWhereJsonContains('audiences', 'public')
+                    ->orWhereJsonLength('audiences', 0);
+            }))
+            ->with('creator')
+            ->latest()
+            ->get();
 
         $facilitators = User::query()
             ->where('role', 'official')
@@ -40,7 +78,27 @@ class AnnouncementController extends Controller
             ->orderBy('first_name')
             ->get();
 
-        return view('pages.announcements', compact('announcements', 'featured', 'facilitators', 'calendarAnnouncements'));
+        return view('pages.announcements', compact('announcements', 'featured', 'facilitators', 'calendarAnnouncements', 'showArchived'));
+    }
+
+    public function archive(Announcement $announcement): RedirectResponse
+    {
+        if (! $announcement->is_event || $announcement->eventStatus() !== 'closed') {
+            return back()->with('error', 'Only events that have ended can be archived.');
+        }
+
+        $announcement->update(['is_archived' => true]);
+
+        return redirect()->route('announcements', ['archived' => 1])
+            ->with('success', 'Event archived.');
+    }
+
+    public function restore(Announcement $announcement): RedirectResponse
+    {
+        $announcement->update(['is_archived' => false]);
+
+        return redirect()->route('announcements', ['archived' => 1])
+            ->with('success', 'Announcement restored.');
     }
 
     public function create()
@@ -88,19 +146,24 @@ class AnnouncementController extends Controller
 
     public function show(Announcement $announcement)
     {
-        /** @var \App\Models\User $user */
         $user = Auth::user();
 
         $announcement->load('creator', 'editor');
 
-        $myRsvp = $announcement->rsvps()->where('user_id', $user->id)->first();
-        $assignedSubstitution = $announcement->is_event
+        if (! $user && ! in_array('public', $announcement->audiences ?: ['public'], true)) {
+            abort(404);
+        }
+
+        $myRsvp = $user ? $announcement->rsvps()->where('user_id', $user->id)->first() : null;
+        $assignedSubstitution = $user && $announcement->is_event
             ? EventSubstitution::where('announcement_id', $announcement->id)
                 ->where('substitute_user_id', $user->id)
                 ->first()
             : null;
-        $iAmAudience = $user->belongsToAudience($announcement->audiences ?: ['public'])
-            || $assignedSubstitution !== null;
+        $iAmAudience = $user !== null && (
+            $user->belongsToAudience($announcement->audiences ?: ['public'])
+            || $assignedSubstitution !== null
+        );
         $householdMembers = collect();
         $substitution = null;
 

@@ -32,6 +32,18 @@
             ];
         @endphp
 
+        {{-- Ranking type --}}
+        <div class="d-flex justify-content-center mb-4">
+            <div class="btn-group leaderboard-ranking-toggle" role="group" aria-label="Ranking type">
+                <a href="{{ route('leaderboard', ['ranking' => 'individual']) }}" class="btn {{ $ranking === 'individual' ? 'btn-yg' : 'btn-yg-outline' }}">
+                    <i class="bi bi-person me-1"></i>Individual Rankings
+                </a>
+                <a href="{{ route('leaderboard', ['ranking' => 'family']) }}" class="btn {{ $ranking === 'family' ? 'btn-yg' : 'btn-yg-outline' }}">
+                    <i class="bi bi-people me-1"></i>Family Rankings
+                </a>
+            </div>
+        </div>
+
         {{-- Top 3 podium --}}
         <div class="row g-4 justify-content-center align-items-end mb-5 pt-3">
             @foreach (($ranking === 'family' ? $households->take(3) : $podium) as $i => $entry)
@@ -59,18 +71,6 @@
                     </div>
                 </div>
             @endforeach
-        </div>
-
-        {{-- Ranking type --}}
-        <div class="d-flex justify-content-center mb-4">
-            <div class="btn-group" role="group" aria-label="Ranking type">
-                <a href="{{ route('leaderboard', ['ranking' => 'individual']) }}" class="btn {{ $ranking === 'individual' ? 'btn-yg' : 'btn-outline-yg' }}">
-                    <i class="bi bi-person me-1"></i>Individual Rankings
-                </a>
-                <a href="{{ route('leaderboard', ['ranking' => 'family']) }}" class="btn {{ $ranking === 'family' ? 'btn-yg' : 'btn-outline-yg' }}">
-                    <i class="bi bi-people me-1"></i>Family Rankings
-                </a>
-            </div>
         </div>
 
         {{-- Search --}}
@@ -155,6 +155,7 @@
 
 @push('styles')
 <style>
+    .leaderboard-ranking-toggle .btn-yg-outline { border-color: var(--yg-primary); }
     .leader-badges { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
     .leader-badge { width: 2.5rem; height: 2.5rem; object-fit: contain; }
     .podium-card .leader-badge { width: 2.85rem; height: 2.85rem; }

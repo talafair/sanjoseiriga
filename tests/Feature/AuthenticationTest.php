@@ -83,8 +83,8 @@ class AuthenticationTest extends TestCase
         $this->assertNotSame($sessionId, session()->getId());
         $this->assertNotSame($csrfToken, session()->token());
 
-        $this->get(route('home'))->assertRedirect(route('login'));
-        $this->get(route('account'))->assertRedirect(route('login'));
+        $this->get(route('home'))->assertOk();
+        $this->get(route('account'))->assertOk()->assertSee('Create an account');
     }
 
     public function test_successful_login_can_save_only_a_display_profile_when_requested(): void

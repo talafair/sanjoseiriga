@@ -83,27 +83,53 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {{ request()->is('badges') ? 'active' : '' }}" href="{{ route('badges.catalog') }}" aria-label="Badges" title="Badges">
-                        <i class="bi bi-award nav-icon" aria-hidden="true"></i><span class="nav-label">Badges</span>
-                    </a>
+                    @if (! auth()->check() || auth()->user()->isGuest() || (! auth()->user()->is_verified && ! auth()->user()->isSuperadmin()))
+                        <span class="nav-link text-secondary disabled" aria-disabled="true" title="{{ ! auth()->check() ? 'Sign in to access badges.' : (auth()->user()->isGuest() ? 'Badges are not available to guest accounts.' : 'Verify your account to access badges.') }}">
+                            <i class="bi bi-award nav-icon" aria-hidden="true"></i><span class="nav-label">Badges</span>
+                        </span>
+                    @else
+                        <a class="nav-link {{ request()->is('badges') ? 'active' : '' }}" href="{{ route('badges.catalog') }}" aria-label="Badges" title="Badges">
+                            <i class="bi bi-award nav-icon" aria-hidden="true"></i><span class="nav-label">Badges</span>
+                        </a>
+                    @endif
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {{ request()->is('games') ? 'active' : '' }}" href="{{ route('games.index') }}" aria-label="Games" title="Games">
-                        <i class="bi bi-controller nav-icon" aria-hidden="true"></i><span class="nav-label">Games</span>
-                    </a>
+                    @if (! auth()->check() || auth()->user()->isGuest() || (! auth()->user()->is_verified && ! auth()->user()->isSuperadmin()))
+                        <span class="nav-link text-secondary disabled" aria-disabled="true" title="{{ ! auth()->check() ? 'Sign in to access games.' : (auth()->user()->isGuest() ? 'Games are not available to guest accounts.' : 'Verify your account to access games.') }}">
+                            <i class="bi bi-controller nav-icon" aria-hidden="true"></i><span class="nav-label">Games</span>
+                        </span>
+                    @else
+                        <a class="nav-link {{ request()->is('games') ? 'active' : '' }}" href="{{ route('games.index') }}" aria-label="Games" title="Games">
+                            <i class="bi bi-controller nav-icon" aria-hidden="true"></i><span class="nav-label">Games</span>
+                        </a>
+                    @endif
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {{ request()->is('surveys') ? 'active' : '' }}" href="{{ route('surveys.index') }}" aria-label="Surveys" title="Surveys">
-                        <i class="bi bi-bar-chart-line nav-icon" aria-hidden="true"></i><span class="nav-label">Surveys</span>
-                    </a>
+                    @if (! auth()->check() || auth()->user()->isGuest() || (! auth()->user()->is_verified && ! auth()->user()->isSuperadmin()))
+                        <span class="nav-link text-secondary disabled" aria-disabled="true" title="{{ ! auth()->check() ? 'Sign in to access surveys.' : (auth()->user()->isGuest() ? 'Surveys are not available to guest accounts.' : 'Verify your account to access surveys.') }}">
+                            <i class="bi bi-bar-chart-line nav-icon" aria-hidden="true"></i><span class="nav-label">Surveys</span>
+                        </span>
+                    @else
+                        <a class="nav-link {{ request()->is('surveys') ? 'active' : '' }}" href="{{ route('surveys.index') }}" aria-label="Surveys" title="Surveys">
+                            <i class="bi bi-bar-chart-line nav-icon" aria-hidden="true"></i><span class="nav-label">Surveys</span>
+                        </a>
+                    @endif
                 </li>
                 @auth
                     @if (auth()->user()->is_verified && ! auth()->user()->isOfficial())
+                        @if (auth()->user()->isGuest())
+                            <li class="nav-item">
+                                <span class="nav-link text-secondary disabled" aria-disabled="true" title="Spin the Wheel is not available for guest accounts.">
+                                    <i class="bi bi-stars nav-icon" aria-hidden="true"></i><span class="nav-label">Spin the Wheel</span>
+                                </span>
+                            </li>
+                        @else
                         <li class="nav-item">
                             <a class="nav-link {{ request()->is('spin') ? 'active' : '' }}" href="{{ route('spin') }}" aria-label="Spin the Wheel" title="Spin the Wheel">
                                 <i class="bi bi-stars nav-icon" aria-hidden="true"></i><span class="nav-label">Spin the Wheel</span>
                             </a>
                         </li>
+                        @endif
                     @elseif (auth()->user()->role === 'resident')
                         <li class="nav-item">
                             <span class="nav-link text-secondary disabled" aria-disabled="true" title="A Barangay Official must verify your resident account before you can spin.">
@@ -163,9 +189,15 @@
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item fw-semibold py-2" href="{{ route('games.index') }}">
-                                        <i class="bi bi-controller me-2 text-yg"></i>Games
-                                    </a>
+                                    @if ($isUnverifiedOfficial)
+                                        <span class="dropdown-item fw-semibold py-2 text-secondary disabled" aria-disabled="true" title="Verification is required to access games.">
+                                            <i class="bi bi-controller me-2 text-yg"></i>Games
+                                        </span>
+                                    @else
+                                        <a class="dropdown-item fw-semibold py-2" href="{{ route('games.index') }}">
+                                            <i class="bi bi-controller me-2 text-yg"></i>Games
+                                        </a>
+                                    @endif
                                 </li>
                                 <li>
                                     <a class="dropdown-item fw-semibold py-2 {{ $isUnverifiedOfficial ? 'text-secondary disabled' : '' }}" href="{{ $isUnverifiedOfficial ? '#' : route('surveys.manage') }}" @if ($isUnverifiedOfficial) aria-disabled="true" tabindex="-1" title="Verification is required to access official features." @endif>
@@ -229,7 +261,7 @@
                 </div>
             @elseif (auth()->user()->role === 'resident' && ! auth()->user()->is_verified)
                 <div class="alert alert-warning rounded-3" role="alert">
-                    <i class="bi bi-hourglass-split me-1"></i>Your resident account is unverified. A Barangay Official must verify your account before you can use attendance scanning or Spin the Wheel. Your account, announcements, surveys, and logout remain available.
+                    <i class="bi bi-hourglass-split me-1"></i>Your resident account is unverified. A Barangay Official must verify your account before you can access badges, games, surveys, attendance scanning, or Spin the Wheel. Your account, announcements, leaderboard, and logout remain available.
                 </div>
             @endif
         @endauth

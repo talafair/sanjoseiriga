@@ -294,6 +294,21 @@ main .accordion-item + .accordion-item {
     text-shadow: none;
 }
 
+.yg-navbar .nav-link[aria-disabled="true"] {
+    color: #aeb7aa !important;
+    opacity: .55;
+    cursor: not-allowed;
+    text-shadow: none;
+}
+
+.yg-navbar .nav-link[aria-disabled="true"]:hover,
+.yg-navbar .nav-link[aria-disabled="true"]:focus,
+.yg-navbar .nav-link[aria-disabled="true"]:active {
+    color: #aeb7aa !important;
+    background: transparent;
+    text-shadow: none;
+}
+
 .yg-navbar .nav-link.active {
     color: #fff;
     text-shadow: none;

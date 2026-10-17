@@ -15,8 +15,10 @@ class HomeController extends Controller
         $user = request()->user();
         $now = now();
         $visibleAnnouncements = Announcement::latest('created_at')->get()
-            ->filter(fn (Announcement $announcement) => $user->canAccessOfficialFeatures()
-                || $user->belongsToAudience($announcement->audiences ?: ['public']));
+            ->filter(fn (Announcement $announcement) => $user?->canAccessOfficialFeatures()
+                || ($user
+                    ? $user->belongsToAudience($announcement->audiences ?: ['public'])
+                    : in_array('public', $announcement->audiences ?: ['public'], true)));
         $activeAnnouncements = $visibleAnnouncements
             ->filter(fn (Announcement $announcement) => ! $announcement->is_event
                 || ($announcement->scanClosesAt()?->greaterThanOrEqualTo($now) ?? false))
@@ -46,7 +48,7 @@ class HomeController extends Controller
             'banners' => $banners,
             'displayBanners' => $displayBanners,
             'scanNow' => $scanNow,
-            'earnedBadgeIds' => $user->badges()->pluck('badges.id'),
+            'earnedBadgeIds' => $user ? $user->badges()->pluck('badges.id') : collect(),
         ]);
     }
 }

@@ -80,7 +80,7 @@
             <div class="card yg-card h-100">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-person-plus me-2 text-yg"></i>New Members</span>
-                    @if (auth()->user()->isOfficial())
+                    @if (auth()->check() && auth()->user()->isOfficial())
                         <a href="{{ route('users.index') }}" class="small fw-semibold text-yg text-decoration-none">Manage <i class="bi bi-arrow-right"></i></a>
                     @endif
                 </div>
@@ -113,7 +113,11 @@
     <div class="card yg-card mt-4">
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <span><i class="bi bi-award me-2 text-yg"></i>Badges to earn</span>
-            <a href="{{ route('badges.catalog') }}" class="small fw-semibold text-yg text-decoration-none">View all <i class="bi bi-arrow-right"></i></a>
+            @if (auth()->check() && ! auth()->user()->isGuest() && (auth()->user()->is_verified || auth()->user()->isSuperadmin()))
+                <a href="{{ route('badges.catalog') }}" class="small fw-semibold text-yg text-decoration-none">View all <i class="bi bi-arrow-right"></i></a>
+            @else
+                <span class="small fw-semibold text-secondary disabled" aria-disabled="true" title="{{ ! auth()->check() ? 'Sign in to access badges.' : (auth()->user()->isGuest() ? 'Badges are not available to guest accounts.' : 'Verify your account to access badges.') }}">View all <i class="bi bi-arrow-right"></i></span>
+            @endif
         </div>
         <div class="card-body p-3">
             <div class="home-badges-track row g-3">

@@ -239,9 +239,134 @@ class AnnouncementCreationTest extends TestCase
             ->assertOk()
             ->assertSee('href="' . route('announcements.show', $announcement) . '" class="stretched-link text-body text-decoration-none"', false)
             ->assertSee('href="' . route('announcements.show', $featured) . '" class="stretched-link text-white text-decoration-none"', false)
+            ->assertSee('href="' . route('announcements.show', $featured) . '" class="stretched-link text-body text-decoration-none"', false)
             ->assertSee('Clickable community update')
             ->assertSee('Clickable featured update')
             ->assertDontSee('Read More');
+    }
+
+    public function test_announcement_cards_show_soonest_events_first_and_closed_events_last(): void
+    {
+        $official = $this->official();
+        $laterEvent = Announcement::create([
+            'title' => 'Later upcoming event',
+            'category' => 'events',
+            'body' => 'Event details.',
+            'is_event' => true,
+            'event_start_at' => now()->addDays(4),
+            'audiences' => ['public'],
+            'created_by' => $official->id,
+        ]);
+        $closedEvent = Announcement::create([
+            'title' => 'Closed event',
+            'category' => 'events',
+            'body' => 'Event details.',
+            'is_event' => true,
+            'event_start_at' => now()->subDays(2),
+            'audiences' => ['public'],
+            'created_by' => $official->id,
+        ]);
+        $announcement = Announcement::create([
+            'title' => 'Community notice',
+            'category' => 'updates',
+            'body' => 'Notice details.',
+            'audiences' => ['public'],
+            'created_by' => $official->id,
+        ]);
+        $soonEvent = Announcement::create([
+            'title' => 'Soon upcoming event',
+            'category' => 'events',
+            'body' => 'Event details.',
+            'is_event' => true,
+            'event_start_at' => now()->addDay(),
+            'audiences' => ['public'],
+            'created_by' => $official->id,
+        ]);
+
+        $this->actingAs($official)
+            ->get(route('announcements'))
+            ->assertOk()
+            ->assertSeeInOrder([
+                $soonEvent->title,
+                $laterEvent->title,
+                $announcement->title,
+                $closedEvent->title,
+            ]);
+    }
+
+    public function test_ended_events_can_be_archived_and_restored_from_the_official_archive(): void
+    {
+        $official = $this->official();
+        $event = Announcement::create([
+            'title' => 'Finished community meeting',
+            'category' => 'events',
+            'body' => 'Event details.',
+            'is_event' => true,
+            'event_start_at' => now()->subDay(),
+            'event_end_at' => now()->subHours(20),
+            'audiences' => ['public'],
+            'created_by' => $official->id,
+        ]);
+
+        $this->actingAs($official)
+            ->get(route('announcements'))
+            ->assertOk()
+            ->assertSee('Archive ended event')
+            ->assertSee('View archive');
+
+        $this->actingAs($official)
+            ->patch(route('announcements.archive', $event))
+            ->assertRedirect(route('announcements', ['archived' => 1]));
+
+        $this->assertDatabaseHas('announcements', [
+            'id' => $event->id,
+            'is_archived' => true,
+        ]);
+
+        $this->actingAs($official)
+            ->get(route('announcements'))
+            ->assertOk()
+            ->assertDontSee($event->title);
+
+        $this->actingAs($official)
+            ->get(route('announcements', ['archived' => 1]))
+            ->assertOk()
+            ->assertSee($event->title)
+            ->assertSee('Restore announcement');
+
+        $this->actingAs($official)
+            ->patch(route('announcements.restore', $event))
+            ->assertRedirect(route('announcements', ['archived' => 1]));
+
+        $this->assertDatabaseHas('announcements', [
+            'id' => $event->id,
+            'is_archived' => false,
+        ]);
+    }
+
+    public function test_unfinished_events_cannot_be_archived(): void
+    {
+        $official = $this->official();
+        $event = Announcement::create([
+            'title' => 'Upcoming community meeting',
+            'category' => 'events',
+            'body' => 'Event details.',
+            'is_event' => true,
+            'event_start_at' => now()->addDays(2),
+            'audiences' => ['public'],
+            'created_by' => $official->id,
+        ]);
+
+        $this->actingAs($official)
+            ->from(route('announcements'))
+            ->patch(route('announcements.archive', $event))
+            ->assertRedirect(route('announcements'))
+            ->assertSessionHas('error', 'Only events that have ended can be archived.');
+
+        $this->assertDatabaseHas('announcements', [
+            'id' => $event->id,
+            'is_archived' => false,
+        ]);
     }
 
     public function test_event_can_be_published_without_facilitators(): void

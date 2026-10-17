@@ -6,6 +6,7 @@
   @endif
 
   <div class="position-relative" style="z-index: 1;">
+    @auth
     <div class="small text-uppercase opacity-75" style="letter-spacing:.12em;">
       Barangay San Jose &middot; Iriga City
     </div>
@@ -47,6 +48,21 @@
         </a>
       @endif
     </div>
+    @else
+      <div class="small text-uppercase opacity-75" style="letter-spacing:.12em;">
+        Barangay San Jose &middot; Iriga City
+      </div>
+      <h2 class="fw-bold mt-1 mb-1">Welcome to TalaFair</h2>
+      <p class="mb-4 opacity-75">Stay connected with community news, events, and updates.</p>
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{{ route('login') }}" class="btn btn-light fw-semibold">
+          <i class="bi bi-box-arrow-in-right me-1"></i>Sign in
+        </a>
+        <a href="{{ route('register') }}" class="btn btn-outline-light fw-semibold">
+          <i class="bi bi-person-plus me-1"></i>Create an account
+        </a>
+      </div>
+    @endauth
   </div>
 </section>
 

@@ -19,7 +19,7 @@
     @endphp
 
     @php
-        $isOfficial = auth()->user()->canAccessOfficialFeatures();
+        $isOfficial = auth()->user()?->canAccessOfficialFeatures() ?? false;
         $calendarData = $calendarAnnouncements->map(fn ($announcement) => [
             'id' => $announcement->id,
             'title' => $announcement->title,
@@ -40,7 +40,7 @@
     <div class="page-header p-3 p-lg-4 mb-3">
         <div class="row align-items-center position-relative">
             <div class="col">
-                <h2 class="h4 fw-bold mb-1"><i class="bi bi-megaphone-fill me-2"></i>Announcements</h2>
+                <h2 class="h4 fw-bold mb-1"><i class="bi bi-megaphone-fill me-2"></i>{{ $showArchived ? 'Archived announcements' : 'Announcements' }}</h2>
                 <p class="small mb-0 opacity-75">Stay up to date with community news, events, and important notices.</p>
             </div>
             <div class="col-auto">
@@ -52,15 +52,20 @@
     </div>
 
     @if ($isOfficial)
-        <div class="d-flex justify-content-end mb-4">
-            <button class="btn btn-gold" data-bs-toggle="modal" data-bs-target="#addAnnouncementModal">
-                <i class="bi bi-plus-circle me-2"></i>New Announcement
-            </button>
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-4">
+            <a href="{{ route('announcements', $showArchived ? [] : ['archived' => 1]) }}" class="btn btn-outline-secondary btn-sm rounded-3">
+                <i class="bi {{ $showArchived ? 'bi-arrow-left' : 'bi-archive' }} me-1"></i>{{ $showArchived ? 'Back to announcements' : 'View archive' }}
+            </a>
+            @unless ($showArchived)
+                <button class="btn btn-gold" data-bs-toggle="modal" data-bs-target="#addAnnouncementModal">
+                    <i class="bi bi-plus-circle me-2"></i>New Announcement
+                </button>
+            @endunless
         </div>
     @endif
 
     {{-- Featured announcement --}}
-    @if ($featured)
+    @if ($featured && ! $showArchived)
         <div class="featured-banner position-relative p-4 p-lg-5 mb-4">
             <span class="deco" style="width: 260px; height: 260px; top: -100px; right: -70px;"></span>
             <span class="deco" style="width: 140px; height: 140px; bottom: -60px; right: 180px;"></span>
@@ -260,6 +265,24 @@
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
+                                @if ($announcement->is_archived)
+                                    <form action="{{ route('announcements.restore', $announcement) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="btn btn-outline-success btn-sm rounded-3" title="Restore announcement">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                                        </button>
+                                    </form>
+                                @elseif ($announcement->is_event && $announcement->eventStatus() === 'closed')
+                                    <form action="{{ route('announcements.archive', $announcement) }}" method="POST" class="d-inline"
+                                          onsubmit="return confirm('Archive this ended event?');">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm rounded-3" title="Archive ended event">
+                                            <i class="bi bi-archive me-1"></i>Archive
+                                        </button>
+                                    </form>
+                                @endif
                                 </div>
                             @endif
                         </div>

@@ -24,6 +24,13 @@
     </div>
   @endif
 
+  @if ($role === 'official')
+    <div class="alert alert-info rounded-3" role="status">
+      <i class="bi bi-info-circle-fill me-1"></i>
+      Official accounts must be verified by a Barangay Administrator before official features can be used.
+    </div>
+  @endif
+
   {{-- FIXED: was route('register'), which is the GET route --}}
   <form method="POST" action="{{ route('register.store') }}">
     @csrf
@@ -209,6 +216,7 @@
       </div>
     </div>
 
+    @if ($role !== 'official')
     {{-- Household --}}
     <div class="card yg-card mb-4">
       <div class="card-body p-4">
@@ -271,6 +279,7 @@
         </div>
       </div>
     </div>
+    @endif
 
     {{-- Account --}}
     <div class="card yg-card mb-4">

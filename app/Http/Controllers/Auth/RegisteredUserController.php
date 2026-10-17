@@ -20,7 +20,7 @@ use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
 {
-    private const PUBLIC_REGISTRATION_ROLES = ['resident', 'guest'];
+    private const PUBLIC_REGISTRATION_ROLES = ['resident', 'guest', 'official'];
 
     public function create(Request $request): View
     {
@@ -38,9 +38,12 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $this->normalizeLegacyGenderInput($request);
+        $isOfficial = $request->input('role') === 'official';
         $isGuest = $request->input('role') === 'guest';
         $requiresHouseholdHead = $request->input('role') === 'resident'
             && ! $request->boolean('is_head_of_family');
+        $officialPositions = config('talafair.official_positions', []);
+        $officialGroup = $request->input('official_group');
 
         $data = $request->validate([
             'first_name'   => ['required', 'string', 'max:255'],
@@ -88,6 +91,14 @@ class RegisteredUserController extends Controller
             'email'    => ['nullable', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => ['required', Rule::in(self::PUBLIC_REGISTRATION_ROLES)],
+            'official_group' => [
+                $isOfficial ? 'required' : 'prohibited',
+                Rule::in(array_keys($officialPositions)),
+            ],
+            'official_position' => [
+                $isOfficial ? 'required' : 'prohibited',
+                Rule::in(array_keys($officialPositions[$officialGroup]['positions'] ?? [])),
+            ],
             'save_account' => ['nullable', 'boolean'],
         ], [
             'head_of_family_name.required_if' => 'Please name the head of your family.',
@@ -97,7 +108,7 @@ class RegisteredUserController extends Controller
             'contact_number.regex'            => 'Use digits only, with optional +, -, spaces or brackets.',
         ]);
 
-        $isHead = (bool) ($data['is_head_of_family'] ?? false);
+        $isHead = $data['role'] !== 'official' && (bool) ($data['is_head_of_family'] ?? false);
 
         if (! $isHead && $requiresHouseholdHead) {
             $selectedHead = User::familyHeads()->find($data['head_of_family_id']);
@@ -108,7 +119,7 @@ class RegisteredUserController extends Controller
             }
 
             $data['head_of_family_name'] = $selectedHead->full_name;
-        } elseif (! $isHead) {
+        } elseif (! $isHead && $data['role'] !== 'official') {
             $headQuery = User::where('is_head_of_family', true)
                 ->whereRaw('LOWER(TRIM(house_no)) = ?', [strtolower(trim($data['house_no']))])
                 ->whereRaw('LOWER(TRIM(street)) = ?', [strtolower(trim($data['street']))]);
@@ -126,7 +137,7 @@ class RegisteredUserController extends Controller
             }
         }
 
-        $user = DB::transaction(function () use ($data, $isHead, $isGuest) {
+        $user = DB::transaction(function () use ($data, $isHead, $isGuest, $isOfficial) {
             $user = User::create([
                 'first_name'  => $data['first_name'],
                 'middle_name' => $data['middle_name'] ?? null,
@@ -173,8 +184,9 @@ class RegisteredUserController extends Controller
                 'email'    => $data['email'] ?? null,
                 'password' => Hash::make($data['password']),
                 'role'              => $data['role'],
-                'official_group'    => null,
-                'official_position' => null,
+                'official_group'    => $isOfficial ? $data['official_group'] : null,
+                'official_position' => $isOfficial ? $data['official_position'] : null,
+                'is_verified'       => false,
             ]);
 
             // Z2-26000000001

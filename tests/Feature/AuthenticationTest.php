@@ -322,39 +322,69 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_public_registration_rejects_forged_official_and_superadmin_roles(): void
+    public function test_public_registration_rejects_forged_superadmin_role(): void
     {
-        foreach ([
-            'official' => [
-                'official_group' => 'barangay_council',
-                'official_position' => 'kagawad',
-            ],
-            'superadmin' => [],
-        ] as $role => $extra) {
-            $username = "forged-{$role}";
+        $this->from(route('register'))
+            ->post(route('register.store'), $this->registrationPayload([
+                'role' => 'superadmin',
+                'username' => 'forged-superadmin',
+            ]))
+            ->assertRedirect(route('register'))
+            ->assertSessionHasErrors('role');
 
-            $this->from(route('register'))
-                ->post(route('register.store'), $this->registrationPayload([
-                    ...$extra,
-                    'role' => $role,
-                    'username' => $username,
-                ]))
-                ->assertRedirect(route('register'))
-                ->assertSessionHasErrors('role');
-
-            $this->assertGuest();
-            $this->assertDatabaseMissing('users', ['username' => $username]);
-        }
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['username' => 'forged-superadmin']);
     }
 
-    public function test_public_registration_form_does_not_offer_official_role(): void
+    public function test_login_and_registration_offer_official_signup(): void
     {
         $this->get(route('register', ['role' => 'official']))
-            ->assertNotFound();
+            ->assertOk()
+            ->assertSee('Official Registration')
+            ->assertSee('name="official_group"', false)
+            ->assertSee('name="official_position"', false)
+            ->assertSee('must be verified by a Barangay Administrator');
 
         $this->get(route('login'))
             ->assertOk()
-            ->assertDontSee('Official</a>', false);
+            ->assertSee(route('register', ['role' => 'official']), false)
+            ->assertSee('Official');
+    }
+
+    public function test_official_registration_creates_an_unverified_official_account(): void
+    {
+        $this->post(route('register.store'), $this->registrationPayload([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'kagawad',
+            'username' => 'new-official',
+        ]))
+            ->assertRedirect(route('id-card.show'));
+
+        $official = User::where('username', 'new-official')->firstOrFail();
+        $this->assertAuthenticatedAs($official);
+        $this->assertDatabaseHas('users', [
+            'id' => $official->id,
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'kagawad',
+            'is_verified' => false,
+        ]);
+    }
+
+    public function test_official_registration_rejects_a_position_from_another_group(): void
+    {
+        $this->from(route('register', ['role' => 'official']))
+            ->post(route('register.store'), $this->registrationPayload([
+                'role' => 'official',
+                'official_group' => 'barangay_council',
+                'official_position' => 'sk_chairman',
+                'username' => 'invalid-official',
+            ]))
+            ->assertRedirect(route('register', ['role' => 'official']))
+            ->assertSessionHasErrors('official_position');
+
+        $this->assertDatabaseMissing('users', ['username' => 'invalid-official']);
     }
 
     public function test_registration_rejects_an_invalid_email(): void

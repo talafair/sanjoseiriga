@@ -87,6 +87,76 @@
             <button class="btn btn-primary btn-sm fw-semibold mt-2">Send reminder</button>
           </form>
         @endif
+        @if (auth()->user()->isSuperadmin())
+          <div class="border border-primary-subtle rounded-3 bg-primary-subtle p-3 mt-3">
+            @if ($survey->due_at && now()->lessThan($survey->due_at) && $survey->respondent_options->isNotEmpty())
+              <button class="btn btn-primary fw-semibold px-3 py-2" type="button" data-bs-toggle="collapse" data-bs-target="#recordSurveyResponse{{ $survey->id }}" aria-expanded="false" aria-controls="recordSurveyResponse{{ $survey->id }}">
+                <i class="bi bi-person-lines-fill me-2" aria-hidden="true"></i>Record response for resident
+                <i class="bi bi-chevron-down ms-1" aria-hidden="true"></i>
+              </button>
+              <p class="small text-body-secondary mt-2 mb-0">Enter a resident’s answers on their behalf and award them the survey points.</p>
+              <div class="collapse mt-3" id="recordSurveyResponse{{ $survey->id }}">
+                <form method="POST" action="{{ route('surveys.responses.store', $survey) }}" class="bg-body border rounded-3 p-3">
+                  @csrf
+                  <div class="mb-3">
+                    <label class="form-label fw-semibold" for="respondentUser{{ $survey->id }}">Resident</label>
+                    <select class="form-select" id="respondentUser{{ $survey->id }}" name="respondent_user_id" required>
+                      <option value="">Select a resident who has not answered</option>
+                      @foreach ($survey->respondent_options as $resident)
+                        <option value="{{ $resident->id }}">{{ $resident->full_name }}{{ $resident->unique_id ? ' · ' . $resident->unique_id : '' }}</option>
+                      @endforeach
+                    </select>
+                  </div>
+                  <div class="alert alert-light border small">Enter the resident’s answers as provided. Survey points will be awarded to their account.</div>
+                  @php
+                    $recordSectionMarkers = array_values($survey->sections ?: [['heading' => 'Questions', 'start' => 0]]);
+                    $recordSectionHeadings = collect($recordSectionMarkers)->mapWithKeys(fn ($section, $sectionIndex) => [
+                        (int) $section['start'] => filled($section['heading'] ?? null) ? $section['heading'] : 'Section ' . ($sectionIndex + 1),
+                    ]);
+                    $recordQuestionNumber = 0;
+                  @endphp
+                  @foreach ($survey->questions as $questionIndex => $question)
+                    @if ($recordSectionHeadings->has($questionIndex))
+                      @php
+                        $recordQuestionNumber = 0;
+                      @endphp
+                      <h6 class="fw-bold mt-4">{{ $recordSectionHeadings->get($questionIndex) }}</h6>
+                    @endif
+                    @php
+                      $recordQuestionNumber++;
+                    @endphp
+                    <fieldset class="mb-3">
+                      <legend class="h6">{{ $recordQuestionNumber }}. {{ $question }}</legend>
+                      <div class="d-flex flex-wrap gap-3">
+                        @foreach ([5 => 'Strongly Agree', 4 => 'Agree', 3 => 'Neutral', 2 => 'Disagree', 1 => 'Strongly Disagree'] as $value => $label)
+                          <div class="form-check">
+                            <input class="form-check-input" type="radio" name="answers[{{ $questionIndex }}]" id="adminAnswer{{ $survey->id }}{{ $questionIndex }}{{ $value }}" value="{{ $value }}" required>
+                            <label class="form-check-label" for="adminAnswer{{ $survey->id }}{{ $questionIndex }}{{ $value }}">{{ $label }}</label>
+                          </div>
+                        @endforeach
+                      </div>
+                    </fieldset>
+                  @endforeach
+                  @if ($survey->suggestion_enabled)
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold" for="adminSuggestion{{ $survey->id }}">Suggestion <span class="text-secondary fw-normal">(optional)</span></label>
+                      <textarea class="form-control" id="adminSuggestion{{ $survey->id }}" name="suggestion" rows="3" maxlength="2000"></textarea>
+                    </div>
+                  @endif
+                  <button class="btn btn-yg"><i class="bi bi-check2 me-1"></i>Save resident response</button>
+                </form>
+              </div>
+            @else
+              <span class="small text-secondary">
+                @if ($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at))
+                  This survey is closed.
+                @else
+                  No eligible residents remain to answer.
+                @endif
+              </span>
+            @endif
+          </div>
+        @endif
       </div>
     @empty
       <div class="list-group-item text-secondary">No surveys published yet.</div>

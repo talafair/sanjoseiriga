@@ -139,6 +139,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/audit-logs',       [AuditLogController::class, 'index'])->name('audit-logs.index');
         Route::get('/manage/surveys', [SurveyController::class, 'manage'])->name('surveys.manage');
         Route::post('/manage/surveys', [SurveyController::class, 'store'])->name('surveys.store');
+        Route::post('/manage/surveys/{survey}/responses', [SurveyController::class, 'respondForResident'])->name('surveys.responses.store');
         Route::get('/manage/surveys/{survey}/edit', [SurveyController::class, 'edit'])->name('surveys.edit');
         Route::post('/manage/surveys/{survey}/remind', [SurveyController::class, 'remind'])->name('surveys.remind');
         Route::put('/manage/surveys/{survey}', [SurveyController::class, 'update'])->name('surveys.update');

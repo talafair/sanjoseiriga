@@ -9,8 +9,10 @@ use App\Models\User;
 use App\Models\UserNotification;
 use App\Services\PushNotificationDelivery;
 use App\Services\SuperadminNotificationService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class SurveyController extends Controller
@@ -29,11 +31,42 @@ class SurveyController extends Controller
     public function manage(): View
     {
         return view('pages.surveys-manage', [
-            'surveys' => Survey::with(['event', 'responses'])->latest()->get()->each(function (Survey $survey) {
+            'surveys' => Survey::with(['event', 'responses.user'])->latest()->get()->each(function (Survey $survey) {
                 $survey->notified_count = $this->audienceQuery($survey)->count();
+                $answeredUserIds = $survey->responses->pluck('user_id');
+                $survey->respondent_options = $this->eligibleResidentQuery($survey)
+                    ->whereNotIn('id', $answeredUserIds)
+                    ->orderBy('last_name')
+                    ->orderBy('first_name')
+                    ->get();
             }),
             'events' => Announcement::where('is_event', true)->latest('event_start_at')->get(),
         ]);
+    }
+
+    public function respondForResident(Request $request, Survey $survey): RedirectResponse
+    {
+        abort_unless($request->user()->isSuperadmin(), 403);
+        abort_if($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at), 410, 'This survey is closed.');
+
+        $data = $request->validate([
+            'respondent_user_id' => ['required', 'integer', 'exists:users,id'],
+            'answers' => ['required', 'array', 'size:' . count($survey->questions)],
+            'answers.*' => ['required', 'integer', 'between:1,5'],
+            'suggestion' => [$survey->suggestion_enabled ? 'nullable' : 'prohibited', 'string', 'max:2000'],
+        ]);
+
+        $resident = $this->eligibleResidentQuery($survey)->whereKey($data['respondent_user_id'])->first();
+        abort_unless($resident, 403, 'This resident is not eligible to answer this survey.');
+        abort_if(
+            SurveyResponse::where('survey_id', $survey->id)->where('user_id', $resident->id)->exists(),
+            409,
+            'This resident has already answered this survey.'
+        );
+
+        $this->createResponse($survey, $resident, $data);
+
+        return back()->with('success', "Survey response recorded for {$resident->full_name}.");
     }
 
     public function store(Request $request): RedirectResponse
@@ -202,25 +235,48 @@ class SurveyController extends Controller
 
         abort_if($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at), 410, 'This survey is closed.');
 
-        $response = SurveyResponse::create([
-            'survey_id' => $survey->id,
-            'user_id' => $request->user()->id,
-            'answers' => array_values($data['answers']),
-            'suggestion' => $data['suggestion'] ?? null,
-            'submitted_at' => now(),
-        ]);
+        $response = $this->createResponse($survey, $request->user(), $data);
         SuperadminNotificationService::notifyDataChange($response, 'created');
-
-        if ($survey->points > 0) {
-            $request->user()->increment('points', $survey->points);
-        }
 
         return back()->with('success', 'Your survey response was submitted.');
     }
 
-    private function audienceQuery(Survey $survey)
+    private function createResponse(Survey $survey, User $respondent, array $data): SurveyResponse
+    {
+        return DB::transaction(function () use ($survey, $respondent, $data): SurveyResponse {
+            abort_if($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at), 410, 'This survey is closed.');
+            abort_if(
+                SurveyResponse::where('survey_id', $survey->id)->where('user_id', $respondent->id)->exists(),
+                409,
+                'You already answered this survey.'
+            );
+
+            $response = SurveyResponse::create([
+                'survey_id' => $survey->id,
+                'user_id' => $respondent->id,
+                'answers' => array_values($data['answers']),
+                'suggestion' => $data['suggestion'] ?? null,
+                'submitted_at' => now(),
+            ]);
+
+            if ($survey->points > 0) {
+                $respondent->increment('points', $survey->points);
+            }
+
+            return $response;
+        });
+    }
+
+    private function audienceQuery(Survey $survey): Builder
     {
         return $survey->audienceQuery();
+    }
+
+    private function eligibleResidentQuery(Survey $survey): Builder
+    {
+        return $this->audienceQuery($survey)
+            ->where('role', 'resident')
+            ->where('is_verified', true);
     }
 
     private function flattenQuestionSections(array $sections): array

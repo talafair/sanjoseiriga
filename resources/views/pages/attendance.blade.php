@@ -98,7 +98,7 @@
       <div id="scanner-placeholder" class="text-center text-secondary px-4 mb-2">
         Select an event and tap "Open camera" to scan the event QR code.
       </div>
-      <div id="reader" class="position-relative rounded-3 overflow-hidden mx-auto border" style="width: min(100%, 320px); aspect-ratio: 1 / 1;">
+      <div id="reader" class="position-relative rounded-3 overflow-hidden mx-auto border" style="width: min(100%, 440px); aspect-ratio: 1 / 1;">
       </div>
         <div class="text-center mt-3">
           <button id="start-btn" @disabled($openEvents->isEmpty() || (!$officialMode && !$activityMode)) class="btn btn-primary fw-semibold">
@@ -542,7 +542,13 @@
       status('Starting QR scanner…', 'info');
       await scanner.start(
         deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: 'environment' } },
-        { fps: 10, qrbox: { width: 220, height: 220 } },
+        {
+          fps: 10,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const size = Math.min(320, Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.8));
+            return { width: size, height: size };
+          }
+        },
         text => {
           if (busy || completed) return;
           try {

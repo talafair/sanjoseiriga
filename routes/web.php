@@ -66,9 +66,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
     Route::get('/notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
-    Route::get('/surveys', [SurveyController::class, 'index'])->middleware('verified')->name('surveys.index');
-    Route::get('/surveys/{survey}', [SurveyController::class, 'show'])->middleware('verified')->name('surveys.show');
-    Route::post('/surveys/{survey}/respond', [SurveyController::class, 'respond'])->middleware('verified')->name('surveys.respond');
+    Route::get('/surveys', [SurveyController::class, 'index'])->middleware('verified:guest')->name('surveys.index');
+    Route::get('/surveys/{survey}', [SurveyController::class, 'show'])->middleware('verified:guest')->name('surveys.show');
+    Route::post('/surveys/{survey}/respond', [SurveyController::class, 'respond'])->middleware('verified:guest')->name('surveys.respond');
     Route::get('/badges',      [BadgeController::class, 'catalog'])->middleware('verified')->name('badges.catalog');
     Route::get('/games',       [GameController::class, 'index'])->middleware('verified')->name('games.index');
     Route::post('/games/themes', [GameController::class, 'storeTheme'])->middleware(['verified', 'official'])->name('games.themes.store');

@@ -240,7 +240,7 @@ class SurveySummaryExportTest extends TestCase
 
     public function test_survey_rejects_responses_at_or_after_its_closing_time(): void
     {
-        $resident = User::factory()->create(['role' => 'resident']);
+        $resident = User::factory()->create(['role' => 'resident', 'is_verified' => true]);
         $dueAt = now()->addHour();
         $survey = Survey::create([
             'title' => 'Closing survey',

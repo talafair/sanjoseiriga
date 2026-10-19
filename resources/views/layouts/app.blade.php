@@ -105,8 +105,8 @@
                     @endif
                 </li>
                 <li class="nav-item">
-                    @if (! auth()->check() || auth()->user()->isGuest() || (! auth()->user()->is_verified && ! auth()->user()->isSuperadmin()))
-                        <span class="nav-link text-secondary disabled" aria-disabled="true" title="{{ ! auth()->check() ? 'Sign in to access surveys.' : (auth()->user()->isGuest() ? 'Surveys are not available to guest accounts.' : 'Verify your account to access surveys.') }}">
+                    @if (! auth()->check() || (! auth()->user()->isGuest() && ! auth()->user()->is_verified && ! auth()->user()->isSuperadmin()))
+                        <span class="nav-link text-secondary disabled" aria-disabled="true" title="{{ ! auth()->check() ? 'Sign in to access surveys.' : 'Verify your account to access surveys.' }}">
                             <i class="bi bi-bar-chart-line nav-icon" aria-hidden="true"></i><span class="nav-label">Surveys</span>
                         </span>
                     @else

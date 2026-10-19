@@ -41,7 +41,7 @@ class NavigationLayoutTest extends TestCase
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
     }
 
-    public function test_unverified_guest_sees_disabled_links_for_unavailable_features(): void
+    public function test_guest_can_access_surveys_but_sees_other_unavailable_features_disabled(): void
     {
         $guest = User::factory()->create([
             'role' => 'guest',
@@ -53,14 +53,15 @@ class NavigationLayoutTest extends TestCase
             ->assertOk()
             ->assertSee('aria-disabled="true" title="Badges are not available to guest accounts."', false)
             ->assertSee('aria-disabled="true" title="Games are not available to guest accounts."', false)
-            ->assertSee('aria-disabled="true" title="Surveys are not available to guest accounts."', false)
+            ->assertSee('href="' . route('surveys.index') . '"', false)
             ->assertDontSee('href="' . route('badges.catalog') . '"', false)
-            ->assertDontSee('href="' . route('games.index') . '"', false)
-            ->assertDontSee('href="' . route('surveys.index') . '"', false);
+            ->assertDontSee('href="' . route('games.index') . '"', false);
 
-        foreach (['badges.catalog', 'games.index', 'surveys.index'] as $route) {
+        foreach (['badges.catalog', 'games.index'] as $route) {
             $this->get(route($route))->assertRedirect(route('account'));
         }
+
+        $this->get(route('surveys.index'))->assertOk();
     }
 
     public function test_unverified_resident_and_official_see_disabled_links_and_cannot_open_restricted_pages(): void

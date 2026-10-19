@@ -8,11 +8,15 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureVerified
 {
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next, string ...$allowedRoles): Response
     {
         $user = $request->user();
 
-        if ($user && ($user->isSuperadmin() || ($user->is_verified && ! $user->isGuest()))) {
+        if ($user && (
+            $user->isSuperadmin()
+            || in_array($user->role, $allowedRoles, true)
+            || ($user->is_verified && ! $user->isGuest())
+        )) {
             return $next($request);
         }
 

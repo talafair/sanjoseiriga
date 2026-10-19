@@ -17,7 +17,10 @@ class SurveyController extends Controller
 {
     public function index(Request $request): View
     {
-        $surveys = Survey::with('event')->latest()->get();
+        $surveys = Survey::with('event')->latest()->get()
+            ->filter(fn (Survey $survey) => $request->user()->canAccessOfficialFeatures()
+                || $this->audienceQuery($survey)->whereKey($request->user()->id)->exists())
+            ->values();
         $answered = SurveyResponse::where('user_id', $request->user()->id)->pluck('survey_id');
 
         return view('pages.surveys', compact('surveys', 'answered'));

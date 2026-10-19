@@ -113,7 +113,7 @@ class SuperadminAccountPageTest extends TestCase
         $this->assertFalse($recipientIds->contains($resident->id));
     }
 
-    public function test_superadmins_receive_notifications_for_system_data_changes(): void
+    public function test_superadmins_do_not_receive_user_update_notifications_but_keep_other_data_change_notifications(): void
     {
         $superadmin = User::factory()->create(['role' => User::SUPERADMIN_ROLE]);
         $actor = User::factory()->create(['role' => 'official']);
@@ -129,9 +129,15 @@ class SuperadminAccountPageTest extends TestCase
             'audiences' => ['public'],
         ]);
 
-        $this->assertDatabaseHas('user_notifications', [
+        $this->assertDatabaseMissing('user_notifications', [
             'user_id' => $superadmin->id,
             'title' => 'Updated User',
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $actor->id,
+            'auditable_type' => User::class,
+            'auditable_id' => $target->id,
+            'action' => 'updated',
         ]);
         $this->assertDatabaseHas('user_notifications', [
             'user_id' => $superadmin->id,

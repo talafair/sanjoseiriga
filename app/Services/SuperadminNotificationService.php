@@ -21,6 +21,10 @@ class SuperadminNotificationService
             'password_updated' => 'updated the password for',
             default => throw new \InvalidArgumentException("Unsupported data change action: {$action}"),
         };
+        if ($model instanceof User && $action === 'updated') {
+            return;
+        }
+
         $subject = match (true) {
             $model instanceof Announcement => 'Announcement "' . $model->title . '"',
             $model instanceof Survey => 'Survey "' . $model->title . '"',

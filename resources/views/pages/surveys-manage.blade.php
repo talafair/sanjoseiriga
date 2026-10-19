@@ -317,19 +317,43 @@
 <script>
 function printSurveySummary(surveyId) {
   const target = document.getElementById('surveySummary' + surveyId);
+  if (!target) return;
+
   const others = document.querySelectorAll('.survey-summary-print');
+  const root = document.documentElement;
+  const originalTheme = root.dataset.theme;
+  const originalBootstrapTheme = root.dataset.bsTheme;
+  const originalColorScheme = root.style.colorScheme;
+  const themeColor = document.querySelector('meta[name="theme-color"]');
+  const originalThemeColor = themeColor?.content;
 
   document.body.classList.add('print-mode');
+  root.dataset.theme = 'light';
+  root.dataset.bsTheme = 'light';
+  root.style.colorScheme = 'light';
+  if (themeColor) themeColor.content = '#F8F9FA';
   others.forEach((section) => {
     section.classList.toggle('active', section === target);
   });
 
-  window.print();
-
-  setTimeout(() => {
+  let restoreTimer;
+  const restorePrintState = () => {
+    window.removeEventListener('afterprint', restorePrintState);
+    window.clearTimeout(restoreTimer);
     document.body.classList.remove('print-mode');
     others.forEach((section) => section.classList.remove('active'));
-  }, 500);
+
+    if (originalTheme === undefined) delete root.dataset.theme;
+    else root.dataset.theme = originalTheme;
+    if (originalBootstrapTheme === undefined) delete root.dataset.bsTheme;
+    else root.dataset.bsTheme = originalBootstrapTheme;
+    root.style.colorScheme = originalColorScheme;
+    if (themeColor && originalThemeColor !== undefined) themeColor.content = originalThemeColor;
+  };
+
+  window.addEventListener('afterprint', restorePrintState, { once: true });
+  restoreTimer = window.setTimeout(restorePrintState, 1000);
+  window.print();
 }
 
 (() => {

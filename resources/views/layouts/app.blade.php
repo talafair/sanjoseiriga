@@ -299,6 +299,135 @@
     </div>
 </div>
 
+@auth
+<div class="modal fade" id="app-setup-modal" tabindex="-1" aria-labelledby="app-setup-title" aria-hidden="true"
+     data-user-id="{{ auth()->id() }}"
+     data-push-endpoint="{{ route('push-subscriptions.store') }}"
+     data-csrf-token="{{ csrf_token() }}"
+     data-vapid-public-key="{{ config('webpush.vapid.public_key') }}">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content talafair-setup-modal border-0">
+            <div class="talafair-setup-hero">
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="talafair-setup-brand" aria-hidden="true"><i class="bi bi-stars"></i></div>
+                <div class="small fw-semibold text-uppercase talafair-setup-eyebrow">Make it yours</div>
+                <h2 class="modal-title fw-bold mt-2 mb-2" id="app-setup-title">Welcome to TalaFair</h2>
+                <p class="mb-0 talafair-setup-subtitle">A couple of quick options to make staying connected easier.</p>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex flex-column gap-3">
+                    <div class="talafair-setup-option d-flex align-items-center gap-3">
+                        <div class="talafair-setup-icon" aria-hidden="true"><i class="bi bi-phone"></i></div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">Install the app</div>
+                            <div class="small text-secondary" id="app-install-help">Keep TalaFair close at hand on your home screen.</div>
+                        </div>
+                        <button type="button" class="btn btn-primary fw-semibold flex-shrink-0" id="app-setup-install">
+                            <i class="bi bi-download me-1" aria-hidden="true"></i>Install
+                        </button>
+                    </div>
+                    <div class="talafair-setup-option d-flex align-items-center gap-3">
+                        <div class="talafair-setup-icon" aria-hidden="true"><i class="bi bi-bell"></i></div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">Turn on notifications</div>
+                            <div class="small text-secondary" id="app-setup-push-status" role="status" aria-live="polite">Get important TalaFair updates on this device.</div>
+                        </div>
+                        <button type="button" class="btn btn-outline-dark fw-semibold flex-shrink-0" id="app-setup-push">
+                            <i class="bi bi-bell me-1" aria-hidden="true"></i>Enable
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer talafair-setup-footer px-4 pb-4 pt-0">
+                <div class="small text-secondary"><i class="bi bi-gear me-1" aria-hidden="true"></i>You can manage these options anytime from your Account page.</div>
+                <button type="button" class="btn btn-light fw-semibold w-100 mt-3" data-bs-dismiss="modal">Maybe later</button>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    .talafair-setup-modal {
+        overflow: hidden;
+        border-radius: 1.25rem;
+        box-shadow: 0 1.5rem 4rem rgba(16, 24, 40, .22);
+    }
+
+    .talafair-setup-hero {
+        position: relative;
+        padding: 1.25rem 1.5rem 1.5rem;
+        color: #fff;
+        background: linear-gradient(135deg, #181818 0%, #34302a 58%, #80652a 100%);
+    }
+
+    .talafair-setup-hero .btn-close {
+        display: block;
+    }
+
+    .talafair-setup-brand {
+        display: grid;
+        width: 2.75rem;
+        height: 2.75rem;
+        margin-top: .25rem;
+        margin-bottom: 1rem;
+        place-items: center;
+        color: #241d0d;
+        background: #f2c94c;
+        border-radius: .9rem;
+        font-size: 1.35rem;
+    }
+
+    .talafair-setup-eyebrow {
+        color: #f2c94c;
+        letter-spacing: .12em;
+    }
+
+    .talafair-setup-subtitle {
+        max-width: 24rem;
+        color: rgba(255, 255, 255, .78);
+    }
+
+    .talafair-setup-option {
+        min-width: 0;
+        padding: 1rem;
+        background: var(--bs-tertiary-bg, #f8f9fa);
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        border-radius: 1rem;
+    }
+
+    .talafair-setup-icon {
+        display: grid;
+        width: 2.75rem;
+        height: 2.75rem;
+        flex: 0 0 auto;
+        place-items: center;
+        color: #795d12;
+        background: rgba(242, 201, 76, .22);
+        border-radius: .85rem;
+        font-size: 1.25rem;
+    }
+
+    .talafair-setup-footer {
+        display: block;
+        border-top: 0;
+    }
+
+    @media (max-width: 420px) {
+        .talafair-setup-option {
+            align-items: flex-start !important;
+            flex-wrap: wrap;
+        }
+
+        .talafair-setup-option > div:nth-child(2) {
+            flex: 1 1 calc(100% - 4rem) !important;
+        }
+
+        .talafair-setup-option > button {
+            width: 100%;
+        }
+    }
+</style>
+@endauth
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     (() => {
@@ -579,36 +708,196 @@
     (() => {
         let installPrompt = null;
         const installButton = document.getElementById('install-app');
+        const setupModal = document.getElementById('app-setup-modal');
+        const setupInstallButton = document.getElementById('app-setup-install');
+        const installHelp = document.getElementById('app-install-help');
+        const setupPushButton = document.getElementById('app-setup-push');
+        const setupPushStatus = document.getElementById('app-setup-push-status');
+        const accountPushCard = document.getElementById('push-notification-card');
+        const accountPushButton = document.getElementById('enable-push-notifications');
+        const accountPushStatus = document.getElementById('push-notification-status');
 
         const isInstalled = () => window.matchMedia('(display-mode: standalone)').matches
             || window.navigator.standalone === true;
 
-        const hideInstallButton = () => installButton?.classList.add('d-none');
-        if (isInstalled()) hideInstallButton();
+        const hideInstallButtons = () => {
+            installButton?.classList.add('d-none');
+            setupInstallButton?.classList.add('d-none');
+        };
+        const setPushStatus = (message) => {
+            if (setupPushStatus) setupPushStatus.textContent = message;
+            if (accountPushStatus) accountPushStatus.textContent = message;
+        };
+        const pushPublicKey = setupModal?.dataset.vapidPublicKey || accountPushCard?.dataset.vapidPublicKey;
+        const setPushButtonsDisabled = (disabled) => {
+            if (setupPushButton) setupPushButton.disabled = disabled;
+            if (accountPushButton) accountPushButton.disabled = disabled;
+        };
+
+        if (isInstalled()) hideInstallButtons();
 
         window.addEventListener('beforeinstallprompt', (event) => {
             event.preventDefault();
             installPrompt = event;
-            if (!isInstalled()) installButton?.classList.remove('d-none');
+            if (!isInstalled()) {
+                installButton?.classList.remove('d-none');
+                setupInstallButton?.classList.remove('d-none');
+                if (installHelp) installHelp.textContent = 'Add TalaFair to your device home screen.';
+            }
         });
 
-        installButton?.addEventListener('click', async () => {
-            if (!installPrompt) return;
-            installButton.disabled = true;
-            installPrompt.prompt();
-            const choice = await installPrompt.userChoice;
-            if (choice.outcome === 'accepted') hideInstallButton();
+        const installApp = async () => {
+            if (!installPrompt) {
+                if (installHelp) installHelp.textContent = 'Use your browser menu and choose “Add to Home Screen” or “Install app”.';
+                return;
+            }
+
+            const prompt = installPrompt;
             installPrompt = null;
-            installButton.disabled = false;
-        });
+            if (installButton) installButton.disabled = true;
+            if (setupInstallButton) setupInstallButton.disabled = true;
+            try {
+                await prompt.prompt();
+                const choice = await prompt.userChoice;
+                if (choice.outcome === 'accepted') hideInstallButtons();
+            } catch (error) {
+                console.error('Unable to show the app install prompt.', error);
+                if (installHelp) installHelp.textContent = 'Unable to open the install prompt. Use your browser menu to install TalaFair.';
+            } finally {
+                if (installButton) installButton.disabled = false;
+                if (setupInstallButton) setupInstallButton.disabled = false;
+            }
+        };
+        installButton?.addEventListener('click', installApp);
+        setupInstallButton?.addEventListener('click', installApp);
 
         window.addEventListener('appinstalled', () => {
             installPrompt = null;
-            hideInstallButton();
+            hideInstallButtons();
         });
 
+        const decodePublicKey = (key) => {
+            const padding = '='.repeat((4 - (key.length % 4)) % 4);
+            const base64 = (key + padding).replace(/-/g, '+').replace(/_/g, '/');
+            return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+        };
+        const enablePushNotifications = async () => {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+                setPushStatus('Push notifications are not supported by this browser.');
+                setPushButtonsDisabled(true);
+                return;
+            }
+            if (!pushPublicKey) {
+                setPushStatus('Push notifications are not configured on this server.');
+                setPushButtonsDisabled(true);
+                return;
+            }
+
+            setPushButtonsDisabled(true);
+            setPushStatus('Enabling push notifications…');
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    setPushStatus(permission === 'denied'
+                        ? 'Notifications are blocked in your browser settings.'
+                        : 'Allow notifications in your browser to enable them.');
+                    setPushButtonsDisabled(false);
+                    return;
+                }
+
+                const registration = await navigator.serviceWorker.ready;
+                let subscription = await registration.pushManager.getSubscription();
+                if (!subscription) {
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: decodePublicKey(pushPublicKey),
+                    });
+                }
+
+                const response = await fetch(
+                    setupModal?.dataset.pushEndpoint || accountPushCard?.dataset.endpoint,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': setupModal?.dataset.csrfToken || accountPushCard?.dataset.csrfToken,
+                        },
+                        body: JSON.stringify(subscription.toJSON()),
+                    }
+                );
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'Unable to enable push notifications.');
+
+                setPushStatus('Push notifications are enabled on this device.');
+                if (setupPushButton) {
+                    setupPushButton.innerHTML = '<i class="bi bi-check-circle me-1"></i>Enabled';
+                }
+                if (accountPushButton) {
+                    accountPushButton.innerHTML = '<i class="bi bi-check-circle me-1"></i>Notifications enabled';
+                }
+            } catch (error) {
+                console.error('Unable to enable push notifications.', error);
+                setPushStatus(error instanceof Error ? error.message : 'Unable to enable push notifications.');
+                setPushButtonsDisabled(false);
+            }
+        };
+        setupPushButton?.addEventListener('click', enablePushNotifications);
+        accountPushButton?.addEventListener('click', enablePushNotifications);
+
+        if (setupModal) {
+            const storageKey = `talafair-app-setup-dismissed-${setupModal.dataset.userId}`;
+            const hasDismissed = () => {
+                try {
+                    return window.localStorage.getItem(storageKey) === 'true';
+                } catch (error) {
+                    console.error('Unable to read app setup preference.', error);
+                    return false;
+                }
+            };
+            const rememberDismissal = () => {
+                try {
+                    window.localStorage.setItem(storageKey, 'true');
+                } catch (error) {
+                    console.error('Unable to save app setup preference.', error);
+                }
+            };
+            setupModal.addEventListener('hidden.bs.modal', rememberDismissal);
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                setupPushButton.disabled = true;
+                setupPushButton.innerHTML = '<i class="bi bi-check-circle me-1"></i>Enabled';
+                setPushStatus('Notifications are allowed in your browser.');
+            }
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+                setupPushButton.disabled = true;
+                setPushStatus('Push notifications are not supported by this browser.');
+            } else if (!pushPublicKey) {
+                setupPushButton.disabled = true;
+                setPushStatus('Push notifications are not configured on this server.');
+            }
+
+            window.addEventListener('load', () => {
+                window.setTimeout(() => {
+                    if (hasDismissed()) return;
+                    if (isInstalled()) setupInstallButton?.classList.add('d-none');
+                    else if (!installPrompt) setupInstallButton?.classList.remove('d-none');
+
+                    const installNeeded = !isInstalled();
+                    const pushNeeded = 'Notification' in window && Notification.permission !== 'granted';
+                    if (installNeeded || pushNeeded) {
+                        bootstrap.Modal.getOrCreateInstance(setupModal).show();
+                    }
+                }, 900);
+            }, { once: true });
+        }
+
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => navigator.serviceWorker.register('{{ asset('sw.js') }}'));
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('{{ asset('sw.js') }}').catch((error) => {
+                    console.error('Unable to register the service worker.', error);
+                });
+            });
         }
     })();
 </script>

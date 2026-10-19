@@ -400,6 +400,9 @@
             </button>
           </div>
         </div>
+        <p class="small text-secondary mt-2 mb-0 px-1">
+          You can return to this Account page anytime to install TalaFair or enable push notifications.
+        </p>
 
         <div class="card yg-card mt-3">
           <div class="card-body p-4">
@@ -454,86 +457,5 @@
     accountGroup.addEventListener('change', filterAccountPositions);
     filterAccountPositions();
   }
-
-  (() => {
-    const card = document.getElementById('push-notification-card');
-    const button = document.getElementById('enable-push-notifications');
-    const status = document.getElementById('push-notification-status');
-    if (!card || !button || !status) return;
-
-    const publicKey = card.dataset.vapidPublicKey;
-    const setStatus = (message) => {
-      status.textContent = message;
-    };
-
-    const decodePublicKey = (key) => {
-      const padding = '='.repeat((4 - (key.length % 4)) % 4);
-      const base64 = (key + padding).replace(/-/g, '+').replace(/_/g, '/');
-      return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
-    };
-
-    const saveSubscription = async (subscription) => {
-      const response = await fetch(card.dataset.endpoint, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': card.dataset.csrfToken,
-        },
-        body: JSON.stringify(subscription.toJSON()),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'Unable to enable push notifications.');
-    };
-
-    let enabled = false;
-
-    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-      button.disabled = true;
-      setStatus('Push notifications are not supported by this browser.');
-      return;
-    }
-
-    if (!publicKey) {
-      button.disabled = true;
-      setStatus('Push notifications are not configured on this server.');
-      return;
-    }
-
-    button.addEventListener('click', async () => {
-      button.disabled = true;
-      setStatus('Enabling push notifications…');
-
-      try {
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-          setStatus(permission === 'denied'
-            ? 'Notifications are blocked in your browser settings.'
-            : 'Allow notifications in your browser to enable them.');
-          return;
-        }
-
-        const registration = await navigator.serviceWorker.ready;
-        let subscription = await registration.pushManager.getSubscription();
-        if (!subscription) {
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: decodePublicKey(publicKey),
-          });
-        }
-
-        await saveSubscription(subscription);
-        enabled = true;
-        button.innerHTML = '<i class="bi bi-check-circle me-1"></i>Notifications enabled';
-        setStatus('Push notifications are enabled on this device.');
-      } catch (error) {
-        console.error('Unable to enable push notifications.', error);
-        setStatus(error instanceof Error ? error.message : 'Unable to enable push notifications.');
-      } finally {
-        if (!enabled) button.disabled = false;
-      }
-    });
-  })();
-
 </script>
 @endpush

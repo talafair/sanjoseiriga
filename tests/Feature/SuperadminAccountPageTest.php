@@ -3,7 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Announcement;
+use App\Models\AuditLog;
+use App\Models\EventRaffleEntry;
+use App\Models\GameRun;
+use App\Models\PointTransaction;
+use App\Models\SpinHistory;
 use App\Models\User;
+use App\Models\UserNotification;
 use App\Services\SuperadminNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -147,6 +153,66 @@ class SuperadminAccountPageTest extends TestCase
             'user_id' => $superadmin->id,
             'body' => 'Announcement "' . $announcement->title . '" was created by ' . $actor->full_name . '.',
         ]);
+    }
+
+    public function test_high_volume_game_and_points_records_are_audited_without_admin_notifications(): void
+    {
+        $superadmin = User::factory()->create(['role' => User::SUPERADMIN_ROLE]);
+        $actor = User::factory()->create(['role' => 'official']);
+        $resident = User::factory()->create(['role' => 'resident']);
+        $event = Announcement::create([
+            'title' => 'Community event',
+            'category' => 'events',
+            'body' => 'Event for attendance.',
+            'is_event' => true,
+            'event_start_at' => now()->subHour(),
+            'event_end_at' => now()->addHour(),
+            'qr_token' => 'admin-notification-test',
+        ]);
+        $notificationCount = UserNotification::count();
+
+        $this->actingAs($actor);
+        $records = [
+            SpinHistory::create([
+                'user_id' => $resident->id,
+                'prize_label' => '10 points',
+                'prize_type' => 'points',
+                'amount' => 10,
+            ]),
+            GameRun::create([
+                'user_id' => $resident->id,
+                'game' => 'memory',
+                'played_on' => today(),
+                'stage_scores' => [10, 20],
+                'total_score' => 30,
+            ]),
+            EventRaffleEntry::create([
+                'announcement_id' => $event->id,
+                'user_id' => $resident->id,
+                'is_early' => false,
+                'points_snapshot' => 10,
+                'weight' => 1,
+            ]),
+            PointTransaction::create([
+                'user_id' => $resident->id,
+                'announcement_id' => $event->id,
+                'type' => 'event_attendance',
+                'description' => 'Event attendance',
+                'base_points' => 10,
+                'multiplier' => 1,
+                'points_awarded' => 10,
+            ]),
+        ];
+
+        $this->assertDatabaseCount('user_notifications', $notificationCount);
+        foreach ($records as $record) {
+            $this->assertDatabaseHas('audit_logs', [
+                'auditable_type' => $record::class,
+                'auditable_id' => $record->id,
+                'action' => 'created',
+            ]);
+        }
+        $this->assertSame(4, AuditLog::where('user_id', $actor->id)->count());
     }
 
     public function test_superadmin_notification_service_rejects_unsupported_data_change_actions(): void

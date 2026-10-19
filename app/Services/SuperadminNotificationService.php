@@ -3,6 +3,10 @@
 namespace App\Services;
 
 use App\Models\Announcement;
+use App\Models\EventRaffleEntry;
+use App\Models\GameRun;
+use App\Models\PointTransaction;
+use App\Models\SpinHistory;
 use App\Models\Survey;
 use App\Models\SurveyResponse;
 use App\Models\User;
@@ -22,6 +26,12 @@ class SuperadminNotificationService
             default => throw new \InvalidArgumentException("Unsupported data change action: {$action}"),
         };
         if ($model instanceof User && $action === 'updated') {
+            return;
+        }
+        if ($model instanceof SpinHistory
+            || $model instanceof GameRun
+            || $model instanceof EventRaffleEntry
+            || $model instanceof PointTransaction) {
             return;
         }
 

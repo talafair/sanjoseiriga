@@ -116,23 +116,21 @@
                     @endif
                 </li>
                 @auth
-                    @if (auth()->user()->is_verified && ! auth()->user()->isOfficial())
-                        @if (auth()->user()->isGuest())
-                            <li class="nav-item">
-                                <span class="nav-link text-secondary disabled" aria-disabled="true" title="Spin the Wheel is not available for guest accounts.">
-                                    <i class="bi bi-stars nav-icon" aria-hidden="true"></i><span class="nav-label">Spin the Wheel</span>
-                                </span>
-                            </li>
-                        @else
+                    @if (auth()->user()->is_verified && (! auth()->user()->isOfficial() || auth()->user()->isGuest()))
                         <li class="nav-item">
                             <a class="nav-link {{ request()->is('spin') ? 'active' : '' }}" href="{{ route('spin') }}" aria-label="Spin the Wheel" title="Spin the Wheel">
                                 <i class="bi bi-stars nav-icon" aria-hidden="true"></i><span class="nav-label">Spin the Wheel</span>
                             </a>
                         </li>
-                        @endif
                     @elseif (auth()->user()->role === 'resident')
                         <li class="nav-item">
                             <span class="nav-link text-secondary disabled" aria-disabled="true" title="A Barangay Official must verify your resident account before you can spin.">
+                                <i class="bi bi-stars nav-icon" aria-hidden="true"></i><span class="nav-label">Spin the Wheel</span>
+                            </span>
+                        </li>
+                    @elseif (auth()->user()->isGuest())
+                        <li class="nav-item">
+                            <span class="nav-link text-secondary disabled" aria-disabled="true" title="Verify your guest account to access Spin the Wheel.">
                                 <i class="bi bi-stars nav-icon" aria-hidden="true"></i><span class="nav-label">Spin the Wheel</span>
                             </span>
                         </li>

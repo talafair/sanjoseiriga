@@ -177,8 +177,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('/manage/appearance', [AppearanceController::class, 'destroy'])->name('appearance.destroy');
     });
 
-    /* Verified residents can spin once daily; officials issue extra chances. */
-    Route::middleware('verified')->group(function () {
+    /* Verified residents and guests can spin once daily; officials issue extra chances. */
+    Route::middleware('verified:verified_guest')->group(function () {
         Route::get('/spin',  [SpinController::class, 'index'])->name('spin');
         Route::post('/spin', [SpinController::class, 'spin'])->name('spin.play');
     });

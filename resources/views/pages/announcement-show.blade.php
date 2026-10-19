@@ -20,7 +20,20 @@
           @include('pages.partials.announcement-details', ['announcement' => $announcement])
         </div>
 
-        @if ($announcement->is_event && auth()->check() && (! $announcement->isParticipationActivity() || auth()->user()->canAccessOfficialFeatures()))
+        @if ($myAttendance)
+          <div class="alert alert-success d-flex align-items-start gap-2 mt-3 mb-0" role="status">
+            <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+            <div>
+              <div class="fw-semibold">Your attendance was recorded for this event.</div>
+              <div class="small">
+                Checked in {{ $myAttendance->scanned_at->format('M j, Y g:i A') }}
+                · {{ $myAttendance->points_awarded }} points earned
+              </div>
+            </div>
+          </div>
+        @endif
+
+        @if ($announcement->is_event && ! $myAttendance && auth()->check() && (! $announcement->isParticipationActivity() || auth()->user()->canAccessOfficialFeatures()))
           <a href="{{ route('announcements.scan', $announcement) }}" class="btn btn-primary mt-3">
             <i class="bi bi-qr-code-scan me-1"></i>
             {{ $announcement->isParticipationActivity() ? 'Scan participants' : (auth()->user()->canAccessOfficialFeatures() ? 'Scan resident ID' : 'Scan event QR') }}

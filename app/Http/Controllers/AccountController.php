@@ -18,7 +18,7 @@ class AccountController extends Controller
             return view('pages.account-guest');
         }
 
-        $rank = User::where('points', '>', $user->points)->count() + 1;
+        $rank = User::where('points', '>', $user->points ?? 0)->count() + 1;
 
         $recentSpins = $user->spins()->latest()->take(6)->get();
         $householdHead = $user->is_head_of_family ? $user : $user->headOfFamily;

@@ -155,6 +155,9 @@ class AnnouncementController extends Controller
         }
 
         $myRsvp = $user ? $announcement->rsvps()->where('user_id', $user->id)->first() : null;
+        $myAttendance = $user && $announcement->is_event
+            ? $announcement->attendances()->where('user_id', $user->id)->first()
+            : null;
         $assignedSubstitution = $user && $announcement->is_event
             ? EventSubstitution::where('announcement_id', $announcement->id)
                 ->where('substitute_user_id', $user->id)
@@ -167,7 +170,7 @@ class AnnouncementController extends Controller
         $householdMembers = collect();
         $substitution = null;
 
-        if ($announcement->is_event && $user->is_head_of_family) {
+        if ($announcement->is_event && $user?->is_head_of_family) {
             $householdMembers = User::query()
                 ->whereKeyNot($user->id)
                 ->where('is_head_of_family', false)
@@ -192,6 +195,7 @@ class AnnouncementController extends Controller
         return view('pages.announcement-show', [
             'announcement' => $announcement,
             'myRsvp'       => $myRsvp,
+            'myAttendance' => $myAttendance,
             'iAmAudience'  => $iAmAudience,
             'stats'        => $this->statistics($announcement),
             'rafflePrizes' => $announcement->raffle_enabled

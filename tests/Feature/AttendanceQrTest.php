@@ -147,6 +147,39 @@ class AttendanceQrTest extends TestCase
         ]);
     }
 
+    public function test_resident_guest_and_official_see_their_own_event_attendance_confirmation(): void
+    {
+        [$official, $resident, $event] = $this->attendanceSetup();
+        $guest = User::factory()->create([
+            'role' => 'guest',
+            'is_verified' => false,
+        ]);
+        $event->update(['allow_guest_scanning' => true]);
+
+        $this->actingAs($guest)
+            ->get(route('announcements.show', $event))
+            ->assertOk()
+            ->assertDontSee('Your attendance was recorded for this event.');
+
+        foreach ([$resident, $guest, $official] as $attendee) {
+            $this->actingAs($attendee)
+                ->postJson(route('attendance.check'), [
+                    'token' => $event->qr_token,
+                    'announcement_id' => $event->id,
+                    'latitude' => config('talafair.barangay_lat'),
+                    'longitude' => config('talafair.barangay_lng'),
+                ])
+                ->assertOk()
+                ->assertJsonPath('ok', true);
+
+            $this->get(route('announcements.show', $event))
+                ->assertOk()
+                ->assertSee('Your attendance was recorded for this event.')
+                ->assertSee('Checked in')
+                ->assertSee('points earned');
+        }
+    }
+
     public function test_official_early_event_qr_attendance_awards_ten_percent_bonus(): void
     {
         [$official, , $event] = $this->attendanceSetup();

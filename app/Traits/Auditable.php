@@ -39,7 +39,7 @@ trait Auditable
 
         call_user_func([static::class, 'updated'], function (Model $model) {
             $new = $model->getChanges();
-            unset($new['updated_at']);
+            unset($new['updated_at'], $new['remember_token']);
             if (empty($new)) {
                 return;
             }

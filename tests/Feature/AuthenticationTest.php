@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\UserNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -85,6 +86,29 @@ class AuthenticationTest extends TestCase
 
         $this->get(route('home'))->assertOk();
         $this->get(route('account'))->assertOk()->assertSee('Create an account');
+    }
+
+    public function test_login_and_logout_do_not_create_superadmin_data_change_notifications(): void
+    {
+        $superadmin = User::factory()->create(['role' => User::SUPERADMIN_ROLE]);
+        $user = User::factory()->create([
+            'role' => 'resident',
+            'password' => 'Password123!',
+        ]);
+        $notificationCount = UserNotification::where('user_id', $superadmin->id)->count();
+
+        $this->post(route('login.attempt'), [
+            'login' => $user->username,
+            'password' => 'Password123!',
+            'remember' => '1',
+        ])->assertRedirect(route('home'));
+
+        $this->post(route('logout'))->assertRedirect(route('login'));
+
+        $this->assertSame(
+            $notificationCount,
+            UserNotification::where('user_id', $superadmin->id)->count()
+        );
     }
 
     public function test_successful_login_can_save_only_a_display_profile_when_requested(): void

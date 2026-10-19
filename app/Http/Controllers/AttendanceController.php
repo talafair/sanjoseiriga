@@ -152,17 +152,19 @@ class AttendanceController extends Controller
         $attendanceMethod = 'event_qr_scan';
         $userCategory = $canFacilitate ? 'official' : 'resident';
 
-        // If official, check if they're trying to record a resident's attendance
-        // by attempting to parse the token as a resident QR
+        // If official, check whether the scanned ID belongs to an attendee.
         if ($user->isOfficial()) {
-            $residentResult = $this->tryParseResidentQr($data['token']);
-            if ($residentResult instanceof User) {
-                // Token is a resident QR - record the resident's attendance
-                $attendee = $residentResult;
+            $attendeeResult = $this->tryParseAttendeeQr($data['token']);
+            if ($attendeeResult instanceof User) {
+                if ($attendeeResult->isGuest() && ! $event->allow_guest_scanning) {
+                    return $this->fail('Guest attendance is not enabled for this event.');
+                }
+
+                $attendee = $attendeeResult;
                 $attendanceMethod = 'official_qr_scan';
                 $userCategory = 'resident';
             }
-            // else: Token is an event QR, so record the official's own attendance
+            // Otherwise, the token is an event QR, so record the official's own attendance.
         }
 
         if ($userCategory !== 'official' && ! $this->canAttendEvent($attendee, $event)) {
@@ -172,7 +174,7 @@ class AttendanceController extends Controller
         return $this->recordAttendance($event, $attendee, $data, $distance, $userCategory, $attendanceMethod);
     }
 
-    /** Officials can use the resident's printed unique ID through the same attendance flow. */
+    /** Officials can use an attendee's printed unique ID through the same attendance flow. */
     public function checkById(Request $request): JsonResponse
     {
         /** @var User $viewer */
@@ -185,21 +187,25 @@ class AttendanceController extends Controller
             'latitude'        => ['required', 'numeric', 'between:-90,90'],
             'longitude'       => ['required', 'numeric', 'between:-180,180'],
         ], [
-            'unique_id.required' => 'Enter the resident Unique QR ID.',
+            'unique_id.required' => 'Enter the attendee Unique ID.',
         ]);
 
         $data['unique_id'] = trim($data['unique_id']);
         if ($data['unique_id'] === '') {
-            return $this->fail('Unique QR ID not found. Please check the ID and try again.');
+            return $this->fail('Attendee Unique ID not found. Please check the ID and try again.');
         }
 
         $event = Announcement::events()->findOrFail($data['announcement_id']);
         $attendee = User::where('unique_id', trim($data['unique_id']))
-            ->where('role', 'resident')
+            ->whereIn('role', ['resident', 'guest'])
             ->first();
 
         if (! $attendee) {
-            return $this->fail('Unique QR ID not found. Please check the ID and try again.');
+            return $this->fail('Attendee Unique ID not found. Please check the ID and try again.');
+        }
+
+        if ($attendee->isGuest() && ! $event->allow_guest_scanning) {
+            return $this->fail('Guest attendance is not enabled for this event.');
         }
 
         $lat = (float) ($event->venue_lat ?? config('talafair.barangay_lat'));
@@ -212,7 +218,7 @@ class AttendanceController extends Controller
         }
 
         if (! $this->canAttendEvent($attendee, $event)) {
-            return $this->fail('This resident is not eligible to attend this event.');
+            return $this->fail('This attendee is not eligible to attend this event.');
         }
 
         if ($distance > $radius) {
@@ -367,7 +373,7 @@ class AttendanceController extends Controller
         ]);
     }
 
-    private function tryParseResidentQr(string $value): User|null
+    private function tryParseAttendeeQr(string $value): User|null
     {
         $payload = json_decode($value, true);
         $id = is_array($payload) ? ($payload['id'] ?? null) : null;
@@ -380,7 +386,7 @@ class AttendanceController extends Controller
             return null;
         }
 
-        return User::where('unique_id', $id)->where('role', 'resident')->first();
+        return User::where('unique_id', $id)->whereIn('role', ['resident', 'guest'])->first();
     }
 
     private function residentFromQr(string $value): User|JsonResponse

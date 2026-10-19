@@ -65,6 +65,88 @@ class AttendanceQrTest extends TestCase
         $this->assertDatabaseCount('attendances', 1);
     }
 
+    public function test_official_can_record_guest_attendance_from_a_signed_guest_qr_when_enabled(): void
+    {
+        [$official, , $event] = $this->attendanceSetup();
+        $guest = User::factory()->create([
+            'role' => 'guest',
+            'is_verified' => false,
+            'unique_id' => 'GZ2-26-000000001',
+        ]);
+        $event->update(['allow_guest_scanning' => true]);
+        $payload = json_encode([
+            'id' => $guest->unique_id,
+            'sig' => substr(hash_hmac('sha256', $guest->unique_id, config('app.key')), 0, 16),
+        ]);
+
+        $this->actingAs($official)->postJson(route('attendance.check'), [
+            'token' => $payload,
+            'announcement_id' => $event->id,
+            'latitude' => config('talafair.barangay_lat'),
+            'longitude' => config('talafair.barangay_lng'),
+        ])->assertOk()->assertJsonPath('resident', $guest->full_name);
+
+        $this->assertDatabaseHas('attendances', [
+            'announcement_id' => $event->id,
+            'user_id' => $guest->id,
+            'attendance_method' => 'official_qr_scan',
+        ]);
+    }
+
+    public function test_official_can_record_guest_attendance_by_unique_id_when_enabled(): void
+    {
+        [$official, , $event] = $this->attendanceSetup();
+        $guest = User::factory()->create([
+            'role' => 'guest',
+            'is_verified' => false,
+            'unique_id' => 'GZ2-26-000000002',
+        ]);
+        $event->update(['allow_guest_scanning' => true]);
+
+        $this->actingAs($official)->postJson(route('attendance.check-by-id'), [
+            'announcement_id' => $event->id,
+            'unique_id' => $guest->unique_id,
+            'latitude' => config('talafair.barangay_lat'),
+            'longitude' => config('talafair.barangay_lng'),
+        ])->assertOk()->assertJsonPath('resident', $guest->full_name);
+
+        $this->assertDatabaseHas('attendances', [
+            'announcement_id' => $event->id,
+            'user_id' => $guest->id,
+            'attendance_method' => 'manual_unique_id',
+        ]);
+    }
+
+    public function test_official_cannot_record_guest_attendance_when_guest_scanning_is_disabled(): void
+    {
+        [$official, , $event] = $this->attendanceSetup();
+        $guest = User::factory()->create([
+            'role' => 'guest',
+            'is_verified' => false,
+            'unique_id' => 'GZ2-26-000000003',
+        ]);
+        $payload = json_encode([
+            'id' => $guest->unique_id,
+            'sig' => substr(hash_hmac('sha256', $guest->unique_id, config('app.key')), 0, 16),
+        ]);
+
+        $this->actingAs($official)->postJson(route('attendance.check'), [
+            'token' => $payload,
+            'announcement_id' => $event->id,
+            'latitude' => config('talafair.barangay_lat'),
+            'longitude' => config('talafair.barangay_lng'),
+        ])->assertUnprocessable()->assertJsonPath('message', 'Guest attendance is not enabled for this event.');
+
+        $this->actingAs($official)->postJson(route('attendance.check-by-id'), [
+            'announcement_id' => $event->id,
+            'unique_id' => $guest->unique_id,
+            'latitude' => config('talafair.barangay_lat'),
+            'longitude' => config('talafair.barangay_lng'),
+        ])->assertUnprocessable()->assertJsonPath('message', 'Guest attendance is not enabled for this event.');
+
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
     public function test_wrong_event_qr_is_rejected_with_a_clear_message(): void
     {
         [, $resident, $event] = $this->attendanceSetup();

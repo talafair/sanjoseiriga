@@ -16,9 +16,9 @@
       <h4 class="fw-bold mb-1"><i class="bi bi-qr-code-scan me-2 text-yg"></i>Attendance Options</h4>
       <p class="text-secondary">
         @if (auth()->user()->isSuperadmin())
-          Document resident attendance at events.
+          Document attendee attendance at events.
         @else
-        Record your own attendance or document resident attendance at events.
+        Record your own attendance or check in residents and guests at events.
         @endif
         Scanning opens two hours before the event starts and only works inside the venue.
       </p>
@@ -30,7 +30,7 @@
         <label class="btn btn-outline-dark" for="mode-own">My Attendance</label>
 
         <input type="radio" class="btn-check" name="attendance-mode" id="mode-resident" value="resident">
-        <label class="btn btn-outline-dark" for="mode-resident">Record Resident</label>
+        <label class="btn btn-outline-dark" for="mode-resident">Record Attendee</label>
       </div>
       @endunless
 
@@ -47,9 +47,9 @@
       </div>
       @endunless
 
-      {{-- Event selection for recording resident attendance --}}
+      {{-- Event selection for recording attendee attendance --}}
       <div id="resident-attendance-mode" class="mb-3 {{ auth()->user()->isSuperadmin() ? '' : 'd-none' }}">
-        <label for="resident-event-select" class="form-label small fw-semibold mb-1">Select resident's event</label>
+        <label for="resident-event-select" class="form-label small fw-semibold mb-1">Select attendee's event</label>
         <select id="resident-event-select" class="form-select form-select-sm" @disabled($openEvents->isEmpty())>
           <option value="">Select an event</option>
           @foreach ($openEvents as $event)
@@ -117,16 +117,16 @@
 
     @if ($officialMode && ! $activityMode)
       <button id="manual-toggle" type="button" class="btn btn-outline-dark w-100 mt-3">
-        <i class="bi bi-keyboard me-1"></i>QR code not scanning? Enter Resident Unique ID instead
+        <i class="bi bi-keyboard me-1"></i>QR code not scanning? Enter attendee Unique ID instead
       </button>
-      <div class="form-text mt-2">You can keep trying the QR scanner as many times as needed, or use the manual Unique ID option (resident mode only).</div>
+      <div class="form-text mt-2">Use this for a resident or guest ID when their QR code will not scan.</div>
       <form id="manual-form" class="border rounded-3 p-3 mt-3 d-none">
-        <label for="unique-id" class="form-label fw-semibold">Resident Unique ID Number</label>
+        <label for="unique-id" class="form-label fw-semibold">Resident or Guest Unique ID Number</label>
         <div class="input-group">
-          <input id="unique-id" class="form-control" placeholder="Z2-26-000000001" maxlength="32" autocomplete="off">
+          <input id="unique-id" class="form-control" placeholder="Z2-26-000000001 or GZ2-26-000000001" maxlength="32" autocomplete="off">
           <button class="btn btn-dark" type="submit">Record attendance</button>
         </div>
-        <div class="form-text">Enter the resident's existing Unique ID Number from their ID card.</div>
+        <div class="form-text">Guest check-in must be enabled for the selected event.</div>
         <button id="manual-back" type="button" class="btn btn-link btn-sm px-0">Back to scanner</button>
       </form>
     @endif
@@ -434,7 +434,7 @@
         if (OFFICIAL) {
           manualForm?.classList.remove('d-none');
           manualToggle?.classList.add('d-none');
-          show(false, '<div class="fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>' + scanMessage + '</div><div class="small mt-1">You can keep trying the scanner or enter the resident\'s Unique ID Number below.</div>');
+          show(false, '<div class="fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>' + scanMessage + '</div><div class="small mt-1">You can keep trying the scanner or enter the attendee\'s Unique ID Number below.</div>');
         } else {
           show(false, scanMessage);
           document.getElementById('resident-id-fallback')?.classList.remove('d-none');
@@ -458,7 +458,7 @@
     try {
       const uniqueId = document.getElementById('unique-id');
       if (!uniqueId.value.trim()) {
-        show(false, 'Enter the resident unique ID from their ID card.');
+        show(false, 'Enter the resident or guest Unique ID from their ID card.');
         return;
       }
       const coords = await position();
@@ -480,7 +480,7 @@
         uniqueId.value = '';
         show(true, '<div class="fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>Attendance recorded successfully.</div><div class="small mt-1">' + data.resident + ' · ' + data.message + '</div>');
       } else {
-        show(false, data.message || 'Unique QR ID not found. Please check the ID and try again.');
+        show(false, data.message || 'Attendee Unique ID not found. Please check the ID and try again.');
       }
     } catch (err) {
       show(false, 'Unable to record attendance. Please try again.');
@@ -492,7 +492,7 @@
   manualToggle?.addEventListener('click', () => {
     // Only show manual form in resident mode for officials
     if (OFFICIAL && currentAttendanceMode !== 'resident') {
-      show(false, 'Switch to "Record Resident" mode to use manual ID entry.');
+      show(false, 'Switch to "Record Attendee" mode to use manual ID entry.');
       return;
     }
     manualForm?.classList.remove('d-none');
@@ -514,7 +514,7 @@
     if (!selectedAnnouncementId) {
       show(false, currentAttendanceMode === 'own' 
         ? 'Select your event before starting the scanner.'
-        : 'Select the resident\'s event before starting the scanner.');
+        : 'Select the attendee\'s event before starting the scanner.');
       selectedEvent?.focus();
       return;
     }
@@ -557,7 +557,7 @@
       const scanMessage = OFFICIAL 
         ? (currentAttendanceMode === 'own' 
           ? 'Scanning for the event QR code…' 
-          : 'Scanning for the resident QR code or event QR…')
+          : 'Scanning for the resident or guest ID QR code or event QR…')
         : 'Scanning for a QR code…';
       status(scanMessage, 'info');
       startBtn.classList.add('d-none');
@@ -572,7 +572,7 @@
         ? 'This browser does not support camera access.'
         : cameraError(e);
       const fallbackMsg = OFFICIAL && manualToggle && currentAttendanceMode === 'resident'
-        ? cameraMessage + '<div class="small fw-semibold mt-2">Use the Resident Unique ID Number fallback below if scanning is unavailable.</div>'
+        ? cameraMessage + '<div class="small fw-semibold mt-2">Use the attendee Unique ID Number fallback below if scanning is unavailable.</div>'
         : cameraMessage;
       show(false, fallbackMsg);
       if (OFFICIAL && manualForm && manualToggle && currentAttendanceMode === 'resident') {

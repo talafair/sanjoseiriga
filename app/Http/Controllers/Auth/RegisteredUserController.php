@@ -51,9 +51,12 @@ class RegisteredUserController extends Controller
             'last_name'    => ['required', 'string', 'max:255'],
             'suffix'       => ['nullable', 'string', 'max:20'],
 
-            'sex_at_birth' => ['required', Rule::in(['female', 'male', 'prefer_not_to_say'])],
-            'preferred_gender_identity' => ['required', Rule::in(['woman', 'man', 'non_binary', 'transgender_woman', 'transgender_man', 'genderqueer', 'self_describe', 'prefer_not_to_say'])],
-            'gender_identity_other' => ['nullable', 'required_if:preferred_gender_identity,self_describe', 'string', 'max:255'],
+            'sex_at_birth' => [$isGuest ? 'prohibited' : 'required', Rule::in(['female', 'male', 'prefer_not_to_say'])],
+            'preferred_gender_identity' => [$isGuest ? 'prohibited' : 'required', Rule::in(['woman', 'man', 'non_binary', 'transgender_woman', 'transgender_man', 'genderqueer', 'self_describe', 'prefer_not_to_say'])],
+            'gender_identity_other' => [$isGuest ? 'prohibited' : 'nullable', 'required_if:preferred_gender_identity,self_describe', 'string', 'max:255'],
+            'age' => ['prohibited'],
+            'gender' => [$isGuest ? 'required' : 'nullable', Rule::in(['female', 'male', 'others'])],
+            'gender_other' => ['nullable', 'string', 'max:255'],
             'is_lgbtqia' => ['nullable', 'boolean'],
             'is_pwd' => ['nullable', 'boolean'],
             'is_4ps_member' => ['nullable', 'boolean'],
@@ -62,7 +65,7 @@ class RegisteredUserController extends Controller
             'is_bpc' => ['nullable', 'boolean'],
             'is_out_of_school_youth' => ['nullable', 'boolean', Rule::prohibitedIf(fn () => $request->boolean('is_student') && $request->boolean('is_out_of_school_youth'))],
 
-            'birthdate'      => [$isGuest ? 'nullable' : 'required', 'date', 'before_or_equal:today', 'after:1900-01-01'],
+            'birthdate'      => ['required', 'date', 'before_or_equal:today', 'after:1900-01-01'],
             'contact_number' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/'],
             'is_student'     => ['nullable', 'boolean', Rule::prohibitedIf(fn () => $request->boolean('is_out_of_school_youth') && $request->boolean('is_student'))],
             'student_level'  => ['nullable', Rule::requiredIf(fn () => $request->boolean('is_student')), Rule::in(array_keys(User::STUDENT_LEVELS))],
@@ -159,10 +162,11 @@ class RegisteredUserController extends Controller
                     $data['first_name'], $data['middle_name'] ?? null, $data['last_name'], $data['suffix'] ?? null,
                 ])->filter()->implode(' ')),
 
-                'gender'         => in_array($data['sex_at_birth'], ['female', 'male'], true) ? $data['sex_at_birth'] : null,
-                'sex_at_birth'   => $data['sex_at_birth'],
-                'preferred_gender_identity' => $data['preferred_gender_identity'],
-                'gender_identity_other' => $data['preferred_gender_identity'] === 'self_describe' ? $data['gender_identity_other'] : null,
+                'gender'         => $isGuest ? $data['gender'] : (in_array($data['sex_at_birth'], ['female', 'male'], true) ? $data['sex_at_birth'] : null),
+                'gender_other'   => $isGuest && $data['gender'] === 'others' ? ($data['gender_other'] ?? null) : null,
+                'sex_at_birth'   => $isGuest ? null : $data['sex_at_birth'],
+                'preferred_gender_identity' => $isGuest ? null : $data['preferred_gender_identity'],
+                'gender_identity_other' => ! $isGuest && $data['preferred_gender_identity'] === 'self_describe' ? $data['gender_identity_other'] : null,
                 'is_lgbtqia'     => (bool) ($data['is_lgbtqia'] ?? false),
                 'birthdate'      => $data['birthdate'] ?? null,
                 'contact_number' => $data['contact_number'] ?? null,
@@ -267,7 +271,7 @@ class RegisteredUserController extends Controller
 
     private function normalizeLegacyGenderInput(Request $request): void
     {
-        if ($request->has('sex_at_birth')) {
+        if ($request->input('role') === 'guest' || $request->has('sex_at_birth')) {
             return;
         }
 

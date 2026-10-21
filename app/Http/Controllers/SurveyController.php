@@ -34,7 +34,7 @@ class SurveyController extends Controller
             'surveys' => Survey::with(['event', 'responses.user'])->latest()->get()->each(function (Survey $survey) {
                 $survey->notified_count = $this->audienceQuery($survey)->count();
                 $answeredUserIds = $survey->responses->pluck('user_id');
-                $survey->respondent_options = $this->eligibleResidentQuery($survey)
+                $survey->respondent_options = $this->eligibleRespondentQuery($survey)
                     ->whereNotIn('id', $answeredUserIds)
                     ->orderBy('last_name')
                     ->orderBy('first_name')
@@ -56,17 +56,17 @@ class SurveyController extends Controller
             'suggestion' => [$survey->suggestion_enabled ? 'nullable' : 'prohibited', 'string', 'max:2000'],
         ]);
 
-        $resident = $this->eligibleResidentQuery($survey)->whereKey($data['respondent_user_id'])->first();
-        abort_unless($resident, 403, 'This resident is not eligible to answer this survey.');
+        $respondent = $this->eligibleRespondentQuery($survey)->whereKey($data['respondent_user_id'])->first();
+        abort_unless($respondent, 403, 'This resident or guest is not eligible to answer this survey.');
         abort_if(
-            SurveyResponse::where('survey_id', $survey->id)->where('user_id', $resident->id)->exists(),
+            SurveyResponse::where('survey_id', $survey->id)->where('user_id', $respondent->id)->exists(),
             409,
-            'This resident has already answered this survey.'
+            'This resident or guest has already answered this survey.'
         );
 
-        $this->createResponse($survey, $resident, $data);
+        $this->createResponse($survey, $respondent, $data);
 
-        return back()->with('success', "Survey response recorded for {$resident->full_name}.");
+        return back()->with('success', "Survey response recorded for {$respondent->full_name}.");
     }
 
     public function store(Request $request): RedirectResponse
@@ -272,11 +272,14 @@ class SurveyController extends Controller
         return $survey->audienceQuery();
     }
 
-    private function eligibleResidentQuery(Survey $survey): Builder
+    private function eligibleRespondentQuery(Survey $survey): Builder
     {
         return $this->audienceQuery($survey)
-            ->where('role', 'resident')
-            ->where('is_verified', true);
+            ->where(fn (Builder $query) => $query
+                ->where('role', 'guest')
+                ->orWhere(fn (Builder $residents) => $residents
+                    ->where('role', 'resident')
+                    ->where('is_verified', true)));
     }
 
     private function flattenQuestionSections(array $sections): array

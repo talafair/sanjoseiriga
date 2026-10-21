@@ -65,6 +65,66 @@ class AttendanceQrTest extends TestCase
         $this->assertDatabaseCount('attendances', 1);
     }
 
+    public function test_official_qr_scan_records_personnel_attendance_and_awards_points_to_personnel(): void
+    {
+        [$official, , $event] = $this->attendanceSetup();
+        $personnel = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'personnel',
+            'is_verified' => true,
+            'unique_id' => 'PERS-26-000000001',
+            'points' => 0,
+        ]);
+        $payload = json_encode([
+            'id' => $personnel->unique_id,
+            'sig' => substr(hash_hmac('sha256', $personnel->unique_id, config('app.key')), 0, 16),
+        ]);
+
+        $this->actingAs($official)->postJson(route('attendance.check'), [
+            'token' => $payload,
+            'announcement_id' => $event->id,
+            'latitude' => config('talafair.barangay_lat'),
+            'longitude' => config('talafair.barangay_lng'),
+        ])->assertOk()->assertJsonPath('resident', $personnel->full_name);
+
+        $this->assertDatabaseHas('attendances', [
+            'announcement_id' => $event->id,
+            'user_id' => $personnel->id,
+            'attendance_method' => 'official_qr_scan',
+            'points_awarded' => 100,
+        ]);
+        $this->assertSame(100, $personnel->fresh()->points);
+        $this->assertSame(0, $official->fresh()->points);
+    }
+
+    public function test_official_can_record_personnel_attendance_by_unique_id(): void
+    {
+        [$official, , $event] = $this->attendanceSetup();
+        $personnel = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'personnel',
+            'is_verified' => true,
+            'unique_id' => 'PERS-26-000000002',
+            'points' => 0,
+        ]);
+
+        $this->actingAs($official)->postJson(route('attendance.check-by-id'), [
+            'announcement_id' => $event->id,
+            'unique_id' => $personnel->unique_id,
+            'latitude' => config('talafair.barangay_lat'),
+            'longitude' => config('talafair.barangay_lng'),
+        ])->assertOk()->assertJsonPath('resident', $personnel->full_name);
+
+        $this->assertDatabaseHas('attendances', [
+            'announcement_id' => $event->id,
+            'user_id' => $personnel->id,
+            'attendance_method' => 'manual_unique_id',
+            'points_awarded' => 100,
+        ]);
+        $this->assertSame(100, $personnel->fresh()->points);
+        $this->assertSame(0, $official->fresh()->points);
+    }
+
     public function test_official_can_record_guest_attendance_from_a_signed_guest_qr_when_enabled(): void
     {
         [$official, , $event] = $this->attendanceSetup();

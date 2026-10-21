@@ -3,7 +3,7 @@
 @section('title', 'Manage Surveys')
 
 @section('content')
-<div class="page-header p-3 p-lg-4 mb-3"><h2 class="h4 fw-bold mb-1"><i class="bi bi-bar-chart-line me-2"></i>Community surveys</h2><p class="small mb-0 opacity-75">Publish questions for residents to answer using a Likert scale.</p></div>
+<div class="page-header p-3 p-lg-4 mb-3"><h2 class="h4 fw-bold mb-1"><i class="bi bi-bar-chart-line me-2"></i>Community surveys</h2><p class="small mb-0 opacity-75">Publish questions for residents and guests to answer using a Likert scale.</p></div>
 
 <div class="card yg-card mb-4"><div class="card-body p-4">
   <h5 class="fw-bold mb-3">Publish a survey</h5>
@@ -91,23 +91,23 @@
           <div class="border border-primary-subtle rounded-3 bg-primary-subtle p-3 mt-3">
             @if ($survey->due_at && now()->lessThan($survey->due_at) && $survey->respondent_options->isNotEmpty())
               <button class="btn btn-primary fw-semibold px-3 py-2" type="button" data-bs-toggle="collapse" data-bs-target="#recordSurveyResponse{{ $survey->id }}" aria-expanded="false" aria-controls="recordSurveyResponse{{ $survey->id }}">
-                <i class="bi bi-person-lines-fill me-2" aria-hidden="true"></i>Record response for resident
+                <i class="bi bi-person-lines-fill me-2" aria-hidden="true"></i>Record response for resident or guest
                 <i class="bi bi-chevron-down ms-1" aria-hidden="true"></i>
               </button>
-              <p class="small text-body-secondary mt-2 mb-0">Enter a resident’s answers on their behalf and award them the survey points.</p>
+              <p class="small text-body-secondary mt-2 mb-0">Enter a resident’s or guest’s answers on their behalf and award them the survey points.</p>
               <div class="collapse mt-3" id="recordSurveyResponse{{ $survey->id }}">
                 <form method="POST" action="{{ route('surveys.responses.store', $survey) }}" class="bg-body border rounded-3 p-3">
                   @csrf
                   <div class="mb-3">
-                    <label class="form-label fw-semibold" for="respondentUser{{ $survey->id }}">Resident</label>
+                    <label class="form-label fw-semibold" for="respondentUser{{ $survey->id }}">Resident or guest</label>
                     <select class="form-select" id="respondentUser{{ $survey->id }}" name="respondent_user_id" required>
-                      <option value="">Select a resident who has not answered</option>
-                      @foreach ($survey->respondent_options as $resident)
-                        <option value="{{ $resident->id }}">{{ $resident->full_name }}{{ $resident->unique_id ? ' · ' . $resident->unique_id : '' }}</option>
+                      <option value="">Select a resident or guest who has not answered</option>
+                      @foreach ($survey->respondent_options as $respondent)
+                        <option value="{{ $respondent->id }}">{{ $respondent->full_name }} · {{ ucfirst($respondent->role) }}{{ $respondent->unique_id ? ' · ' . $respondent->unique_id : '' }}</option>
                       @endforeach
                     </select>
                   </div>
-                  <div class="alert alert-light border small">Enter the resident’s answers as provided. Survey points will be awarded to their account.</div>
+                  <div class="alert alert-light border small">Enter their answers as provided. Survey points will be awarded to their account.</div>
                   @php
                     $recordSectionMarkers = array_values($survey->sections ?: [['heading' => 'Questions', 'start' => 0]]);
                     $recordSectionHeadings = collect($recordSectionMarkers)->mapWithKeys(fn ($section, $sectionIndex) => [
@@ -151,7 +151,7 @@
                 @if ($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at))
                   This survey is closed.
                 @else
-                  No eligible residents remain to answer.
+                  No eligible residents or guests remain to answer.
                 @endif
               </span>
             @endif
@@ -197,6 +197,26 @@
             'answers' => $response->answers ?? [],
         ];
     })->values();
+    $demographicRespondents = $responses->map(fn ($response) => $response->user)->filter();
+    $ageBands = [
+        'Under 18' => [0, 17],
+        '18-24' => [18, 24],
+        '25-34' => [25, 34],
+        '35-44' => [35, 44],
+        '45-54' => [45, 54],
+        '55-64' => [55, 64],
+        '65+' => [65, null],
+    ];
+    $ageCounts = collect($ageBands)->map(fn ($range) => $demographicRespondents
+        ->filter(fn ($user) => $user->age !== null && $user->age >= $range[0] && ($range[1] === null || $user->age <= $range[1]))
+        ->count());
+    $ageCounts['Not specified'] = $demographicRespondents->filter(fn ($user) => $user->age === null)->count();
+    $genderCounts = collect([
+        'Female' => 'female',
+        'Male' => 'male',
+        'Others' => 'others',
+    ])->map(fn ($gender) => $demographicRespondents->filter(fn ($user) => $user->gender === $gender)->count());
+    $genderCounts['Not specified'] = $demographicRespondents->filter(fn ($user) => ! in_array($user->gender, ['female', 'male', 'others'], true))->count();
   @endphp
   <div class="card yg-card mt-4 survey-summary-print" id="surveySummary{{ $survey->id }}">
     <div class="card-header py-3 d-flex justify-content-between align-items-center gap-2 flex-wrap">
@@ -208,6 +228,33 @@
     </div>
     <div class="card-body p-4">
       <div class="row g-3 mb-4"><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ number_format($survey->notified_count) }}</div><div class="small text-secondary">Notified</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ $responses->count() }}</div><div class="small text-secondary">Answered</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ max(0, $survey->notified_count - $responses->count()) }}</div><div class="small text-secondary">Not answered</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ $overallWeightedMean !== null ? number_format($overallWeightedMean, 2) : '—' }}</div><div class="small text-secondary">Overall weighted mean / 5</div></div></div></div>
+      <h6 class="fw-bold">Respondent demographics</h6>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle border rounded overflow-hidden">
+              <thead class="table-light"><tr><th>Age group</th><th>Respondents</th></tr></thead>
+              <tbody>
+                @foreach ($ageCounts as $ageGroup => $count)
+                  <tr><td>{{ $ageGroup }}</td><td>{{ $count }}</td></tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle border rounded overflow-hidden">
+              <thead class="table-light"><tr><th>Gender</th><th>Respondents</th></tr></thead>
+              <tbody>
+                @foreach ($genderCounts as $gender => $count)
+                  <tr><td>{{ $gender }}</td><td>{{ $count }}</td></tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
       <h6 class="fw-bold">Section means</h6>
       <div class="table-responsive mb-4">
         <table class="table table-sm align-middle border rounded overflow-hidden">

@@ -55,6 +55,8 @@ class UserManagementTest extends TestCase
             ->assertOk();
 
         $response->assertSee('value="guest"', false)
+            ->assertSee('name="birthdate"', false)
+            ->assertSee('type="date"', false)
             ->assertSee('name="is_sjtoda"', false)
             ->assertSee('name="is_bpc"', false)
             ->assertSee('Category', false);
@@ -77,6 +79,7 @@ class UserManagementTest extends TestCase
             'username' => 'keep-this-user',
             'first_name' => 'Updated',
         ]);
+        $this->assertSame('1990-01-01', $user->fresh()->birthdate->toDateString());
     }
 
     public function test_password_update_is_audited_separately_and_notifies_superadmins_without_exposing_password(): void

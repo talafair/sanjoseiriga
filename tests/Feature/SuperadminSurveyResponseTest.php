@@ -29,7 +29,7 @@ class SuperadminSurveyResponseTest extends TestCase
         ]);
         $guest = User::factory()->create([
             'role' => 'guest',
-            'is_verified' => true,
+            'is_verified' => false,
         ]);
         $survey = $this->survey($superadmin);
 
@@ -43,10 +43,10 @@ class SuperadminSurveyResponseTest extends TestCase
         $this->actingAs($superadmin)
             ->get(route('surveys.manage'))
             ->assertOk()
-            ->assertSee('Record response for resident')
+            ->assertSee('Record response for resident or guest')
             ->assertSee('<option value="' . $resident->id . '"', false)
-            ->assertDontSee('<option value="' . $alreadyAnswered->id . '"', false)
-            ->assertDontSee('<option value="' . $guest->id . '"', false);
+            ->assertSee('<option value="' . $guest->id . '"', false)
+            ->assertDontSee('<option value="' . $alreadyAnswered->id . '"', false);
 
         $this->post(route('surveys.responses.store', $survey), [
             'respondent_user_id' => $resident->id,
@@ -65,12 +65,20 @@ class SuperadminSurveyResponseTest extends TestCase
         $this->assertArrayNotHasKey('created_by', $response->getAttributes());
 
         $this->post(route('surveys.responses.store', $survey), [
+            'respondent_user_id' => $guest->id,
+            'answers' => [4, 4],
+        ])->assertRedirect()
+            ->assertSessionHas('success', "Survey response recorded for {$guest->full_name}.");
+        $this->assertSame(20, $guest->fresh()->points);
+
+        $this->post(route('surveys.responses.store', $survey), [
             'respondent_user_id' => $resident->id,
             'answers' => [5, 2],
         ])->assertConflict();
 
         $this->assertSame(25, $resident->fresh()->points);
-        $this->assertDatabaseCount('survey_responses', 2);
+        $this->assertSame(20, $guest->fresh()->points);
+        $this->assertDatabaseCount('survey_responses', 3);
     }
 
     public function test_verified_official_cannot_record_responses_on_behalf_of_residents(): void

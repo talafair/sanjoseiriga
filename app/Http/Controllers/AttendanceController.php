@@ -196,9 +196,7 @@ class AttendanceController extends Controller
         }
 
         $event = Announcement::events()->findOrFail($data['announcement_id']);
-        $attendee = User::where('unique_id', trim($data['unique_id']))
-            ->whereIn('role', ['resident', 'guest'])
-            ->first();
+        $attendee = $this->attendeeByUniqueId(trim($data['unique_id']));
 
         if (! $attendee) {
             return $this->fail('Attendee Unique ID not found. Please check the ID and try again.');
@@ -386,7 +384,18 @@ class AttendanceController extends Controller
             return null;
         }
 
-        return User::where('unique_id', $id)->whereIn('role', ['resident', 'guest'])->first();
+        return $this->attendeeByUniqueId($id);
+    }
+
+    private function attendeeByUniqueId(string $id): ?User
+    {
+        return User::where('unique_id', $id)
+            ->where(fn ($query) => $query
+                ->whereIn('role', ['resident', 'guest'])
+                ->orWhere(fn ($personnel) => $personnel
+                    ->where('role', 'official')
+                    ->where('official_group', 'personnel')))
+            ->first();
     }
 
     private function residentFromQr(string $value): User|JsonResponse

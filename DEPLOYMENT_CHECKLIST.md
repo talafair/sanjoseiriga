@@ -2,6 +2,15 @@
 
 ## Pre-Deployment Checklist
 
+### Sign-in session duration
+
+Set `SESSION_LIFETIME=43200` (30 days) in the deployed environment to prevent idle sessions from expiring after an hour. This is the session idle timeout in minutes; Laravel's **Remember me** option also enables its persistent login cookie. The separate **Remember this account on this device** option only saves the username and display profile, not the login session. After changing the environment value, clear and rebuild Laravel's configuration cache:
+
+```bash
+php artisan optimize:clear
+php artisan config:cache
+```
+
 ## TalaFair Uploaded Image Storage
 
 Uploaded profile pictures, badge images, announcement banners, and the home background use `filesystems.uploads_disk`. The local default remains `public`; if Laravel Cloud supplies `FILESYSTEM_DISK=s3` and `FILESYSTEM_UPLOADS_DISK` is unset, uploads follow that cloud disk. Set `FILESYSTEM_UPLOADS_DISK=s3` explicitly in production to avoid accidentally keeping uploads on the application's local filesystem.

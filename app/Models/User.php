@@ -181,7 +181,7 @@ class User extends Authenticatable implements CanResetPasswordContract
 
     public function getAgeAttribute(): ?int
     {
-        return $this->birthdate?->age;   // computed from birthdate, never stored
+        return $this->birthdate?->age;
     }
 
     public function getGenderLabelAttribute(): ?string

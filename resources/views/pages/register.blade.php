@@ -105,29 +105,50 @@
         <h6 class="fw-bold text-uppercase text-secondary mb-3">Personal details</h6>
         <div class="row g-3">
 
-          <div class="col-md-6">
-            <span class="form-label d-block">Sex at Birth</span>
-            <div class="d-flex flex-wrap gap-3">
-              @foreach (['female' => 'Female', 'male' => 'Male', 'prefer_not_to_say' => 'Prefer not to say'] as $value => $label)
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="sex_at_birth" id="sex_at_birth_{{ $value }}"
-                         value="{{ $value }}" required @checked(old('sex_at_birth') === $value)>
-                  <label class="form-check-label" for="sex_at_birth_{{ $value }}">{{ $label }}</label>
-                </div>
-              @endforeach
+          @if ($role === 'guest')
+            <div class="col-md-3">
+              <label for="birthdate" class="form-label">Birthdate</label>
+              <input id="birthdate" name="birthdate" type="date" required max="{{ now()->toDateString() }}" value="{{ old('birthdate') }}" class="form-control">
+              <div class="form-text">Age is calculated from your birthdate.</div>
             </div>
-            <label for="preferred_gender_identity" class="form-label mt-3">Preferred Gender Identity</label>
-            <select id="preferred_gender_identity" name="preferred_gender_identity" class="form-select" required onchange="document.getElementById('gender_identity_other_wrap').hidden = this.value !== 'self_describe'">
-              @foreach (['woman' => 'Woman', 'man' => 'Man', 'non_binary' => 'Non-binary', 'transgender_woman' => 'Transgender Woman', 'transgender_man' => 'Transgender Man', 'genderqueer' => 'Genderqueer / Gender Non-conforming', 'self_describe' => 'Prefer to self-describe', 'prefer_not_to_say' => 'Prefer not to say'] as $value => $label)
-                <option value="{{ $value }}" @selected(old('preferred_gender_identity') === $value)>{{ $label }}</option>
-              @endforeach
-            </select>
-            <div id="gender_identity_other_wrap" class="mt-3" @if(old('preferred_gender_identity') !== 'self_describe') hidden @endif>
-              <label for="gender_identity_other" class="form-label">Please specify your gender identity</label>
-              <input id="gender_identity_other" name="gender_identity_other" type="text" value="{{ old('gender_identity_other') }}" class="form-control">
+            <div class="col-md-3">
+              <label for="gender" class="form-label">Gender</label>
+              <select id="gender" name="gender" class="form-select" required onchange="document.getElementById('guest_gender_other_wrap').hidden = this.value !== 'others'">
+                <option value="">Select gender</option>
+                @foreach (['female' => 'Female', 'male' => 'Male', 'others' => 'Others'] as $value => $label)
+                  <option value="{{ $value }}" @selected(old('gender') === $value)>{{ $label }}</option>
+                @endforeach
+              </select>
+              <div id="guest_gender_other_wrap" class="mt-2" @if(old('gender') !== 'others') hidden @endif>
+                <label for="gender_other" class="form-label">Please specify</label>
+                <input id="gender_other" name="gender_other" type="text" value="{{ old('gender_other') }}" class="form-control">
+              </div>
             </div>
-            <div class="form-check mt-3"><input class="form-check-input" type="checkbox" name="is_lgbtqia" value="1" id="is_lgbtqia" @checked(old('is_lgbtqia'))><label class="form-check-label" for="is_lgbtqia">I identify as part of the LGBTQIA+ community</label></div>
-          </div>
+          @else
+            <div class="col-md-6">
+              <span class="form-label d-block">Sex at Birth</span>
+              <div class="d-flex flex-wrap gap-3">
+                @foreach (['female' => 'Female', 'male' => 'Male', 'prefer_not_to_say' => 'Prefer not to say'] as $value => $label)
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="sex_at_birth" id="sex_at_birth_{{ $value }}"
+                           value="{{ $value }}" required @checked(old('sex_at_birth') === $value)>
+                    <label class="form-check-label" for="sex_at_birth_{{ $value }}">{{ $label }}</label>
+                  </div>
+                @endforeach
+              </div>
+              <label for="preferred_gender_identity" class="form-label mt-3">Preferred Gender Identity</label>
+              <select id="preferred_gender_identity" name="preferred_gender_identity" class="form-select" required onchange="document.getElementById('gender_identity_other_wrap').hidden = this.value !== 'self_describe'">
+                @foreach (['woman' => 'Woman', 'man' => 'Man', 'non_binary' => 'Non-binary', 'transgender_woman' => 'Transgender Woman', 'transgender_man' => 'Transgender Man', 'genderqueer' => 'Genderqueer / Gender Non-conforming', 'self_describe' => 'Prefer to self-describe', 'prefer_not_to_say' => 'Prefer not to say'] as $value => $label)
+                  <option value="{{ $value }}" @selected(old('preferred_gender_identity') === $value)>{{ $label }}</option>
+                @endforeach
+              </select>
+              <div id="gender_identity_other_wrap" class="mt-3" @if(old('preferred_gender_identity') !== 'self_describe') hidden @endif>
+                <label for="gender_identity_other" class="form-label">Please specify your gender identity</label>
+                <input id="gender_identity_other" name="gender_identity_other" type="text" value="{{ old('gender_identity_other') }}" class="form-control">
+              </div>
+              <div class="form-check mt-3"><input class="form-check-input" type="checkbox" name="is_lgbtqia" value="1" id="is_lgbtqia" @checked(old('is_lgbtqia'))><label class="form-check-label" for="is_lgbtqia">I identify as part of the LGBTQIA+ community</label></div>
+            </div>
+          @endif
 
           @if ($role !== 'guest')
           <div class="col-md-3">

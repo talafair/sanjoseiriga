@@ -60,6 +60,41 @@ class SurveySummaryExportTest extends TestCase
         $response->assertDontSee('Download DOC');
     }
 
+    public function test_survey_summary_includes_respondent_age_and_gender_demographics(): void
+    {
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay',
+            'official_position' => 'captain',
+            'is_verified' => true,
+        ]);
+        $guest = User::factory()->create([
+            'role' => 'guest',
+            'birthdate' => now()->subYears(29)->toDateString(),
+            'gender' => 'female',
+        ]);
+        $survey = Survey::create([
+            'title' => 'Guest demographics survey',
+            'due_at' => now()->addDays(7),
+            'points' => 0,
+            'questions' => ['Question one'],
+            'audience' => 'public',
+            'created_by' => $official->id,
+        ]);
+        SurveyResponse::create([
+            'survey_id' => $survey->id,
+            'user_id' => $guest->id,
+            'answers' => [5],
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($official)->get(route('surveys.manage'))
+            ->assertOk()
+            ->assertSeeText('Respondent demographics')
+            ->assertSeeText('25-34')
+            ->assertSeeText('Female');
+    }
+
     public function test_official_can_publish_and_edit_survey_question_sections(): void
     {
         /** @var User $official */

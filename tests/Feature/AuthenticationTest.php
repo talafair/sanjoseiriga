@@ -50,6 +50,37 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_login_page_defaults_to_remembering_the_user(): void
+    {
+        $response = $this->get(route('login'))->assertOk();
+
+        $this->assertMatchesRegularExpression(
+            '/<input\b(?=[^>]*\bname="remember")(?=[^>]*\bchecked(?:\s|=|>))[^>]*>/s',
+            $response->getContent()
+        );
+    }
+
+    public function test_remember_me_login_issues_a_persistent_login_cookie(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'remembered-user',
+            'password' => 'Password123!',
+        ]);
+
+        $response = $this->post(route('login.attempt'), [
+            'login' => $user->username,
+            'password' => 'Password123!',
+            'remember' => '1',
+        ])->assertRedirect(route('home'));
+
+        $this->assertAuthenticatedAs($user);
+        $rememberCookie = collect($response->headers->getCookies())
+            ->first(fn ($cookie) => str_starts_with($cookie->getName(), 'remember_web_'));
+
+        $this->assertNotNull($rememberCookie);
+        $this->assertGreaterThan(now()->addDays(30)->timestamp, $rememberCookie->getExpiresTime());
+    }
+
     public function test_login_attempts_are_rate_limited(): void
     {
         for ($attempt = 1; $attempt <= 5; $attempt++) {
@@ -418,6 +449,10 @@ class AuthenticationTest extends TestCase
     {
         $this->get(route('register', ['role' => 'guest']))
             ->assertOk()
+            ->assertSee('name="birthdate"', false)
+            ->assertSee('type="date"', false)
+            ->assertDontSee('name="age"', false)
+            ->assertSee('name="gender"', false)
             ->assertSee('Zone number')
             ->assertSee('starts with GZ')
             ->assertDontSee('>Household</h6>', false)
@@ -426,7 +461,9 @@ class AuthenticationTest extends TestCase
 
         $payload = $this->registrationPayload([
             'role' => 'guest',
-            'birthdate' => '',
+            'birthdate' => '2001-03-23',
+            'gender' => 'others',
+            'gender_other' => 'Non-binary',
             'zone' => '2',
             'barangay' => 'Guest Village',
             'city' => 'Iriga City',
@@ -435,7 +472,7 @@ class AuthenticationTest extends TestCase
             'postal_code' => '4431',
             'username' => 'registered-guest',
         ]);
-        unset($payload['is_head_of_family']);
+        unset($payload['is_head_of_family'], $payload['sex_at_birth'], $payload['preferred_gender_identity']);
 
         $this->post(route('register.store'), $payload)
             ->assertRedirect(route('id-card.show'));
@@ -446,6 +483,10 @@ class AuthenticationTest extends TestCase
         $this->assertFalse($guest->is_head_of_family);
         $this->assertNull($guest->head_of_family_id);
         $this->assertNull($guest->head_of_family_name);
+        $this->assertSame('2001-03-23', $guest->birthdate->toDateString());
+        $this->assertSame($guest->birthdate->age, $guest->age);
+        $this->assertSame('others', $guest->gender);
+        $this->assertSame('Non-Binary', $guest->gender_other);
     }
 
     public function test_registration_rejects_an_invalid_email(): void

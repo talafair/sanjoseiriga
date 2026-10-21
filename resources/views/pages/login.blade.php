@@ -92,7 +92,8 @@
 
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="remember" id="rememberMe">
+                                <input class="form-check-input" type="checkbox" name="remember" id="rememberMe"
+                                       @checked(old('remember', true))>
                                 <label class="form-check-label small fw-semibold text-secondary" for="rememberMe">Remember me</label>
                             </div>
                             <a href="{{ route('password.request') }}" class="small fw-semibold text-yg text-decoration-none">Forgot password?</a>

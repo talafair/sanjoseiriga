@@ -75,7 +75,7 @@ class RegisteredUserController extends Controller
 
             'house_no'     => ['required', 'string', 'max:255'],
             'street'       => ['required', 'string', 'max:255'],
-            'zone'         => ['required', 'string', 'max:10'],
+            'zone'         => ['required', 'string', 'max:10', 'regex:/^[0-9]+$/'],
             'barangay'     => [$isGuest ? 'required' : 'nullable', 'string', 'max:255'],
             'city'         => [$isGuest ? 'required' : 'nullable', 'string', 'max:255'],
             'province'     => [$isGuest ? 'required' : 'nullable', 'string', 'max:255'],

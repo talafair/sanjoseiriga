@@ -501,6 +501,18 @@ class AuthenticationTest extends TestCase
         $this->assertDatabaseMissing('users', ['username' => 'registered-user']);
     }
 
+    public function test_registration_rejects_a_non_numeric_zone(): void
+    {
+        $this->from(route('register'))
+            ->post(route('register.store'), $this->registrationPayload([
+                'zone' => 'Zone 2',
+            ]))
+            ->assertRedirect(route('register'))
+            ->assertSessionHasErrors('zone');
+
+        $this->assertDatabaseMissing('users', ['username' => 'registered-user']);
+    }
+
     public function test_registration_rejects_a_duplicate_email(): void
     {
         User::factory()->create(['email' => 'taken@example.test']);

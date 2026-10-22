@@ -102,6 +102,36 @@ class SuperadminAccountPageTest extends TestCase
         $this->assertSame("Z2-{$year}000000124", $official->fresh()->unique_id);
     }
 
+    public function test_official_profile_edit_rejects_a_non_numeric_zone(): void
+    {
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'kagawad',
+            'zone' => '1',
+        ]);
+
+        $this->actingAs($official)
+            ->from(route('account'))
+            ->patch(route('profile.update'), [
+                'first_name' => 'Profile',
+                'last_name' => 'Official',
+                'sex_at_birth' => 'female',
+                'preferred_gender_identity' => 'woman',
+                'birthdate' => '1990-01-01',
+                'house_no' => '10',
+                'street' => 'Main Street',
+                'zone' => '2A',
+                'email' => $official->email,
+                'official_group' => 'barangay_council',
+                'official_position' => 'kagawad',
+            ])
+            ->assertRedirect(route('account'))
+            ->assertSessionHasErrors('zone');
+
+        $this->assertSame('1', $official->fresh()->zone);
+    }
+
     public function test_official_audience_notifications_include_superadmins_but_not_personnel(): void
     {
         $superadmin = User::factory()->create(['role' => User::SUPERADMIN_ROLE]);

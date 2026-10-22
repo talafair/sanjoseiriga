@@ -74,7 +74,7 @@
         <div class="row g-3">
           <div class="col-md-4"><label for="house_no" class="form-label">House / building no.</label><input id="house_no" name="house_no" value="{{ $user->house_no }}" class="form-control" required></div>
           <div class="col-md-4"><label for="street" class="form-label">Street</label><input id="street" name="street" value="{{ $user->street }}" class="form-control" data-title-case required></div>
-          <div class="col-md-4"><label for="zone" class="form-label">Zone number (1, 2, 3, 4)</label><input id="zone" name="zone" value="{{ $user->zone }}" class="form-control" required></div>
+          <div class="col-md-4"><label for="zone" class="form-label">Zone number (1, 2, 3, 4)</label><input id="zone" name="zone" type="number" step="1" inputmode="numeric" value="{{ $user->zone }}" class="form-control" required></div>
         </div>
         <div class="row g-3 mt-1 mx-0 p-3 bg-body-secondary rounded-3">@foreach (['Barangay' => $user->barangay, 'City / Municipality' => $user->city, 'Province' => $user->province, 'Country' => $user->country, 'Postal code' => $user->postal_code] as $label => $value)<div class="col-6 col-md"><div class="small text-uppercase text-secondary">{{ $label }}</div><div class="fw-semibold">{{ $value }}</div></div>@endforeach</div>
       </div>

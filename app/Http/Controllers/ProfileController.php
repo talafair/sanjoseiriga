@@ -66,7 +66,7 @@ class ProfileController extends Controller
             'occupation'     => ['nullable', 'string', 'max:255'],
             'house_no'       => ['required', 'string', 'max:255'],
             'street'         => ['required', 'string', 'max:255'],
-            'zone'           => ['required', 'string', 'max:10'],
+            'zone'           => ['required', 'string', 'max:10', 'regex:/^[0-9]+$/'],
             'email'          => ['nullable', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
         ]);
 

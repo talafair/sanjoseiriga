@@ -243,7 +243,7 @@ class UserManagementController extends Controller
             'occupation' => ['nullable', 'string', 'max:255'],
             'house_no' => ['required', 'string', 'max:255'],
             'street' => ['required', 'string', 'max:255'],
-            'zone' => ['required', 'string', 'max:10'],
+            'zone' => ['required', 'string', 'max:10', 'regex:/^[0-9]+$/'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($request->route('user'))],
             'head_of_family_id' => [
                 'nullable',

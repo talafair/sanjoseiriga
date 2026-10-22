@@ -199,7 +199,7 @@
           </div>
           <div class="col-md-4">
             <label for="zone" class="form-label">Zone number</label>
-            <input id="zone" name="zone" type="text" inputmode="numeric" required value="{{ old('zone') }}" class="form-control">
+            <input id="zone" name="zone" type="number" step="1" inputmode="numeric" required value="{{ old('zone') }}" class="form-control">
             @if ($role === 'guest')
               <div class="form-text">Used for your guest ID, which starts with GZ and is separate from resident IDs.</div>
             @else

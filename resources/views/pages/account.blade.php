@@ -318,7 +318,7 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">Zone number</label>
-              <input name="zone" value="{{ old('zone', $user->zone) }}" required class="form-control">
+              <input name="zone" type="number" step="1" inputmode="numeric" value="{{ old('zone', $user->zone) }}" required class="form-control">
             </div>
 
             <div class="col-12">

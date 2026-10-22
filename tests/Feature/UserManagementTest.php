@@ -41,6 +41,21 @@ class UserManagementTest extends TestCase
         $this->assertDatabaseMissing('users', ['username' => 'managed-not-a-category']);
     }
 
+    public function test_add_user_rejects_a_non_numeric_zone(): void
+    {
+        $official = $this->managementSuperadmin();
+        $payload = $this->userPayload('resident', 24);
+        $payload['zone'] = 'Zone 2';
+
+        $this->actingAs($official)
+            ->from(route('users.create'))
+            ->post(route('users.store'), $payload)
+            ->assertRedirect(route('users.create'))
+            ->assertSessionHasErrors('zone');
+
+        $this->assertDatabaseMissing('users', ['username' => 'managed-resident-24']);
+    }
+
     public function test_edit_user_preserves_existing_data_and_updates_category(): void
     {
         $official = $this->managementSuperadmin();

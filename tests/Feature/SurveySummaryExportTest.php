@@ -95,6 +95,51 @@ class SurveySummaryExportTest extends TestCase
             ->assertSeeText('Female');
     }
 
+    public function test_survey_print_summary_includes_research_profile_with_optional_names(): void
+    {
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay',
+            'official_position' => 'captain',
+            'is_verified' => true,
+        ]);
+        $respondent = User::factory()->create(['role' => 'guest']);
+        $survey = Survey::create([
+            'title' => 'Research profile survey',
+            'due_at' => now()->addDays(7),
+            'points' => 0,
+            'questions' => ['Question one'],
+            'audience' => 'public',
+            'research_consent_enabled' => true,
+            'created_by' => $official->id,
+        ]);
+        SurveyResponse::create([
+            'survey_id' => $survey->id,
+            'user_id' => $respondent->id,
+            'answers' => [5],
+            'research_profile' => [
+                'name' => 'Optional Research Name',
+                'age' => 29,
+                'sex' => 'female',
+                'used_talafair' => 'yes',
+                'user_type' => 'guest',
+                'signature' => null,
+            ],
+            'research_consent_at' => now(),
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($official)->get(route('surveys.manage'))
+            ->assertOk()
+            ->assertSee('Include names in print summary')
+            ->assertSee('data-include-respondent-names="'.$survey->id.'"', false)
+            ->assertSee('respondent-name-print', false)
+            ->assertSee('respondent-anonymous-print', false)
+            ->assertSee('research-profile-name-print', false)
+            ->assertSeeText('Research profile:')
+            ->assertSeeText('Optional Research Name');
+    }
+
     public function test_official_can_publish_and_edit_survey_question_sections(): void
     {
         /** @var User $official */
@@ -116,9 +161,11 @@ class SurveySummaryExportTest extends TestCase
                 ['heading' => 'Venue', 'questions' => ['Question three']],
             ],
             'suggestion_enabled' => '1',
+            'research_consent_enabled' => '1',
         ])->assertSessionHasNoErrors();
 
         $survey = Survey::where('title', 'Sectioned survey')->firstOrFail();
+        $this->assertTrue($survey->research_consent_enabled);
         $this->assertSame(['Question one', 'Question two', 'Question three'], $survey->questions);
         $this->assertSame([
             ['heading' => 'Event planning', 'start' => 0],
@@ -153,9 +200,11 @@ class SurveySummaryExportTest extends TestCase
                 ['heading' => 'Planning', 'questions' => ['Updated question']],
             ],
             'suggestion_enabled' => '1',
+            'research_consent_enabled' => '1',
         ])->assertRedirect(route('surveys.manage'));
 
         $survey->refresh();
+        $this->assertTrue($survey->research_consent_enabled);
         $this->assertSame(['Updated question'], $survey->questions);
         $this->assertSame([['heading' => 'Planning', 'start' => 0]], $survey->sections);
     }

@@ -84,6 +84,13 @@
                 <label class="form-check-label" for="suggestionEnabled">Include an optional suggestion box</label>
               </div>
             </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="research_consent_enabled" value="1" id="researchConsentEnabled" @checked(old('research_consent_enabled', $survey->research_consent_enabled))>
+                <label class="form-check-label fw-semibold" for="researchConsentEnabled">Require research consent and respondent demographic profile</label>
+                <div class="form-text">Adds the TalaFair evaluation consent, profile questions, and required agreement to this survey.</div>
+              </div>
+            </div>
           </div>
           <button class="btn btn-yg mt-4"><i class="bi bi-check-circle me-1"></i>Save changes</button>
         </form>

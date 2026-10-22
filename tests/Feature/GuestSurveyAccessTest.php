@@ -64,4 +64,46 @@ class GuestSurveyAccessTest extends TestCase
             ->assertOk()
             ->assertSeeText('You submitted this survey');
     }
+
+    public function test_research_survey_requires_consent_without_collecting_demographic_profile(): void
+    {
+        $guest = User::factory()->create([
+            'role' => 'guest',
+            'is_verified' => false,
+            'points' => 0,
+        ]);
+        $survey = Survey::create([
+            'title' => 'TalaFair evaluation',
+            'due_at' => now()->addDay(),
+            'points' => 0,
+            'questions' => ['How was your experience?'],
+            'audience' => 'public',
+            'research_consent_enabled' => true,
+            'created_by' => $guest->id,
+        ]);
+        $this->actingAs($guest)
+            ->get(route('surveys.show', $survey))
+            ->assertOk()
+            ->assertSeeText('The Researchers:')
+            ->assertSeeText('Camarines Sur Polytechnic Colleges')
+            ->assertSeeText('Your responses are linked to your TalaFair')
+            ->assertSee('name="research_consent"', false)
+            ->assertDontSeeText('Respondent demographic profile')
+            ->assertDontSee('name="research_profile[age]"', false)
+            ->assertDontSee('name="research_profile[user_type]"', false);
+
+        $this->post(route('surveys.respond', $survey), [
+            'answers' => [4],
+        ])->assertSessionHasErrors('research_consent');
+
+        $this->post(route('surveys.respond', $survey), [
+            'answers' => [4],
+            'research_consent' => '1',
+        ])->assertRedirect()
+            ->assertSessionHas('success', 'Your survey response was submitted.');
+
+        $response = $survey->responses()->sole();
+        $this->assertNull($response->research_profile);
+        $this->assertNotNull($response->research_consent_at);
+    }
 }

@@ -54,6 +54,7 @@ class SurveyController extends Controller
             'answers' => ['required', 'array', 'size:' . count($survey->questions)],
             'answers.*' => ['required', 'integer', 'between:1,5'],
             'suggestion' => [$survey->suggestion_enabled ? 'nullable' : 'prohibited', 'string', 'max:2000'],
+            ...$this->researchConsentRules($survey),
         ]);
 
         $respondent = $this->eligibleRespondentQuery($survey)->whereKey($data['respondent_user_id'])->first();
@@ -83,6 +84,7 @@ class SurveyController extends Controller
             'audience' => ['required', 'in:public,youth,senior,family_heads,officials,event_attendees'],
             'event_id' => ['nullable', 'exists:announcements,id'],
             'suggestion_enabled' => ['nullable', 'boolean'],
+            'research_consent_enabled' => ['nullable', 'boolean'],
         ]);
 
         $questionData = $this->flattenQuestionSections($data['sections']);
@@ -100,6 +102,7 @@ class SurveyController extends Controller
             'questions' => $questionData['questions'],
             'sections' => $questionData['sections'],
             'suggestion_enabled' => $request->boolean('suggestion_enabled'),
+            'research_consent_enabled' => $request->boolean('research_consent_enabled'),
             'points' => $data['points'],
             'audience' => $data['audience'],
             'event_id' => $data['event_id'],
@@ -134,6 +137,7 @@ class SurveyController extends Controller
             'audience' => ['required', 'in:public,youth,senior,family_heads,officials,event_attendees'],
             'event_id' => ['nullable', 'exists:announcements,id'],
             'suggestion_enabled' => ['nullable', 'boolean'],
+            'research_consent_enabled' => ['nullable', 'boolean'],
         ]);
 
         $questionData = $this->flattenQuestionSections($data['sections']);
@@ -151,6 +155,7 @@ class SurveyController extends Controller
             'questions' => $questionData['questions'],
             'sections' => $questionData['sections'],
             'suggestion_enabled' => $request->boolean('suggestion_enabled'),
+            'research_consent_enabled' => $request->boolean('research_consent_enabled'),
             'audience' => $data['audience'],
             'event_id' => $data['event_id'],
         ]);
@@ -231,6 +236,7 @@ class SurveyController extends Controller
             'answers' => ['required', 'array', 'size:' . count($survey->questions)],
             'answers.*' => ['required', 'integer', 'between:1,5'],
             'suggestion' => [$survey->suggestion_enabled ? 'nullable' : 'prohibited', 'string', 'max:2000'],
+            ...$this->researchConsentRules($survey),
         ]);
 
         abort_if($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at), 410, 'This survey is closed.');
@@ -256,6 +262,8 @@ class SurveyController extends Controller
                 'user_id' => $respondent->id,
                 'answers' => array_values($data['answers']),
                 'suggestion' => $data['suggestion'] ?? null,
+                'research_profile' => null,
+                'research_consent_at' => $survey->research_consent_enabled ? now() : null,
                 'submitted_at' => now(),
             ]);
 
@@ -283,6 +291,21 @@ class SurveyController extends Controller
                 ->orWhere(fn (Builder $officials) => $officials
                     ->where('role', 'official')
                     ->where('is_verified', true)));
+    }
+
+    private function researchConsentRules(Survey $survey): array
+    {
+        if (! $survey->research_consent_enabled) {
+            return [
+                'research_consent' => ['prohibited'],
+                'research_profile' => ['prohibited'],
+            ];
+        }
+
+        return [
+            'research_consent' => ['accepted'],
+            'research_profile' => ['prohibited'],
+        ];
     }
 
     private function flattenQuestionSections(array $sections): array

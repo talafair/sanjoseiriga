@@ -47,7 +47,8 @@
         <button type="button" id="addSurveySection" class="btn btn-outline-success btn-sm"><i class="bi bi-plus-circle me-1"></i>Add section</button>
         @error('sections')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
       </div>
-      <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="suggestion_enabled" value="1" id="suggestionEnabled" checked><label class="form-check-label" for="suggestionEnabled">Include an optional suggestion box</label></div></div>
+      <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="suggestion_enabled" value="1" id="suggestionEnabled" @checked(old('suggestion_enabled', true))><label class="form-check-label" for="suggestionEnabled">Include an optional suggestion box</label></div></div>
+      <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="research_consent_enabled" value="1" id="researchConsentEnabled" @checked(old('research_consent_enabled'))><label class="form-check-label fw-semibold" for="researchConsentEnabled">Require research consent and respondent demographic profile</label><div class="form-text">Adds the TalaFair evaluation consent, profile questions, and required agreement to this survey.</div></div></div>
     </div>
     <button class="btn btn-yg mt-3"><i class="bi bi-send me-1"></i>Publish survey</button>
   </form>
@@ -64,6 +65,9 @@
             <div class="small text-secondary">
               {{ count($survey->questions) }} questions · Due {{ $survey->due_at?->format('M j, Y g:i A') }}
               · {{ $survey->audience === 'event_attendees' ? 'Event attendees' : ucfirst(str_replace('_', ' ', $survey->audience)) }}
+              @if ($survey->research_consent_enabled)
+                · Research consent required
+              @endif
             </div>
           </div>
           <div class="d-flex gap-2">
@@ -99,15 +103,18 @@
                 <form method="POST" action="{{ route('surveys.responses.store', $survey) }}" class="bg-body border rounded-3 p-3">
                   @csrf
                   <div class="mb-3">
-                    <label class="form-label fw-semibold" for="respondentUser{{ $survey->id }}">Resident or guest</label>
+                    <label class="form-label fw-semibold" for="respondentUser{{ $survey->id }}">Resident, guest, or official</label>
                     <select class="form-select" id="respondentUser{{ $survey->id }}" name="respondent_user_id" required>
-                      <option value="">Select a resident or guest who has not answered</option>
+                      <option value="">Select an eligible account that has not answered</option>
                       @foreach ($survey->respondent_options as $respondent)
                         <option value="{{ $respondent->id }}">{{ $respondent->full_name }} · {{ ucfirst($respondent->role) }}{{ $respondent->unique_id ? ' · ' . $respondent->unique_id : '' }}</option>
                       @endforeach
                     </select>
                   </div>
                   <div class="alert alert-light border small">Enter their answers as provided. Survey points will be awarded to their account.</div>
+                  @if ($survey->research_consent_enabled)
+                    @include('pages.partials.survey-research-consent', ['researchConsentId' => 'recordSurveyConsent' . $survey->id, 'researchConsentAdmin' => true])
+                  @endif
                   @php
                     $recordSectionMarkers = array_values($survey->sections ?: [['heading' => 'Questions', 'start' => 0]]);
                     $recordSectionHeadings = collect($recordSectionMarkers)->mapWithKeys(fn ($section, $sectionIndex) => [
@@ -195,6 +202,8 @@
             'unique_id' => $response->user?->unique_id ?? '—',
             'submitted_at' => $response->submitted_at?->format('M j, Y g:i A') ?? '—',
             'answers' => $response->answers ?? [],
+            'research_profile' => $response->research_profile ?? [],
+            'research_consent_at' => $response->research_consent_at?->format('M j, Y g:i A'),
         ];
     })->values();
     $demographicRespondents = $responses->map(fn ($response) => $response->user)->filter();
@@ -223,6 +232,10 @@
       <span class="fw-bold">{{ $survey->title }} summary</span>
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <span class="badge badge-soft">Due {{ $survey->due_at?->format('M j, Y g:i A') }}</span>
+        <label class="form-check form-check-inline mb-0 d-none-print">
+          <input class="form-check-input" type="checkbox" data-include-respondent-names="{{ $survey->id }}">
+          <span class="form-check-label small">Include names in print summary</span>
+        </label>
         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="printSurveySummary({{ $survey->id }})">Print summary</button>
       </div>
     </div>
@@ -333,8 +346,27 @@
         <h6 class="fw-bold">Survey responses</h6>
         @foreach ($respondentDetails as $respondent)
           <div class="border rounded p-3 mb-3">
-            <div class="fw-semibold">{{ $respondent['user'] }}</div>
+            <div class="fw-semibold">
+              <span class="respondent-name-print">{{ $respondent['user'] }}</span>
+              <span class="respondent-anonymous-print">Respondent {{ $loop->iteration }}</span>
+            </div>
             <div class="small text-secondary">Unique ID: {{ $respondent['unique_id'] }} · Submitted: {{ $respondent['submitted_at'] }}</div>
+            @if ($survey->research_consent_enabled && $respondent['research_profile'])
+              <div class="small mt-2">
+                <span class="fw-semibold">Research profile:</span>
+                @if (filled($respondent['research_profile']['name'] ?? null))
+                  <span class="research-profile-name-print">Name: {{ $respondent['research_profile']['name'] }} ·</span>
+                @endif
+                Age: {{ $respondent['research_profile']['age'] }} ·
+                Sex: {{ ['male' => 'Male', 'female' => 'Female', 'prefer_not_to_say' => 'Prefer not to say'][$respondent['research_profile']['sex']] ?? '—' }} ·
+                Used TalaFair: {{ ucfirst($respondent['research_profile']['used_talafair']) }} ·
+                Role: {{ ['barangay_official' => 'Barangay Official', 'barangay_personnel' => 'Barangay Personnel', 'resident' => 'Resident', 'guest' => 'Guest'][$respondent['research_profile']['user_type']] ?? '—' }}
+                @if (filled($respondent['research_profile']['signature'] ?? null))
+                  · Signature: {{ $respondent['research_profile']['signature'] }}
+                @endif
+                · Consent recorded: {{ $respondent['research_consent_at'] ?? '—' }}
+              </div>
+            @endif
             <ul class="mb-0 mt-2 small ps-3">
               @php
                 $questionNumber = 0;
@@ -366,6 +398,7 @@ function printSurveySummary(surveyId) {
   const target = document.getElementById('surveySummary' + surveyId);
   if (!target) return;
 
+  const includeNames = target.querySelector('[data-include-respondent-names="' + surveyId + '"]')?.checked ?? false;
   const others = document.querySelectorAll('.survey-summary-print');
   const root = document.documentElement;
   const originalTheme = root.dataset.theme;
@@ -375,6 +408,7 @@ function printSurveySummary(surveyId) {
   const originalThemeColor = themeColor?.content;
 
   document.body.classList.add('print-mode');
+  document.body.classList.toggle('print-include-respondent-names', includeNames);
   root.dataset.theme = 'light';
   root.dataset.bsTheme = 'light';
   root.style.colorScheme = 'light';
@@ -388,6 +422,7 @@ function printSurveySummary(surveyId) {
     window.removeEventListener('afterprint', restorePrintState);
     window.clearTimeout(restoreTimer);
     document.body.classList.remove('print-mode');
+    document.body.classList.remove('print-include-respondent-names');
     others.forEach((section) => section.classList.remove('active'));
 
     if (originalTheme === undefined) delete root.dataset.theme;
@@ -465,6 +500,8 @@ function printSurveySummary(surveyId) {
 
 @push('styles')
 <style>
+  .respondent-anonymous-print { display: none; }
+
   @media print {
     body * { visibility: hidden; }
     .survey-summary-print, .survey-summary-print * { visibility: visible; }
@@ -485,6 +522,20 @@ function printSurveySummary(surveyId) {
     .survey-summary-print .list-group,
     .survey-summary-print form,
     .survey-summary-print .page-header {
+      display: none !important;
+    }
+    .survey-summary-print .respondent-name-print,
+    .survey-summary-print .research-profile-name-print {
+      display: none !important;
+    }
+    .survey-summary-print .respondent-anonymous-print {
+      display: inline !important;
+    }
+    body.print-include-respondent-names .survey-summary-print .respondent-name-print,
+    body.print-include-respondent-names .survey-summary-print .research-profile-name-print {
+      display: inline !important;
+    }
+    body.print-include-respondent-names .survey-summary-print .respondent-anonymous-print {
       display: none !important;
     }
   }

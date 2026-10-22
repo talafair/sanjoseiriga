@@ -23,6 +23,9 @@
 				@else
 					<form method="POST" action="{{ route('surveys.respond', $survey) }}">
 						@csrf
+						@if ($survey->research_consent_enabled)
+							@include('pages.partials.survey-research-consent', ['researchConsentId' => 'surveyConsent' . $survey->id])
+						@endif
 						<div class="alert alert-light border small"><strong>Choose one answer for each question:</strong> Strongly Agree, Agree, Neutral, Disagree, or Strongly Disagree.</div>
 						@php
 							$sectionMarkers = array_values($survey->sections ?: [['heading' => 'Questions', 'start' => 0]]);

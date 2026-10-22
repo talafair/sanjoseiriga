@@ -12,6 +12,40 @@ class SuperadminSurveyResponseTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_superadmin_records_research_consent_without_collecting_demographics(): void
+    {
+        $superadmin = User::factory()->create(['role' => User::SUPERADMIN_ROLE]);
+        $resident = User::factory()->create([
+            'role' => 'resident',
+            'is_verified' => true,
+            'points' => 0,
+        ]);
+        $survey = $this->survey($superadmin, 'public', true);
+        $payload = [
+            'respondent_user_id' => $resident->id,
+            'answers' => [5, 3],
+        ];
+
+        $this->actingAs($superadmin)
+            ->post(route('surveys.responses.store', $survey), $payload)
+            ->assertSessionHasErrors('research_consent');
+
+        $this->assertDatabaseCount('survey_responses', 0);
+
+        $this->post(route('surveys.responses.store', $survey), [
+            ...$payload,
+            'research_consent' => '1',
+        ])->assertRedirect()
+            ->assertSessionHas('success', "Survey response recorded for {$resident->full_name}.");
+
+        $response = SurveyResponse::where('survey_id', $survey->id)
+            ->where('user_id', $resident->id)
+            ->sole();
+        $this->assertNull($response->research_profile);
+        $this->assertNotNull($response->research_consent_at);
+        $this->assertSame(20, $resident->fresh()->points);
+    }
+
     public function test_superadmin_can_record_an_eligible_residents_answers_and_award_them_points(): void
     {
         $superadmin = User::factory()->create([
@@ -161,7 +195,7 @@ class SuperadminSurveyResponseTest extends TestCase
         $this->assertDatabaseCount('survey_responses', 0);
     }
 
-    private function survey(User $creator, string $audience = 'public'): Survey
+    private function survey(User $creator, string $audience = 'public', bool $researchConsentEnabled = false): Survey
     {
         return Survey::create([
             'title' => 'Resident feedback',
@@ -170,6 +204,7 @@ class SuperadminSurveyResponseTest extends TestCase
             'questions' => ['Question one', 'Question two'],
             'sections' => [['heading' => 'Feedback', 'start' => 0]],
             'suggestion_enabled' => true,
+            'research_consent_enabled' => $researchConsentEnabled,
             'audience' => $audience,
             'created_by' => $creator->id,
         ]);

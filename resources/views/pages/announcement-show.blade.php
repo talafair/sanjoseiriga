@@ -33,10 +33,10 @@
           </div>
         @endif
 
-        @if ($announcement->is_event && ! $myAttendance && auth()->check() && (! $announcement->isParticipationActivity() || auth()->user()->canAccessOfficialFeatures()))
+        @if ($announcement->is_event && auth()->check() && (! $announcement->isParticipationActivity() || auth()->user()->canAccessOfficialFeatures()) && (! $myAttendance || $canScanAttendance))
           <a href="{{ route('announcements.scan', $announcement) }}" class="btn btn-primary mt-3">
             <i class="bi bi-qr-code-scan me-1"></i>
-            {{ $announcement->isParticipationActivity() ? 'Scan participants' : (auth()->user()->canAccessOfficialFeatures() ? 'Scan resident ID' : 'Scan event QR') }}
+            {{ $announcement->isParticipationActivity() ? 'Scan participants' : ($canScanAttendance ? 'Scan resident ID' : 'Scan event QR') }}
           </a>
           @if ($announcement->isParticipationActivity())
             <span class="small text-secondary ms-2">{{ $announcement->participation_points }} points per resident</span>

@@ -167,6 +167,9 @@ class AnnouncementController extends Controller
             $user->belongsToAudience($announcement->audiences ?: ['public'])
             || $assignedSubstitution !== null
         );
+        $canScanAttendance = $user?->canScanAttendance()
+            && ($user->official_group !== 'personnel'
+                || $announcement->facilitators()->where('user_id', $user->id)->exists());
         $householdMembers = collect();
         $substitution = null;
 
@@ -197,6 +200,7 @@ class AnnouncementController extends Controller
             'myRsvp'       => $myRsvp,
             'myAttendance' => $myAttendance,
             'iAmAudience'  => $iAmAudience,
+            'canScanAttendance' => $canScanAttendance,
             'stats'        => $this->statistics($announcement),
             'rafflePrizes' => $announcement->raffle_enabled
                 ? $announcement->rafflePrizes()->withCount('winners')->get()

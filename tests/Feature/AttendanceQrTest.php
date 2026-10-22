@@ -322,6 +322,67 @@ class AttendanceQrTest extends TestCase
         }
     }
 
+    public function test_attendance_scanner_remains_available_after_operator_own_attendance_is_recorded(): void
+    {
+        [$official, $resident, $event] = $this->attendanceSetup();
+        $superadmin = User::factory()->create([
+            'role' => User::SUPERADMIN_ROLE,
+            'is_verified' => true,
+        ]);
+        $skOfficial = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'sangguniang_kabataan',
+            'official_position' => 'sk_council',
+            'is_verified' => true,
+        ]);
+        $personnel = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'personnel',
+            'official_position' => 'tanod',
+            'is_verified' => true,
+        ]);
+        EventFacilitator::create([
+            'announcement_id' => $event->id,
+            'user_id' => $personnel->id,
+        ]);
+
+        foreach ([$superadmin, $official, $skOfficial, $personnel] as $operator) {
+            $this->actingAs($operator)
+                ->postJson(route('attendance.check'), [
+                    'token' => $event->qr_token,
+                    'announcement_id' => $event->id,
+                    'latitude' => config('talafair.barangay_lat'),
+                    'longitude' => config('talafair.barangay_lng'),
+                ])
+                ->assertOk();
+
+            $this->get(route('announcements.show', $event))
+                ->assertOk()
+                ->assertSee('Your attendance was recorded for this event.')
+                ->assertSee('href="' . route('announcements.scan', $event) . '"', false)
+                ->assertSee('Scan resident ID');
+        }
+
+        $this->actingAs($personnel)
+            ->get(route('announcements.scan', $event))
+            ->assertOk()
+            ->assertSee('Record Attendee');
+
+        $attendeeQr = json_encode([
+            'id' => $resident->unique_id,
+            'sig' => substr(hash_hmac('sha256', $resident->unique_id, config('app.key')), 0, 16),
+        ]);
+        $this->actingAs($personnel)
+            ->postJson(route('attendance.check'), [
+                'token' => $attendeeQr,
+                'announcement_id' => $event->id,
+                'latitude' => config('talafair.barangay_lat'),
+                'longitude' => config('talafair.barangay_lng'),
+            ])
+            ->assertOk()
+            ->assertJsonPath('resident', $resident->full_name);
+    }
+
     public function test_official_early_event_qr_attendance_awards_ten_percent_bonus(): void
     {
         [$official, , $event] = $this->attendanceSetup();

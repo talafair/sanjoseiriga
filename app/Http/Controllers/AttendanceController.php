@@ -42,15 +42,27 @@ class AttendanceController extends Controller
         if ($viewer->isUnverifiedOfficial() || (! $viewer->isOfficial() && ! $viewer->isGuest() && ! $viewer->is_verified)) {
             return $this->fail('Your account must be verified before you can scan attendance.');
         }
+        abort_if(
+            $announcement
+                && $viewer->role === 'official'
+                && $viewer->official_group === 'personnel'
+                && ! $this->isAssignedFacilitator($viewer, $announcement),
+            403,
+            'You are not assigned to facilitate this event.'
+        );
         abort_if($announcement && $viewer->isGuest() && ! $announcement->allow_guest_scanning, 403, 'Guest scanning is not enabled for this event.');
         abort_if($announcement?->isParticipationActivity() && ! $viewer->isOfficial(), 403);
 
         return view('pages.attendance', [
             'prefilledToken' => $token,
             'announcement'   => $announcement,
-            'officialMode'   => $viewer->isOfficial(),
+            'officialMode'   => $viewer->canScanAttendance(),
             'activityMode'   => $announcement?->isParticipationActivity() ?? false,
             'openEvents'     => Announcement::scanningOpen()
+                ->when(
+                    $viewer->role === 'official' && $viewer->official_group === 'personnel',
+                    fn ($query) => $query->whereHas('facilitators', fn ($facilitators) => $facilitators->where('user_id', $viewer->id))
+                )
                 ->orderBy('event_start_at')
                 ->get(),
         ]);
@@ -101,7 +113,7 @@ class AttendanceController extends Controller
                 return $this->fail('That QR code does not belong to this announcement.');
             }
 
-            if (! $event && ! $viewer->isOfficial()) {
+            if (! $event && ! $viewer->canScanAttendance()) {
                 return $this->fail('Invalid event QR code. Please scan this event\'s QR code.');
             }
 
@@ -153,7 +165,7 @@ class AttendanceController extends Controller
         $userCategory = $canFacilitate ? 'official' : 'resident';
 
         // If official, check whether the scanned ID belongs to an attendee.
-        if ($user->isOfficial()) {
+        if ($user->canScanAttendance()) {
             $attendeeResult = $this->tryParseAttendeeQr($data['token']);
             if ($attendeeResult instanceof User) {
                 if ($attendeeResult->isGuest() && ! $event->allow_guest_scanning) {
@@ -179,7 +191,7 @@ class AttendanceController extends Controller
     {
         /** @var User $viewer */
         $viewer = Auth::user();
-        abort_unless($viewer->isOfficial(), 403);
+        abort_unless($viewer->canScanAttendance(), 403);
 
         $data = $request->validate([
             'announcement_id' => ['required', 'integer', 'exists:announcements,id'],
@@ -196,6 +208,13 @@ class AttendanceController extends Controller
         }
 
         $event = Announcement::events()->findOrFail($data['announcement_id']);
+        abort_if(
+            $viewer->role === 'official'
+                && $viewer->official_group === 'personnel'
+                && ! $this->isAssignedFacilitator($viewer, $event),
+            403,
+            'You are not assigned to facilitate this event.'
+        );
         $attendee = $this->attendeeByUniqueId(trim($data['unique_id']));
 
         if (! $attendee) {

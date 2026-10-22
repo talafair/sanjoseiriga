@@ -91,10 +91,10 @@
           <div class="border border-primary-subtle rounded-3 bg-primary-subtle p-3 mt-3">
             @if ($survey->due_at && now()->lessThan($survey->due_at) && $survey->respondent_options->isNotEmpty())
               <button class="btn btn-primary fw-semibold px-3 py-2" type="button" data-bs-toggle="collapse" data-bs-target="#recordSurveyResponse{{ $survey->id }}" aria-expanded="false" aria-controls="recordSurveyResponse{{ $survey->id }}">
-                <i class="bi bi-person-lines-fill me-2" aria-hidden="true"></i>Record response for resident or guest
+                <i class="bi bi-person-lines-fill me-2" aria-hidden="true"></i>Record response for resident, guest, or official
                 <i class="bi bi-chevron-down ms-1" aria-hidden="true"></i>
               </button>
-              <p class="small text-body-secondary mt-2 mb-0">Enter a resident’s or guest’s answers on their behalf and award them the survey points.</p>
+              <p class="small text-body-secondary mt-2 mb-0">Enter a resident’s, guest’s, or official’s answers on their behalf and award them the survey points.</p>
               <div class="collapse mt-3" id="recordSurveyResponse{{ $survey->id }}">
                 <form method="POST" action="{{ route('surveys.responses.store', $survey) }}" class="bg-body border rounded-3 p-3">
                   @csrf
@@ -130,7 +130,7 @@
                       <div class="d-flex flex-wrap gap-3">
                         @foreach ([5 => 'Strongly Agree', 4 => 'Agree', 3 => 'Neutral', 2 => 'Disagree', 1 => 'Strongly Disagree'] as $value => $label)
                           <div class="form-check">
-                            <input class="form-check-input" type="radio" name="answers[{{ $questionIndex }}]" id="adminAnswer{{ $survey->id }}{{ $questionIndex }}{{ $value }}" value="{{ $value }}" required>
+                            <input class="form-check-input" type="radio" name="answers[{{ $questionIndex }}]" id="adminAnswer{{ $survey->id }}{{ $questionIndex }}{{ $value }}" value="{{ $value }}" required @checked((int) old('answers.' . $questionIndex, 5) === $value)>
                             <label class="form-check-label" for="adminAnswer{{ $survey->id }}{{ $questionIndex }}{{ $value }}">{{ $label }}</label>
                           </div>
                         @endforeach
@@ -143,7 +143,7 @@
                       <textarea class="form-control" id="adminSuggestion{{ $survey->id }}" name="suggestion" rows="3" maxlength="2000"></textarea>
                     </div>
                   @endif
-                  <button class="btn btn-yg"><i class="bi bi-check2 me-1"></i>Save resident response</button>
+                  <button class="btn btn-yg"><i class="bi bi-check2 me-1"></i>Save response</button>
                 </form>
               </div>
             @else
@@ -151,7 +151,7 @@
                 @if ($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at))
                   This survey is closed.
                 @else
-                  No eligible residents or guests remain to answer.
+                  No eligible residents, guests, or officials remain to answer.
                 @endif
               </span>
             @endif

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\Auditable;
+use App\Services\UniqueIdGenerator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
@@ -121,6 +122,15 @@ class User extends Authenticatable implements CanResetPasswordContract
                     $value = trim((string) $user->getAttribute($field));
                     $user->setAttribute($field, $value === '' ? null : Str::title($value));
                 }
+            }
+        });
+
+        static::updating(function (User $user): void {
+            if (
+                $user->isDirty('zone')
+                && preg_match('/^G?Z[^-]+-/', (string) $user->unique_id)
+            ) {
+                $user->unique_id = UniqueIdGenerator::for($user);
             }
         });
     }

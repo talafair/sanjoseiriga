@@ -57,11 +57,11 @@ class SurveyController extends Controller
         ]);
 
         $respondent = $this->eligibleRespondentQuery($survey)->whereKey($data['respondent_user_id'])->first();
-        abort_unless($respondent, 403, 'This resident or guest is not eligible to answer this survey.');
+        abort_unless($respondent, 403, 'This account is not eligible to answer this survey.');
         abort_if(
             SurveyResponse::where('survey_id', $survey->id)->where('user_id', $respondent->id)->exists(),
             409,
-            'This resident or guest has already answered this survey.'
+            'This account has already answered this survey.'
         );
 
         $this->createResponse($survey, $respondent, $data);
@@ -279,6 +279,9 @@ class SurveyController extends Controller
                 ->where('role', 'guest')
                 ->orWhere(fn (Builder $residents) => $residents
                     ->where('role', 'resident')
+                    ->where('is_verified', true))
+                ->orWhere(fn (Builder $officials) => $officials
+                    ->where('role', 'official')
                     ->where('is_verified', true)));
     }
 

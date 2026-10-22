@@ -82,6 +82,37 @@ class UserManagementTest extends TestCase
         $this->assertSame('1990-01-01', $user->fresh()->birthdate->toDateString());
     }
 
+    public function test_editing_a_users_zone_regenerates_their_zone_based_id(): void
+    {
+        $official = $this->managementSuperadmin();
+        $year = now()->format('y');
+        $user = User::factory()->create([
+            'role' => 'resident',
+            'username' => 'zone-update-target',
+            'zone' => '1',
+            'unique_id' => "Z1-{$year}000000001",
+        ]);
+        User::factory()->create([
+            'role' => 'resident',
+            'zone' => '2',
+            'unique_id' => "Z2-{$year}000000123",
+        ]);
+
+        $payload = $this->userPayload('resident', 23);
+        $payload['username'] = $user->username;
+        $payload['email'] = $user->email;
+        $payload['zone'] = '2';
+        unset($payload['password'], $payload['password_confirmation']);
+
+        $this->actingAs($official)
+            ->put(route('users.update', $user), $payload)
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('2', $user->fresh()->zone);
+        $this->assertSame("Z2-{$year}000000124", $user->fresh()->unique_id);
+    }
+
     public function test_password_update_is_audited_separately_and_notifies_superadmins_without_exposing_password(): void
     {
         $superadmin = $this->managementSuperadmin();

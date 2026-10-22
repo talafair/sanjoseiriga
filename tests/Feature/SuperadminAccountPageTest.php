@@ -57,12 +57,20 @@ class SuperadminAccountPageTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_official_profile_edit_persists_sjtoda_and_bpc_classifications(): void
+    public function test_official_profile_edit_persists_classifications_and_updates_zone_based_id(): void
     {
+        $year = now()->format('y');
         $official = User::factory()->create([
             'role' => 'official',
             'official_group' => 'barangay_council',
             'official_position' => 'kagawad',
+            'zone' => '1',
+            'unique_id' => "Z1-{$year}000000001",
+        ]);
+        User::factory()->create([
+            'role' => 'resident',
+            'zone' => '2',
+            'unique_id' => "Z2-{$year}000000123",
         ]);
 
         $this->actingAs($official)
@@ -77,7 +85,7 @@ class SuperadminAccountPageTest extends TestCase
                 'contact_number' => '09170000000',
                 'house_no' => '10',
                 'street' => 'Main Street',
-                'zone' => '1',
+                'zone' => '2',
                 'email' => $official->email,
                 'official_group' => 'barangay_council',
                 'official_position' => 'kagawad',
@@ -91,6 +99,7 @@ class SuperadminAccountPageTest extends TestCase
             'is_sjtoda' => true,
             'is_bpc' => true,
         ]);
+        $this->assertSame("Z2-{$year}000000124", $official->fresh()->unique_id);
     }
 
     public function test_official_audience_notifications_include_superadmins_but_not_personnel(): void

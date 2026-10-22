@@ -31,6 +31,22 @@ class SuperadminSurveyResponseTest extends TestCase
             'role' => 'guest',
             'is_verified' => false,
         ]);
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'is_verified' => true,
+            'points' => 0,
+        ]);
+        $unverifiedOfficial = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'is_verified' => false,
+        ]);
+        $personnel = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'personnel',
+            'is_verified' => true,
+        ]);
         $survey = $this->survey($superadmin);
 
         SurveyResponse::create([
@@ -43,10 +59,15 @@ class SuperadminSurveyResponseTest extends TestCase
         $this->actingAs($superadmin)
             ->get(route('surveys.manage'))
             ->assertOk()
-            ->assertSee('Record response for resident or guest')
+            ->assertSee('Record response for resident, guest, or official')
             ->assertSee('<option value="' . $resident->id . '"', false)
             ->assertSee('<option value="' . $guest->id . '"', false)
-            ->assertDontSee('<option value="' . $alreadyAnswered->id . '"', false);
+            ->assertSee('<option value="' . $official->id . '"', false)
+            ->assertSee('<option value="' . $personnel->id . '"', false)
+            ->assertDontSee('<option value="' . $unverifiedOfficial->id . '"', false)
+            ->assertDontSee('<option value="' . $alreadyAnswered->id . '"', false)
+            ->assertSee('name="answers[0]" id="adminAnswer' . $survey->id . '05" value="5" required checked', false)
+            ->assertSee('name="answers[1]" id="adminAnswer' . $survey->id . '15" value="5" required checked', false);
 
         $this->post(route('surveys.responses.store', $survey), [
             'respondent_user_id' => $resident->id,
@@ -72,13 +93,29 @@ class SuperadminSurveyResponseTest extends TestCase
         $this->assertSame(20, $guest->fresh()->points);
 
         $this->post(route('surveys.responses.store', $survey), [
+            'respondent_user_id' => $official->id,
+            'answers' => [3, 4],
+        ])->assertRedirect()
+            ->assertSessionHas('success', "Survey response recorded for {$official->full_name}.");
+        $this->assertSame(20, $official->fresh()->points);
+
+        $this->post(route('surveys.responses.store', $survey), [
+            'respondent_user_id' => $personnel->id,
+            'answers' => [4, 5],
+        ])->assertRedirect()
+            ->assertSessionHas('success', "Survey response recorded for {$personnel->full_name}.");
+        $this->assertSame(20, $personnel->fresh()->points);
+
+        $this->post(route('surveys.responses.store', $survey), [
             'respondent_user_id' => $resident->id,
             'answers' => [5, 2],
         ])->assertConflict();
 
         $this->assertSame(25, $resident->fresh()->points);
         $this->assertSame(20, $guest->fresh()->points);
-        $this->assertDatabaseCount('survey_responses', 3);
+        $this->assertSame(20, $official->fresh()->points);
+        $this->assertSame(20, $personnel->fresh()->points);
+        $this->assertDatabaseCount('survey_responses', 5);
     }
 
     public function test_verified_official_cannot_record_responses_on_behalf_of_residents(): void

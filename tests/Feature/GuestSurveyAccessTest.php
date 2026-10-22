@@ -22,7 +22,7 @@ class GuestSurveyAccessTest extends TestCase
             'title' => 'Public guest survey',
             'due_at' => now()->addDay(),
             'points' => 10,
-            'questions' => ['How was the event?'],
+            'questions' => ['How was the event?', 'Would you recommend it?'],
             'audience' => 'public',
             'created_by' => $guest->id,
         ]);
@@ -43,11 +43,12 @@ class GuestSurveyAccessTest extends TestCase
 
         $this->get(route('surveys.show', $survey))
             ->assertOk()
-            ->assertSee('name="answers[0]"', false);
+            ->assertSee('name="answers[0]" id="answer05" value="5" required checked', false)
+            ->assertSee('name="answers[1]" id="answer15" value="5" required checked', false);
         $this->get(route('surveys.show', $restrictedSurvey))->assertForbidden();
 
         $this->post(route('surveys.respond', $survey), [
-            'answers' => [5],
+            'answers' => [5, 5],
         ])->assertRedirect()
             ->assertSessionHas('success', 'Your survey response was submitted.');
 

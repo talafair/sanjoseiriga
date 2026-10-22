@@ -66,8 +66,10 @@ class SuperadminSurveyResponseTest extends TestCase
             ->assertSee('<option value="' . $personnel->id . '"', false)
             ->assertDontSee('<option value="' . $unverifiedOfficial->id . '"', false)
             ->assertDontSee('<option value="' . $alreadyAnswered->id . '"', false)
-            ->assertSee('name="answers[0]" id="adminAnswer' . $survey->id . '05" value="5" required checked', false)
-            ->assertSee('name="answers[1]" id="adminAnswer' . $survey->id . '15" value="5" required checked', false);
+            ->assertSee('name="answers[0]" id="adminAnswer' . $survey->id . '05" value="5" required', false)
+            ->assertSee('name="answers[1]" id="adminAnswer' . $survey->id . '15" value="5" required', false)
+            ->assertDontSee('name="answers[0]" id="adminAnswer' . $survey->id . '05" value="5" required checked', false)
+            ->assertDontSee('name="answers[1]" id="adminAnswer' . $survey->id . '15" value="5" required checked', false);
 
         $this->post(route('surveys.responses.store', $survey), [
             'respondent_user_id' => $resident->id,

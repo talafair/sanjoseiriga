@@ -43,8 +43,10 @@ class GuestSurveyAccessTest extends TestCase
 
         $this->get(route('surveys.show', $survey))
             ->assertOk()
-            ->assertSee('name="answers[0]" id="answer05" value="5" required checked', false)
-            ->assertSee('name="answers[1]" id="answer15" value="5" required checked', false);
+            ->assertSee('name="answers[0]" id="answer05" value="5" required', false)
+            ->assertSee('name="answers[1]" id="answer15" value="5" required', false)
+            ->assertDontSee('name="answers[0]" id="answer05" value="5" required checked', false)
+            ->assertDontSee('name="answers[1]" id="answer15" value="5" required checked', false);
         $this->get(route('surveys.show', $restrictedSurvey))->assertForbidden();
 
         $this->post(route('surveys.respond', $survey), [

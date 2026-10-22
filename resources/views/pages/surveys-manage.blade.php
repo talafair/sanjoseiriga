@@ -130,7 +130,7 @@
                       <div class="d-flex flex-wrap gap-3">
                         @foreach ([5 => 'Strongly Agree', 4 => 'Agree', 3 => 'Neutral', 2 => 'Disagree', 1 => 'Strongly Disagree'] as $value => $label)
                           <div class="form-check">
-                            <input class="form-check-input" type="radio" name="answers[{{ $questionIndex }}]" id="adminAnswer{{ $survey->id }}{{ $questionIndex }}{{ $value }}" value="{{ $value }}" required @checked((int) old('answers.' . $questionIndex, 5) === $value)>
+                            <input class="form-check-input" type="radio" name="answers[{{ $questionIndex }}]" id="adminAnswer{{ $survey->id }}{{ $questionIndex }}{{ $value }}" value="{{ $value }}" required @checked(old('answers.' . $questionIndex) !== null && (int) old('answers.' . $questionIndex) === $value)>
                             <label class="form-check-label" for="adminAnswer{{ $survey->id }}{{ $questionIndex }}{{ $value }}">{{ $label }}</label>
                           </div>
                         @endforeach

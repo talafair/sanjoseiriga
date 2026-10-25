@@ -58,7 +58,7 @@
             @php($attendance = $attendees->get($index))
             <tr>
                 <td class="number">{{ $index + 1 }}</td>
-                <td>{{ $attendance?->user?->full_name }}{{ $attendance ? ' (' . ucfirst($attendance->user_category) . ')' : '' }}</td>
+                <td>{{ $attendance?->user?->full_name }}{{ $attendance ? ' (' . ($attendance->user?->isGuest() ? 'Guest' : ucfirst($attendance->user_category)) . ')' : '' }}</td>
                 <td>{{ $attendance?->user?->zone ? 'Zone ' . $attendance->user->zone : '' }}</td>
                 <td>{{ $attendance?->scanned_at?->format('g:i A') }}</td>
                 <td></td>

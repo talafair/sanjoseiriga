@@ -409,6 +409,38 @@ class AnnouncementController extends Controller
         ]);
     }
 
+    public function notCheckedIn(Announcement $announcement)
+    {
+        abort_unless($announcement->is_event, 404);
+
+        $attendedUserIds = $announcement->attendances()->select('user_id');
+        $audienceUserIds = $announcement->audienceQuery()->select('users.id');
+        $substituteUserIds = EventSubstitution::where('announcement_id', $announcement->id)
+            ->select('substitute_user_id');
+        $audiences = $announcement->audiences ?: ['public'];
+
+        $users = User::query()
+            ->whereNotIn('id', $attendedUserIds)
+            ->where(function ($query) use ($audienceUserIds, $substituteUserIds) {
+                $query->whereIn('id', $audienceUserIds)
+                    ->orWhereIn('id', $substituteUserIds);
+            })
+            ->where(function ($query) use ($announcement, $audiences) {
+                $query->where('role', 'resident');
+                if ($announcement->allow_guest_scanning) {
+                    $query->orWhere('role', 'guest');
+                }
+                if (in_array('officials', $audiences, true)) {
+                    $query->orWhereIn('role', ['official', User::SUPERADMIN_ROLE]);
+                }
+            })
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->paginate(50);
+
+        return view('pages.announcement-not-checked-in', compact('announcement', 'users'));
+    }
+
     /* ------------------------------------------------------------------
      | Helpers
      * ------------------------------------------------------------------*/

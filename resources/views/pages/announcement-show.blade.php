@@ -258,6 +258,9 @@
                        value="{{ $announcement->rsvp_due_at?->format('Y-m-d\TH:i') }}">
                 <button class="btn btn-dark btn-sm fw-semibold mt-2">Extend</button>
               </form>
+              <a href="{{ route('announcements.not-checked-in', $announcement) }}" class="btn btn-primary btn-sm fw-semibold mt-2">
+                <i class="bi bi-person-x me-1"></i>View who has not checked in
+              </a>
             </div>
 
             <div class="col-md-6">

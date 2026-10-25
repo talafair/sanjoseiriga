@@ -60,10 +60,13 @@ class UserManagementController extends Controller
         $data['official_position'] = $data['role'] === 'official' ? $data['official_position'] : null;
         $data['is_verified'] = true;
         $data['password'] = Hash::make($data['password']);
-        $data['gender'] = in_array($data['sex_at_birth'], ['female', 'male'], true) ? $data['sex_at_birth'] : null;
-        $data['gender_other'] = null;
-        $data['gender_identity_other'] = $data['preferred_gender_identity'] === 'self_describe' ? ($data['gender_identity_other'] ?? null) : null;
         $data['is_lgbtqia'] = (bool) ($data['is_lgbtqia'] ?? false);
+        $isGuest = $data['role'] === 'guest';
+        $data['gender'] = $isGuest ? $data['gender'] : (in_array($data['sex_at_birth'], ['female', 'male'], true) ? $data['sex_at_birth'] : null);
+        $data['gender_other'] = $isGuest && $data['gender'] === 'others' ? ($data['gender_other'] ?? null) : null;
+        $data['sex_at_birth'] = $isGuest ? null : $data['sex_at_birth'];
+        $data['preferred_gender_identity'] = $isGuest ? null : $data['preferred_gender_identity'];
+        $data['gender_identity_other'] = ! $isGuest && $data['preferred_gender_identity'] === 'self_describe' ? ($data['gender_identity_other'] ?? null) : null;
         $data['is_student'] = (bool) ($data['is_student'] ?? false);
         $data['student_level'] = $data['is_student'] ? ($data['student_level'] ?? null) : null;
         $data['is_pwd'] = (bool) ($data['is_pwd'] ?? false);
@@ -75,11 +78,16 @@ class UserManagementController extends Controller
         $data['school_other'] = $data['is_student'] && strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? ($data['school_other'] ?? null) : null;
         $data['school'] = $data['is_student'] ? (strcasecmp((string) ($data['school'] ?? ''), 'other') === 0 ? 'Other' : $data['school']) : null;
         $data['points'] = 0;
-        $data['barangay'] = 'San Jose';
-        $data['city'] = 'Iriga City';
-        $data['province'] = 'Camarines Sur';
-        $data['country'] = 'Philippines';
-        $data['postal_code'] = '4431';
+        $data['barangay'] = $isGuest ? $data['barangay'] : 'San Jose';
+        $data['city'] = $isGuest ? $data['city'] : 'Iriga City';
+        $data['province'] = $isGuest ? $data['province'] : 'Camarines Sur';
+        $data['country'] = $isGuest ? $data['country'] : 'Philippines';
+        $data['postal_code'] = $isGuest ? $data['postal_code'] : '4431';
+        $data['is_head_of_family'] = ! $isGuest && (bool) ($data['is_head_of_family'] ?? false);
+        if ($isGuest) {
+            $data['head_of_family_id'] = null;
+            $data['head_of_family_name'] = null;
+        }
 
         if (! empty($data['head_of_family_id'])) {
             $data['head_of_family_name'] = User::findOrFail($data['head_of_family_id'])->full_name;
@@ -91,7 +99,7 @@ class UserManagementController extends Controller
         UserNotification::create([
             'user_id' => $user->id,
             'title' => 'Account created by an official',
-            'body' => 'An official created your resident account. You can now sign in using the credentials provided to you.',
+            'body' => "An official created your {$data['role']} account. You can now sign in using the credentials provided to you.",
             'created_by' => $request->user()->id,
         ]);
 
@@ -204,7 +212,9 @@ class UserManagementController extends Controller
 
     private function validateProfile(Request $request, bool $creating = false): array
     {
-        if (! $request->has('sex_at_birth') && $request->has('gender')) {
+        $isGuestCreation = $creating && $request->input('role') === 'guest';
+
+        if (! $isGuestCreation && ! $request->has('sex_at_birth') && $request->has('gender')) {
             $legacyGender = $request->input('gender');
             $request->merge([
                 'sex_at_birth' => in_array($legacyGender, ['female', 'male'], true) ? $legacyGender : 'prefer_not_to_say',
@@ -224,9 +234,11 @@ class UserManagementController extends Controller
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'suffix' => ['nullable', 'string', 'max:20'],
-            'sex_at_birth' => ['required', Rule::in(['female', 'male', 'prefer_not_to_say'])],
-            'preferred_gender_identity' => ['required', Rule::in(['woman', 'man', 'non_binary', 'transgender_woman', 'transgender_man', 'genderqueer', 'self_describe', 'prefer_not_to_say'])],
+            'sex_at_birth' => [$isGuestCreation ? 'prohibited' : 'required', Rule::in(['female', 'male', 'prefer_not_to_say'])],
+            'preferred_gender_identity' => [$isGuestCreation ? 'prohibited' : 'required', Rule::in(['woman', 'man', 'non_binary', 'transgender_woman', 'transgender_man', 'genderqueer', 'self_describe', 'prefer_not_to_say'])],
             'gender_identity_other' => ['nullable', 'required_if:preferred_gender_identity,self_describe', 'string', 'max:255'],
+            'gender' => [$isGuestCreation ? 'required' : 'nullable', Rule::in(['female', 'male', 'others'])],
+            'gender_other' => ['nullable', 'string', 'max:255'],
             'is_lgbtqia' => ['nullable', 'boolean'],
             'birthdate' => ['required', 'date', 'before_or_equal:today'],
             'contact_number' => ['nullable', 'string', 'max:20'],
@@ -244,14 +256,20 @@ class UserManagementController extends Controller
             'house_no' => ['required', 'string', 'max:255'],
             'street' => ['required', 'string', 'max:255'],
             'zone' => ['required', 'string', 'max:10', 'regex:/^[0-9]+$/'],
+            'barangay' => [$isGuestCreation ? 'required' : 'nullable', 'string', 'max:255'],
+            'city' => [$isGuestCreation ? 'required' : 'nullable', 'string', 'max:255'],
+            'province' => [$isGuestCreation ? 'required' : 'nullable', 'string', 'max:255'],
+            'country' => [$isGuestCreation ? 'required' : 'nullable', 'string', 'max:255'],
+            'postal_code' => [$isGuestCreation ? 'required' : 'nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($request->route('user'))],
             'head_of_family_id' => [
                 'nullable',
+                Rule::prohibitedIf($isGuestCreation),
                 Rule::requiredIf(fn () => $request->input('role') === 'resident' && ! $request->boolean('is_head_of_family')),
                 Rule::exists('users', 'id')->where(fn ($query) => $query->where('is_head_of_family', true)),
             ],
-            'head_of_family_name' => ['nullable', 'string', 'max:255'],
-            'is_head_of_family' => ['nullable', 'boolean'],
+            'head_of_family_name' => [$isGuestCreation ? 'prohibited' : 'nullable', 'string', 'max:255'],
+            'is_head_of_family' => [$isGuestCreation ? 'prohibited' : 'nullable', 'boolean'],
             'role' => ['required', Rule::in(array_keys(User::CATEGORIES))],
             'official_group' => ['nullable', 'required_if:role,official', 'in:' . implode(',', array_keys($positions))],
             'official_position' => ['nullable', 'required_if:role,official', 'in:' . implode(',', collect($positions)->flatMap(fn ($group) => array_keys($group['positions']))->all())],

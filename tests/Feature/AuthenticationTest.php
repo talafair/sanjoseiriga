@@ -377,6 +377,73 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_resident_registration_links_a_member_to_the_selected_household_head(): void
+    {
+        $head = User::factory()->create([
+            'first_name' => 'Household',
+            'last_name' => 'Head',
+            'is_head_of_family' => true,
+            'role' => 'resident',
+        ]);
+
+        $this->post(route('register.store'), $this->registrationPayload([
+            'first_name' => 'Household',
+            'last_name' => 'Member',
+            'is_head_of_family' => '0',
+            'head_of_family_id' => $head->id,
+            'username' => 'household-member',
+        ]))->assertRedirect(route('id-card.show'));
+
+        $member = User::where('username', 'household-member')->firstOrFail();
+        $this->assertSame($head->id, $member->head_of_family_id);
+        $this->assertSame($head->full_name, $member->head_of_family_name);
+        $this->assertFalse($member->is_head_of_family);
+    }
+
+    public function test_resident_registration_rejects_a_user_who_is_not_a_household_head(): void
+    {
+        $notAHead = User::factory()->create([
+            'is_head_of_family' => false,
+            'role' => 'resident',
+        ]);
+
+        $this->from(route('register'))
+            ->post(route('register.store'), $this->registrationPayload([
+                'is_head_of_family' => '0',
+                'head_of_family_id' => $notAHead->id,
+                'username' => 'invalid-household-member',
+            ]))
+            ->assertRedirect(route('register'))
+            ->assertSessionHasErrors('head_of_family_id');
+
+        $this->assertDatabaseMissing('users', ['username' => 'invalid-household-member']);
+    }
+
+    public function test_account_page_shows_the_member_and_household_head(): void
+    {
+        $head = User::factory()->create([
+            'first_name' => 'Household',
+            'last_name' => 'Head',
+            'is_head_of_family' => true,
+            'role' => 'resident',
+        ]);
+        $member = User::factory()->create([
+            'first_name' => 'Household',
+            'last_name' => 'Member',
+            'is_head_of_family' => false,
+            'head_of_family_id' => $head->id,
+            'head_of_family_name' => $head->full_name,
+            'role' => 'resident',
+        ]);
+
+        $this->actingAs($member)
+            ->get(route('account'))
+            ->assertOk()
+            ->assertSee('My household')
+            ->assertSee($head->full_name)
+            ->assertSee($member->full_name);
+    }
+
     public function test_public_registration_rejects_forged_superadmin_role(): void
     {
         $this->from(route('register'))

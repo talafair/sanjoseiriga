@@ -152,6 +152,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/manage/announcements',                         [AnnouncementController::class, 'index'])->name('announcements.index');
         Route::get('/manage/announcements/create',                  [AnnouncementController::class, 'create'])->name('announcements.create');
         Route::post('/manage/announcements',                        [AnnouncementController::class, 'store'])->name('announcements.store');
+        Route::get('/manage/announcements/{announcement}/not-checked-in', [AnnouncementController::class, 'notCheckedIn'])->name('announcements.not-checked-in');
         Route::get('/manage/announcements/{announcement}/edit',     [AnnouncementController::class, 'edit'])->name('announcements.edit');
         Route::put('/manage/announcements/{announcement}',          [AnnouncementController::class, 'update'])->name('announcements.update');
         Route::delete('/manage/announcements/{announcement}',       [AnnouncementController::class, 'destroy'])->name('announcements.destroy');

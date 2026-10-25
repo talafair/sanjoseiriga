@@ -14,7 +14,10 @@ class TriviaRankingsTest extends TestCase
 
     public function test_trivia_rankings_section_is_visible_when_there_are_no_themes(): void
     {
-        $this->get(route('games.index'))
+        $viewer = User::factory()->create(['role' => 'resident', 'is_verified' => true]);
+
+        $this->actingAs($viewer)
+            ->get(route('games.index'))
             ->assertOk()
             ->assertSee('Trivia rankings')
             ->assertSee('No trivia themes have been published yet.');
@@ -23,7 +26,7 @@ class TriviaRankingsTest extends TestCase
     public function test_aggregate_rankings_use_saved_trivia_points_and_share_tied_ranks(): void
     {
         $theme = $this->theme();
-        $first = User::factory()->create(['name' => 'First Player', 'points' => 9000]);
+        $first = User::factory()->create(['name' => 'First Player', 'points' => 9000, 'is_verified' => true]);
         $tied = User::factory()->create(['name' => 'Tied Player', 'points' => 0]);
         $third = User::factory()->create(['name' => 'Third Player', 'points' => 5000]);
         $noAnswers = User::factory()->create(['name' => 'No Answers']);
@@ -33,7 +36,8 @@ class TriviaRankingsTest extends TestCase
         $this->answer($theme, $tied, 0, 50);
         $this->answer($theme, $third, 0, 20);
 
-        $rankings = $this->getJson(route('games.rankings', ['trivia_period' => 'all']))
+        $rankings = $this->actingAs($first)
+            ->getJson(route('games.rankings', ['trivia_period' => 'all']))
             ->assertOk()
             ->json('trivia.aggregate');
 
@@ -51,11 +55,12 @@ class TriviaRankingsTest extends TestCase
     public function test_theme_rankings_use_saved_trivia_results_and_exclude_users_without_answers(): void
     {
         $theme = $this->theme();
-        $player = User::factory()->create(['name' => 'Trivia Player']);
+        $player = User::factory()->create(['name' => 'Trivia Player', 'is_verified' => true]);
         $noAnswers = User::factory()->create(['name' => 'Not Played']);
         $this->answer($theme, $player, 0, 35);
 
-        $rankings = $this->getJson(route('games.rankings', ['trivia_period' => 'today']))
+        $rankings = $this->actingAs($player)
+            ->getJson(route('games.rankings', ['trivia_period' => 'today']))
             ->assertOk()
             ->json("trivia.{$theme->id}");
 
@@ -69,7 +74,7 @@ class TriviaRankingsTest extends TestCase
     public function test_player_cannot_submit_a_second_answer_for_the_same_theme_question(): void
     {
         $theme = $this->theme();
-        $player = User::factory()->create();
+        $player = User::factory()->create(['role' => 'resident', 'is_verified' => true]);
         $payload = ['question_index' => 0, 'answer' => 'Correct'];
 
         $this->actingAs($player)

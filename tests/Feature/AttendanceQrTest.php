@@ -46,6 +46,56 @@ class AttendanceQrTest extends TestCase
             ->assertDontSee('Invalid event QR code. Please scan the QR code for the correct event.');
     }
 
+    public function test_attendance_history_only_shows_the_signed_in_users_check_ins(): void
+    {
+        [, $resident, $event] = $this->attendanceSetup();
+        $otherResident = User::factory()->create(['role' => 'resident']);
+        $otherEvent = Announcement::create([
+            'title' => 'Another resident event',
+            'category' => 'events',
+            'body' => 'Attendance history test.',
+            'is_event' => true,
+            'event_start_at' => now()->subHour(),
+            'event_end_at' => now()->addHour(),
+            'audiences' => ['public'],
+        ]);
+
+        Attendance::create([
+            'announcement_id' => $event->id,
+            'user_id' => $resident->id,
+            'scanned_at' => now(),
+            'points_awarded' => 100,
+        ]);
+        Attendance::create([
+            'announcement_id' => $otherEvent->id,
+            'user_id' => $otherResident->id,
+            'scanned_at' => now(),
+        ]);
+
+        $this->actingAs($resident)
+            ->get(route('attendance.history'))
+            ->assertOk()
+            ->assertSee('Test event')
+            ->assertDontSee('Another resident event');
+    }
+
+    public function test_attendance_rejects_coordinates_outside_valid_ranges(): void
+    {
+        [$official, , $event] = $this->attendanceSetup();
+
+        $this->actingAs($official)
+            ->postJson(route('attendance.check'), [
+                'token' => $event->qr_token,
+                'announcement_id' => $event->id,
+                'latitude' => 91,
+                'longitude' => config('talafair.barangay_lng'),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('latitude');
+
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
     public function test_signed_resident_qr_uses_the_same_attendance_processing(): void
     {
         [$official, $resident, $event] = $this->attendanceSetup();
@@ -151,6 +201,24 @@ class AttendanceQrTest extends TestCase
             'user_id' => $guest->id,
             'attendance_method' => 'official_qr_scan',
         ]);
+    }
+
+    public function test_attendance_sheet_labels_guest_attendees_as_guests(): void
+    {
+        $guest = User::factory()->create([
+            'role' => 'guest',
+            'first_name' => 'Printed',
+            'last_name' => 'Guest',
+        ]);
+        $attendance = new Attendance(['user_category' => 'resident']);
+        $attendance->setRelation('user', $guest);
+
+        $html = view('pdf.attendance-sheet', [
+            'announcement' => new Announcement(['title' => 'Guest category print test']),
+            'attendees' => collect([$attendance]),
+        ])->render();
+
+        $this->assertStringContainsString('Printed Guest (Guest)', $html);
     }
 
     public function test_official_can_record_guest_attendance_by_unique_id_when_enabled(): void

@@ -25,7 +25,33 @@ class UserManagementTest extends TestCase
                 'username' => "managed-{$category}-{$index}",
                 'role' => $category,
             ]);
+            if ($category === 'guest') {
+                $this->assertDatabaseHas('users', [
+                    'username' => "managed-{$category}-{$index}",
+                    'gender' => 'female',
+                    'barangay' => 'West District',
+                    'city' => 'Naga City',
+                    'province' => 'Camarines Sur',
+                    'country' => 'Philippines',
+                    'postal_code' => '4400',
+                    'sex_at_birth' => null,
+                    'preferred_gender_identity' => null,
+                    'is_head_of_family' => false,
+                ]);
+            }
         }
+    }
+
+    public function test_add_user_form_includes_guest_registration_fields(): void
+    {
+        $this->actingAs($this->managementOfficial())
+            ->get(route('users.create'))
+            ->assertOk()
+            ->assertSee('data-user-roles="guest"', false)
+            ->assertSee('name="gender"', false)
+            ->assertSee('name="barangay"', false)
+            ->assertSee('name="city"', false)
+            ->assertSee('name="postal_code"', false);
     }
 
     public function test_add_user_rejects_an_invalid_category(): void
@@ -453,7 +479,7 @@ class UserManagementTest extends TestCase
 
     private function userPayload(string $category, int $index = 0): array
     {
-        return [
+        $payload = [
             'role' => $category,
             'official_group' => $category === 'official' ? 'barangay_council' : '',
             'official_position' => $category === 'official' ? 'kagawad' : '',
@@ -476,5 +502,18 @@ class UserManagementTest extends TestCase
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
         ];
+
+        if ($category === 'guest') {
+            $payload += [
+                'barangay' => 'West District',
+                'city' => 'Naga City',
+                'province' => 'Camarines Sur',
+                'country' => 'Philippines',
+                'postal_code' => '4400',
+            ];
+            unset($payload['is_head_of_family'], $payload['head_of_family_id'], $payload['head_of_family_name']);
+        }
+
+        return $payload;
     }
 }

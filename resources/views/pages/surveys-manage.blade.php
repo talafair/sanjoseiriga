@@ -196,10 +196,14 @@
     $overallWeightedMean = $weightedRatingCount
         ? $sectionSummaries->sum(fn ($section) => ($section['mean'] ?? 0) * $section['ratings']) / $weightedRatingCount
         : null;
-    $respondentDetails = $responses->sortBy('submitted_at')->map(function ($response) use ($survey) {
+    $respondentDetails = $responses->sortBy('submitted_at')->map(function ($response) {
         return [
             'user' => $response->user?->full_name ?? 'Unknown resident',
             'unique_id' => $response->user?->unique_id ?? '—',
+            'is_guest' => $response->user?->isGuest() ?? false,
+            'zone' => $response->user?->zone,
+            'barangay' => $response->user?->barangay,
+            'city' => $response->user?->city,
             'submitted_at' => $response->submitted_at?->format('M j, Y g:i A') ?? '—',
             'answers' => $response->answers ?? [],
             'research_profile' => $response->research_profile ?? [],
@@ -351,6 +355,14 @@
               <span class="respondent-anonymous-print">Respondent {{ $loop->iteration }}</span>
             </div>
             <div class="small text-secondary">Unique ID: {{ $respondent['unique_id'] }} · Submitted: {{ $respondent['submitted_at'] }}</div>
+            @if ($respondent['is_guest'])
+              <div class="small text-secondary">
+                Location:
+                {{ $respondent['zone'] ? 'Zone ' . $respondent['zone'] : 'Zone not provided' }}
+                · Barangay: {{ $respondent['barangay'] ?: 'Not provided' }}
+                · City/Municipality: {{ $respondent['city'] ?: 'Not provided' }}
+              </div>
+            @endif
             @if ($survey->research_consent_enabled && $respondent['research_profile'])
               <div class="small mt-2">
                 <span class="fw-semibold">Research profile:</span>

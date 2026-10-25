@@ -72,6 +72,9 @@ class SurveySummaryExportTest extends TestCase
             'role' => 'guest',
             'birthdate' => now()->subYears(29)->toDateString(),
             'gender' => 'female',
+            'zone' => '4',
+            'barangay' => 'San Isidro',
+            'city' => 'Iriga City',
         ]);
         $survey = Survey::create([
             'title' => 'Guest demographics survey',
@@ -92,7 +95,10 @@ class SurveySummaryExportTest extends TestCase
             ->assertOk()
             ->assertSeeText('Respondent demographics')
             ->assertSeeText('25-34')
-            ->assertSeeText('Female');
+            ->assertSeeText('Female')
+            ->assertSeeText('Zone 4')
+            ->assertSeeText('Barangay: San Isidro')
+            ->assertSeeText('City/Municipality: Iriga City');
     }
 
     public function test_survey_print_summary_includes_research_profile_with_optional_names(): void

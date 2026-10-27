@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Announcement;
+use App\Models\Attendance;
 use App\Models\Badge;
 use App\Models\GameRun;
 use App\Models\User;
@@ -146,6 +148,83 @@ class BadgeAchievementTest extends TestCase
             'awarded_by' => $official->id,
         ]);
         $this->assertSame(1, UserNotification::where('user_id', $recipient->id)->where('title', 'Badge awarded')->count());
+    }
+
+    public function test_new_automatic_badge_is_awarded_to_residents_who_already_qualify(): void
+    {
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'kagawad',
+            'is_verified' => true,
+        ]);
+        $attendee = User::factory()->create(['role' => 'resident']);
+        $guestAttendee = User::factory()->create(['role' => 'guest']);
+        $nonAttendee = User::factory()->create(['role' => 'resident']);
+        $otherEventAttendee = User::factory()->create(['role' => 'resident']);
+        $event = Announcement::create([
+            'title' => 'Past community event',
+            'category' => 'events',
+            'body' => 'Attendance test.',
+            'is_event' => true,
+            'event_start_at' => now()->subDay(),
+        ]);
+        $otherEvent = Announcement::create([
+            'title' => 'Different past event',
+            'category' => 'events',
+            'body' => 'Unrelated attendance test.',
+            'is_event' => true,
+            'event_start_at' => now()->subDays(2),
+        ]);
+        Attendance::create([
+            'announcement_id' => $event->id,
+            'user_id' => $attendee->id,
+            'scanned_at' => now()->subDay(),
+        ]);
+        Attendance::create([
+            'announcement_id' => $event->id,
+            'user_id' => $guestAttendee->id,
+            'scanned_at' => now()->subDay(),
+        ]);
+        Attendance::create([
+            'announcement_id' => $otherEvent->id,
+            'user_id' => $otherEventAttendee->id,
+            'scanned_at' => now()->subDays(2),
+        ]);
+
+        $this->actingAs($official)
+            ->post(route('badges.store'), [
+                'name' => 'Community attendee',
+                'points_required' => 0,
+                'category' => 'attendance',
+                'rarity' => 'common',
+                'award_method' => 'automatic',
+                'condition_key' => 'event_attendance',
+                'announcement_id' => $event->id,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Badge added.');
+
+        $badge = Badge::where('name', 'Community attendee')->firstOrFail();
+        $this->assertDatabaseHas('badge_user', [
+            'badge_id' => $badge->id,
+            'user_id' => $attendee->id,
+            'awarded_by' => null,
+        ]);
+        $this->assertDatabaseHas('badge_user', [
+            'badge_id' => $badge->id,
+            'user_id' => $guestAttendee->id,
+            'awarded_by' => null,
+        ]);
+        $this->assertDatabaseMissing('badge_user', [
+            'badge_id' => $badge->id,
+            'user_id' => $nonAttendee->id,
+        ]);
+        $this->assertDatabaseMissing('badge_user', [
+            'badge_id' => $badge->id,
+            'user_id' => $otherEventAttendee->id,
+        ]);
+        $this->assertSame(1, UserNotification::where('user_id', $attendee->id)->where('title', 'Badge unlocked')->count());
     }
 
     private function badge(array $overrides = []): Badge

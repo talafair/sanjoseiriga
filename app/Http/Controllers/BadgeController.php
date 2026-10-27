@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Badge;
 use App\Models\Announcement;
 use App\Models\User;
+use App\Models\UserNotification;
+use App\Services\BadgeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use App\Models\UserNotification;
 use Illuminate\Validation\Rule;
 use RuntimeException;
 
@@ -59,6 +60,8 @@ class BadgeController extends Controller
         unset($data['image']);
 
         $badge = Badge::create($data);
+        BadgeService::awardExistingUsersForBadge($badge);
+
         if ($badge->award_method === 'official' && $recipients) {
             foreach ($recipients as $recipientId) {
                 if ($badge->users()->whereKey($recipientId)->exists()) continue;

@@ -48,6 +48,60 @@ class UploadedImageStorageTest extends TestCase
         $this->assertNull((new Announcement(['banner_path' => null]))->banner_url);
     }
 
+    public function test_badge_image_url_uses_the_configured_public_disk_url(): void
+    {
+        Config::set('filesystems.uploads_disk', 'public');
+        Config::set('filesystems.disks.public.url', 'https://media.example.test/storage');
+        Storage::forgetDisk('public');
+
+        $badge = new Badge(['image_path' => 'badges/community.png']);
+
+        $this->assertSame(
+            Storage::disk('public')->url('badges/community.png'),
+            $badge->image_url
+        );
+        $this->assertNull((new Badge(['image_path' => null]))->image_url);
+    }
+
+    public function test_badge_image_upload_uses_configured_disk_and_renders_disk_url(): void
+    {
+        Storage::fake('uploaded-media', ['url' => 'https://media.example.test']);
+        Config::set('filesystems.uploads_disk', 'uploaded-media');
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay_council',
+            'official_position' => 'kagawad',
+            'is_verified' => true,
+        ]);
+
+        $this->actingAs($official)
+            ->post(route('badges.store'), [
+                'name' => 'Community helper',
+                'description' => 'Recognized for helping.',
+                'points_required' => 0,
+                'category' => 'special',
+                'rarity' => 'rare',
+                'award_method' => 'official',
+                'condition_key' => 'manual',
+                'image' => $this->pngUpload(),
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Badge added.');
+
+        $badge = Badge::where('name', 'Community helper')->firstOrFail();
+        $this->assertStringStartsWith('badges/', $badge->image_path);
+        Storage::disk('uploaded-media')->assertExists($badge->image_path);
+        $this->assertSame(
+            Storage::disk('uploaded-media')->url($badge->image_path),
+            $badge->image_url
+        );
+
+        $this->actingAs(User::factory()->create(['role' => 'resident', 'is_verified' => true]))
+            ->get(route('badges.catalog'))
+            ->assertOk()
+            ->assertSee('src="' . $badge->image_url . '"', false);
+    }
+
     public function test_profile_picture_replacement_and_removal_use_the_configured_upload_disk(): void
     {
         Storage::fake('uploaded-media');
@@ -77,6 +131,6 @@ class UploadedImageStorageTest extends TestCase
     {
         $content = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/g2kAAAAASUVORK5CYII=', true);
 
-        return UploadedFile::fake()->createWithContent('profile.png', $content);
+        return UploadedFile::fake()->createWithContent('badge.png', $content);
     }
 }

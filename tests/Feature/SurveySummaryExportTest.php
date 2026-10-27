@@ -104,10 +104,11 @@ class SurveySummaryExportTest extends TestCase
             ->assertOk()
             ->assertSeeText('Summary by respondent group')
             ->assertSeeText('Residents and Guests')
-            ->assertSeeText('Officials and Personnel')
+            ->assertSeeText('Officials')
+            ->assertDontSeeText('Admins')
             ->assertDontSeeText('Officials & admins')
-            ->assertSeeText('2.75')
-            ->assertSeeText('4.50');
+            ->assertSeeText('3.17')
+            ->assertSeeText('5.00');
     }
 
     public function test_survey_summary_includes_respondent_age_and_gender_demographics(): void

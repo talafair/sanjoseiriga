@@ -176,8 +176,10 @@
     $responses = $survey->responses;
     $suggestions = $responses->filter(fn ($response) => filled($response->suggestion));
     $responseGroups = collect([
-        'Residents and Guests' => $responses->filter(fn ($response) => in_array($response->user?->role, ['resident', 'guest'], true)),
-        'Officials and Personnel' => $responses->filter(fn ($response) => in_array($response->user?->role, ['official', 'superadmin'], true)),
+        'Residents and Guests' => $responses->filter(fn ($response) => in_array($response->user?->role, ['resident', 'guest'], true)
+            || ($response->user?->role === 'official' && $response->user?->official_group === 'personnel')),
+        'Officials' => $responses->filter(fn ($response) => $response->user?->role === 'official'
+            && $response->user?->official_group !== 'personnel'),
     ])->map(function ($groupResponses) {
         $ratings = $groupResponses
             ->flatMap(fn ($response) => $response->answers ?? [])

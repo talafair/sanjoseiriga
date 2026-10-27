@@ -16,6 +16,15 @@
 
 				@if ($response)
 					<div class="alert alert-success">You submitted this survey on {{ $response->submitted_at->format('M j, Y g:i A') }}.</div>
+					<h5 class="fw-bold mt-4">Your answers</h5>
+					<dl class="mb-0">
+						@foreach ($survey->questions as $index => $question)
+							<div class="border-bottom py-3">
+								<dt class="fw-semibold">{{ $question }}</dt>
+								<dd class="mb-0 text-secondary">{{ [1 => 'Strongly Disagree', 2 => 'Disagree', 3 => 'Neutral', 4 => 'Agree', 5 => 'Strongly Agree'][$response->answers[$index] ?? null] ?? 'No answer' }}</dd>
+							</div>
+						@endforeach
+					</dl>
 				@elseif ($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at))
 					<div class="alert alert-secondary mb-0" role="status">
 						This survey closed on {{ $survey->due_at->format('M j, Y g:i A') }}. Responses are no longer accepted.

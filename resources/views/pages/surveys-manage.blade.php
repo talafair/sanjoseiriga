@@ -175,6 +175,19 @@
   @php
     $responses = $survey->responses;
     $suggestions = $responses->filter(fn ($response) => filled($response->suggestion));
+    $responseGroups = collect([
+        'Residents and Guests' => $responses->filter(fn ($response) => in_array($response->user?->role, ['resident', 'guest'], true)),
+        'Officials and Personnel' => $responses->filter(fn ($response) => in_array($response->user?->role, ['official', 'superadmin'], true)),
+    ])->map(function ($groupResponses) {
+        $ratings = $groupResponses
+            ->flatMap(fn ($response) => $response->answers ?? [])
+            ->filter(fn ($rating) => $rating !== null);
+
+        return [
+            'responses' => $groupResponses->count(),
+            'mean' => $ratings->count() ? $ratings->avg() : null,
+        ];
+    });
     $sectionMarkers = array_values($survey->sections ?: [['heading' => 'Questions', 'start' => 0]]);
     $sectionHeadings = collect($sectionMarkers)->mapWithKeys(fn ($section, $sectionIndex) => [
         (int) $section['start'] => filled($section['heading'] ?? null) ? $section['heading'] : 'Section ' . ($sectionIndex + 1),
@@ -245,6 +258,21 @@
     </div>
     <div class="card-body p-4">
       <div class="row g-3 mb-4"><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ number_format($survey->notified_count) }}</div><div class="small text-secondary">Notified</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ $responses->count() }}</div><div class="small text-secondary">Answered</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ max(0, $survey->notified_count - $responses->count()) }}</div><div class="small text-secondary">Not answered</div></div></div><div class="col-6 col-md-3"><div class="bg-body-secondary rounded-3 p-3"><div class="h4 fw-bold mb-0">{{ $overallWeightedMean !== null ? number_format($overallWeightedMean, 2) : '—' }}</div><div class="small text-secondary">Overall weighted mean / 5</div></div></div></div>
+      <h6 class="fw-bold">Summary by respondent group</h6>
+      <div class="table-responsive mb-4">
+        <table class="table table-sm align-middle border rounded overflow-hidden">
+          <thead class="table-light"><tr><th>Respondent group</th><th>Answered</th><th>Weighted mean / 5</th></tr></thead>
+          <tbody>
+            @foreach ($responseGroups as $groupName => $groupSummary)
+              <tr>
+                <td>{{ $groupName }}</td>
+                <td>{{ $groupSummary['responses'] }}</td>
+                <td>{{ $groupSummary['mean'] !== null ? number_format($groupSummary['mean'], 2) : '—' }}</td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
       <h6 class="fw-bold">Respondent demographics</h6>
       <div class="row g-3 mb-4">
         <div class="col-md-6">

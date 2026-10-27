@@ -62,7 +62,11 @@ class GuestSurveyAccessTest extends TestCase
 
         $this->get(route('surveys.show', $survey))
             ->assertOk()
-            ->assertSeeText('You submitted this survey');
+            ->assertSeeText('You submitted this survey')
+            ->assertSeeText('Your answers')
+            ->assertSeeText('How was the event?')
+            ->assertSeeText('Strongly Agree')
+            ->assertDontSeeText('Summary by respondent group');
     }
 
     public function test_research_survey_requires_consent_without_collecting_demographic_profile(): void

@@ -60,6 +60,56 @@ class SurveySummaryExportTest extends TestCase
         $response->assertDontSee('Download DOC');
     }
 
+    public function test_official_summary_separates_resident_and_official_results(): void
+    {
+        $official = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'barangay',
+            'official_position' => 'captain',
+            'is_verified' => true,
+        ]);
+        $admin = User::factory()->create(['role' => 'superadmin']);
+        $personnel = User::factory()->create([
+            'role' => 'official',
+            'official_group' => 'personnel',
+            'is_verified' => true,
+        ]);
+        $resident = User::factory()->create(['role' => 'resident']);
+        $guest = User::factory()->create(['role' => 'guest']);
+        $survey = Survey::create([
+            'title' => 'Split result survey',
+            'due_at' => now()->addDays(7),
+            'points' => 0,
+            'questions' => ['Question one', 'Question two'],
+            'audience' => 'public',
+            'created_by' => $official->id,
+        ]);
+
+        foreach ([
+            [$resident, [5, 4]],
+            [$official, [5, 5]],
+            [$admin, [4, 5]],
+            [$personnel, [3, 5]],
+            [$guest, [1, 1]],
+        ] as [$respondent, $answers]) {
+            SurveyResponse::create([
+                'survey_id' => $survey->id,
+                'user_id' => $respondent->id,
+                'answers' => $answers,
+                'submitted_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($official)->get(route('surveys.manage'))
+            ->assertOk()
+            ->assertSeeText('Summary by respondent group')
+            ->assertSeeText('Residents and Guests')
+            ->assertSeeText('Officials and Personnel')
+            ->assertDontSeeText('Officials & admins')
+            ->assertSeeText('2.75')
+            ->assertSeeText('4.50');
+    }
+
     public function test_survey_summary_includes_respondent_age_and_gender_demographics(): void
     {
         $official = User::factory()->create([

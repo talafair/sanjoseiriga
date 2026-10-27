@@ -227,6 +227,40 @@ class BadgeAchievementTest extends TestCase
         $this->assertSame(1, UserNotification::where('user_id', $attendee->id)->where('title', 'Badge unlocked')->count());
     }
 
+    public function test_first_event_badge_is_awarded_when_existing_attendee_opens_catalog(): void
+    {
+        $attendee = User::factory()->create(['role' => 'resident', 'is_verified' => true]);
+        $event = Announcement::create([
+            'title' => 'Last month event',
+            'category' => 'events',
+            'body' => 'Historical attendance.',
+            'is_event' => true,
+            'event_start_at' => now()->subMonth(),
+        ]);
+        Attendance::create([
+            'announcement_id' => $event->id,
+            'user_id' => $attendee->id,
+            'scanned_at' => now()->subMonth(),
+        ]);
+        $badge = $this->badge([
+            'name' => 'First event',
+            'category' => 'attendance',
+            'condition_key' => 'first_event',
+        ]);
+
+        $this->actingAs($attendee)
+            ->get(route('badges.catalog'))
+            ->assertOk()
+            ->assertSee('First event');
+
+        $this->assertDatabaseHas('badge_user', [
+            'badge_id' => $badge->id,
+            'user_id' => $attendee->id,
+            'awarded_by' => null,
+        ]);
+        $this->assertSame(1, UserNotification::where('user_id', $attendee->id)->where('title', 'Badge unlocked')->count());
+    }
+
     private function badge(array $overrides = []): Badge
     {
         return Badge::create(array_replace([

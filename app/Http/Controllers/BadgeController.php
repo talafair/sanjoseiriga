@@ -17,6 +17,11 @@ class BadgeController extends Controller
 {
     public function catalog(Request $request)
     {
+        Badge::where('award_method', 'automatic')
+            ->with('announcement')
+            ->get()
+            ->each(fn (Badge $badge) => BadgeService::awardExistingUsersForBadge($badge, $request->user()));
+
         $earnedBadges = $request->user()->badges()->get()->keyBy('id');
 
         return view('pages.badge-catalog', [

@@ -28,7 +28,7 @@ class BadgeService
         }
     }
 
-    public static function awardExistingUsersForBadge(Badge $badge): void
+    public static function awardExistingUsersForBadge(Badge $badge, ?User $onlyUser = null): void
     {
         if ($badge->award_method !== 'automatic') {
             return;
@@ -43,7 +43,10 @@ class BadgeService
                 ->pluck('id')
             : collect();
 
-        User::whereIn('role', ['resident', 'guest'])->orderBy('id')->chunkById(100, function ($users) use ($badge, $event, $completedEventIds): void {
+        User::query()
+            ->when($onlyUser, fn ($query) => $query->whereKey($onlyUser->getKey()))
+            ->orderBy('id')
+            ->chunkById(100, function ($users) use ($badge, $event, $completedEventIds): void {
             foreach ($users as $user) {
                 $attendanceCount = $user->attendances()->count();
                 $attendanceIds = $user->attendances()->pluck('announcement_id')->flip();
@@ -61,7 +64,7 @@ class BadgeService
 
                 self::awardBadgeIfEligible($user, $badge, $attendanceCount, $streak, $attendancePosition, $event);
             }
-        });
+            });
     }
 
     public static function awardGameBadges(User $user): void

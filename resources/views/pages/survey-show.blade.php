@@ -9,7 +9,7 @@
 		<div class="card yg-card mt-3">
 			<div class="card-body p-4">
 				<h3 class="fw-bold">{{ $survey->title }}</h3>
-				<div class="small text-secondary mb-3">Due {{ $survey->due_at?->format('M j, Y g:i A') }} · {{ $survey->points }} points for submitting</div>
+				<div class="small text-secondary mb-3">Due {{ $survey->due_at?->format('M j, Y') }} · Responses close at the start of the due date · {{ $survey->points }} points for submitting</div>
 				@if ($survey->description)
 					<p class="text-secondary">{{ $survey->description }}</p>
 				@endif
@@ -25,9 +25,9 @@
 							</div>
 						@endforeach
 					</dl>
-				@elseif ($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at))
+				@elseif (! $survey->isOpenForResponses())
 					<div class="alert alert-secondary mb-0" role="status">
-						This survey closed on {{ $survey->due_at->format('M j, Y g:i A') }}. Responses are no longer accepted.
+						This survey closed on {{ $survey->due_at->format('M j, Y') }}. Responses are no longer accepted.
 					</div>
 				@else
 					<form method="POST" action="{{ route('surveys.respond', $survey) }}">

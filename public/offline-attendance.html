@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#151515">
+  <title>Offline attendance scan · TalaFair</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #212529; background: #f4f5f6; }
+    body { margin: 0; padding: 1.25rem; }
+    main { max-width: 34rem; margin: 2rem auto; padding: 1.5rem; background: white; border: 1px solid #dee2e6; border-radius: 1rem; }
+    h1 { margin-top: 0; font-size: 1.5rem; }
+    p { line-height: 1.5; }
+    label { display: block; margin: 1rem 0 .35rem; font-weight: 600; }
+    select, button, .button { box-sizing: border-box; width: 100%; padding: .8rem; border: 1px solid #adb5bd; border-radius: .5rem; font: inherit; }
+    button, .button { display: block; margin-top: .75rem; background: #151515; color: white; text-align: center; text-decoration: none; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #reader { width: 100%; max-width: 28rem; aspect-ratio: 1; margin: 1rem auto; overflow: hidden; border: 1px solid #dee2e6; border-radius: .75rem; }
+    #message { padding: .75rem; border-radius: .5rem; background: #e9ecef; }
+    #message.error { background: #f8d7da; }
+    #message.success { background: #d1e7dd; }
+    .small { color: #5c636a; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>TalaFair attendance</h1>
+    <p class="small">You are offline. Scans are saved on this device and are not confirmed attendance until TalaFair syncs them while you are signed in.</p>
+    <label for="event">Event (needed when an official scans a resident ID)</label>
+    <select id="event">
+      <option value="">Scan the event QR code</option>
+    </select>
+    <div id="reader"></div>
+    <button id="start" type="button">Open camera</button>
+    <button id="stop" type="button" hidden>Close camera</button>
+    <p id="message" role="status">Choose an event if needed, then open the camera.</p>
+    <p id="queue-status" class="small"></p>
+    <a class="button" href="/attendance">Go to attendance and sync scans</a>
+    <p class="small">Reconnect before the event's attendance window closes. TalaFair will validate each scan when it syncs.</p>
+  </main>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script>
+    (() => {
+      const QUEUE_KEY = 'talafair-attendance-queue';
+      const EVENTS_KEY = 'talafair-offline-events';
+      const eventSelect = document.getElementById('event');
+      const startButton = document.getElementById('start');
+      const stopButton = document.getElementById('stop');
+      const message = document.getElementById('message');
+      const queueStatus = document.getElementById('queue-status');
+      let scanner = null;
+      let busy = false;
+
+      function savedScans() {
+        const savedQueue = localStorage.getItem(QUEUE_KEY);
+        if (!savedQueue) return [];
+        const scans = JSON.parse(savedQueue);
+        if (!Array.isArray(scans)) throw new Error('Saved attendance scans are not in the expected format.');
+        return scans;
+      }
+
+      function updateQueueStatus() {
+        try {
+          const count = savedScans().length;
+          queueStatus.textContent = count
+            ? `${count} scan${count === 1 ? '' : 's'} saved on this device and waiting to sync.`
+            : 'No offline scans are waiting to sync.';
+        } catch (error) {
+          queueStatus.textContent = 'Saved scans could not be read from this device. Do not clear browser storage.';
+        }
+      }
+
+      function show(text, tone) {
+        message.textContent = text;
+        message.className = tone || '';
+      }
+
+      try {
+        const events = JSON.parse(localStorage.getItem(EVENTS_KEY) || '[]');
+        if (Array.isArray(events)) {
+          events.forEach((event) => {
+            if (!event || !Number.isInteger(Number(event.id)) || !event.title) return;
+            const option = document.createElement('option');
+            option.value = String(event.id);
+            option.textContent = event.title;
+            eventSelect.append(option);
+          });
+        }
+      } catch (error) {
+        show('Saved event choices could not be read. You can still scan an event QR code.', 'error');
+      }
+
+      async function saveScan(token) {
+        if (busy) return;
+        busy = true;
+        startButton.disabled = true;
+        try {
+          if (!navigator.geolocation) throw new Error('Location is unavailable on this device.');
+          const coords = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              (position) => resolve(position.coords),
+              () => reject(new Error('Allow location access to save an attendance scan.')),
+              { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+          });
+          const payload = {
+            token,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            accuracy: coords.accuracy
+          };
+          if (eventSelect.value) payload.announcement_id = Number(eventSelect.value);
+
+          const scans = savedScans();
+          scans.push({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            url: '/attendance/check',
+            payload,
+            queuedAt: Date.now()
+          });
+          localStorage.setItem(QUEUE_KEY, JSON.stringify(scans));
+          updateQueueStatus();
+          show('Scan saved on this device. It is not confirmed until it syncs successfully.', 'success');
+        } catch (error) {
+          show(error.message || 'The scan could not be saved on this device.', 'error');
+        } finally {
+          busy = false;
+          startButton.disabled = false;
+        }
+      }
+
+      startButton.addEventListener('click', async () => {
+        if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+          show('Camera scanning requires HTTPS and a supported browser.', 'error');
+          return;
+        }
+        if (typeof Html5Qrcode === 'undefined') {
+          show('The QR scanner is not available offline yet. Connect to the internet, open attendance once, then try again.', 'error');
+          return;
+        }
+        try {
+          scanner = scanner || new Html5Qrcode('reader');
+          await scanner.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            async (decodedText) => {
+              await saveScan(decodedText);
+              if (scanner) await scanner.stop().catch(() => {});
+              startButton.hidden = false;
+              stopButton.hidden = true;
+            },
+            () => {}
+          );
+          startButton.hidden = true;
+          stopButton.hidden = false;
+          show('Scanning for an event or resident QR code…');
+        } catch (error) {
+          show('Camera could not start. Check camera permission and try again.', 'error');
+        }
+      });
+
+      stopButton.addEventListener('click', async () => {
+        if (scanner) await scanner.stop().catch(() => {});
+        startButton.hidden = false;
+        stopButton.hidden = true;
+        show('Camera closed.');
+      });
+
+      updateQueueStatus();
+      window.addEventListener('online', () => {
+        show('You are back online. Open Attendance to sign in and sync saved scans.');
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -20,7 +20,7 @@ class GuestSurveyAccessTest extends TestCase
         ]);
         $survey = Survey::create([
             'title' => 'Public guest survey',
-            'due_at' => now()->addDay(),
+            'due_at' => now()->addDays(2),
             'points' => 10,
             'questions' => ['How was the event?', 'Would you recommend it?'],
             'audience' => 'public',
@@ -28,7 +28,7 @@ class GuestSurveyAccessTest extends TestCase
         ]);
         $restrictedSurvey = Survey::create([
             'title' => 'Officials-only survey',
-            'due_at' => now()->addDay(),
+            'due_at' => now()->addDays(2),
             'points' => 10,
             'questions' => ['How was the event?'],
             'audience' => 'officials',
@@ -78,7 +78,7 @@ class GuestSurveyAccessTest extends TestCase
         ]);
         $survey = Survey::create([
             'title' => 'TalaFair evaluation',
-            'due_at' => now()->addDay(),
+            'due_at' => now()->addDays(2),
             'points' => 0,
             'questions' => ['How was your experience?'],
             'audience' => 'public',

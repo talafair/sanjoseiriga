@@ -1,13 +1,22 @@
-const CACHE_NAME = 'talafair-shell-v6';
+const CACHE_NAME = 'talafair-shell-v7';
+const QR_LIBRARY_URL = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
 const APP_SHELL = [
   new URL('./manifest.json', self.location).href,
   new URL('./images/talafair-logo.png', self.location).href,
   new URL('./images/default-avatar.svg', self.location).href,
   new URL('./css/theme.css', self.location).href,
+  new URL('./offline-attendance.html', self.location).href,
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
+  event.waitUntil(caches.open(CACHE_NAME).then(async (cache) => {
+    await cache.addAll(APP_SHELL);
+    try {
+      await cache.add(QR_LIBRARY_URL);
+    } catch (error) {
+      console.warn('Offline QR scanning library could not be cached.', error);
+    }
+  }));
   self.skipWaiting();
 });
 
@@ -82,6 +91,12 @@ self.addEventListener('fetch', (event) => {
   };
 
   event.respondWith(
-    (networkFirst ? fetch(event.request).then(cacheResponse).catch(() => caches.match(event.request)) : caches.match(event.request).then((cached) => cached || fetch(event.request).then(cacheResponse)).catch(() => caches.match(event.request)))
+    (networkFirst
+      ? fetch(event.request).then(cacheResponse).catch(async () => {
+        const cachedPage = await caches.match(event.request);
+        if (cachedPage) return cachedPage;
+        return caches.match(new URL('./offline-attendance.html', self.location).href);
+      })
+      : caches.match(event.request).then((cached) => cached || fetch(event.request).then(cacheResponse)).catch(() => caches.match(event.request)))
   );
 });

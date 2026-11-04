@@ -210,7 +210,7 @@ class SurveySummaryExportTest extends TestCase
         $this->actingAs($official)->post(route('surveys.store'), [
             'title' => 'Sectioned survey',
             'description' => 'A longer survey description.',
-            'due_at' => now()->addDays(7)->format('Y-m-d H:i:s'),
+            'due_at' => now()->addDays(7)->format('Y-m-d'),
             'points' => 10,
             'audience' => 'public',
             'sections' => [
@@ -250,7 +250,7 @@ class SurveySummaryExportTest extends TestCase
         $this->put(route('surveys.update', $survey), [
             'title' => 'Updated sectioned survey',
             'description' => 'Updated description.',
-            'due_at' => now()->addDays(10)->format('Y-m-d H:i:s'),
+            'due_at' => now()->addDays(10)->format('Y-m-d'),
             'points' => 15,
             'audience' => 'public',
             'sections' => [
@@ -279,7 +279,7 @@ class SurveySummaryExportTest extends TestCase
 
         $this->actingAs($official)->post(route('surveys.store'), [
             'title' => 'Long survey',
-            'due_at' => now()->addDays(7)->format('Y-m-d H:i:s'),
+            'due_at' => now()->addDays(7)->format('Y-m-d'),
             'points' => 0,
             'audience' => 'public',
             'sections' => [
@@ -379,10 +379,10 @@ class SurveySummaryExportTest extends TestCase
         ]);
     }
 
-    public function test_survey_rejects_responses_at_or_after_its_closing_time(): void
+    public function test_survey_closes_at_the_start_of_its_due_date(): void
     {
         $resident = User::factory()->create(['role' => 'resident', 'is_verified' => true]);
-        $dueAt = now()->addHour();
+        $dueAt = now()->addDay()->startOfDay();
         $survey = Survey::create([
             'title' => 'Closing survey',
             'due_at' => $dueAt,
@@ -396,6 +396,12 @@ class SurveySummaryExportTest extends TestCase
             ->assertOk()
             ->assertSee('name="answers[0]"', false);
 
+        $this->travelTo($dueAt->copy()->subSecond());
+
+        $this->actingAs($resident)->get(route('surveys.show', $survey))
+            ->assertOk()
+            ->assertSee('name="answers[0]"', false);
+
         $this->travelTo($dueAt);
 
         $this->actingAs($resident)->get(route('surveys.show', $survey))
@@ -403,13 +409,14 @@ class SurveySummaryExportTest extends TestCase
             ->assertSee('Responses are no longer accepted.')
             ->assertDontSee('name="answers[0]"', false)
             ->assertDontSee('Submit response');
+        $this->get(route('surveys.index'))
+            ->assertOk()
+            ->assertSeeText('Closed')
+            ->assertDontSee('Answer survey');
 
         $this->post(route('surveys.respond', $survey), [
             'answers' => [5],
         ])->assertGone();
-
-        $this->travelBack();
-        $this->travelTo($dueAt->copy()->addSecond());
 
         $this->post(route('surveys.respond', $survey), [
             'answers' => [5],

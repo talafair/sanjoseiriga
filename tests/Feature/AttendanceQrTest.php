@@ -288,7 +288,8 @@ class AttendanceQrTest extends TestCase
 
         $response->assertUnprocessable()
             ->assertJsonPath('ok', false)
-            ->assertJsonPath('message', 'Invalid event QR code. Please scan this event\'s QR code.');
+            ->assertJsonPath('message', 'Invalid event QR code. Please scan this event\'s QR code.')
+            ->assertJsonPath('resident', $resident->full_name);
         $this->assertDatabaseCount('attendances', 0);
     }
 
@@ -322,6 +323,7 @@ class AttendanceQrTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('ok', true)
+            ->assertJsonPath('resident', $resident->full_name)
             ->assertJsonPath('message', 'Attendance recorded successfully. You earned +100 points.');
         $this->assertDatabaseHas('attendances', [
             'announcement_id' => $event->id,
@@ -587,7 +589,8 @@ class AttendanceQrTest extends TestCase
         $this->actingAs($resident)->postJson(route('attendance.check'), $payload)->assertOk();
         $this->actingAs($resident)->postJson(route('attendance.check'), $payload)
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'This resident has already been recorded for this event.');
+            ->assertJsonPath('message', 'Attendance is already recorded.')
+            ->assertJsonPath('resident', $resident->full_name);
 
         $this->assertDatabaseCount('attendances', 1);
         $this->assertSame(100, $resident->fresh()->points);
@@ -659,12 +662,16 @@ class AttendanceQrTest extends TestCase
         $this->actingAs($official)->postJson(route('attendance.check-by-id'), [
             ...$payload,
             'unique_id' => 'not-a-real-id',
-        ])->assertUnprocessable()->assertJsonPath('ok', false);
+        ])->assertUnprocessable()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('message', 'No attendee was found for Unique ID not-a-real-id.')
+            ->assertJsonMissingPath('resident');
 
         $this->actingAs($official)->postJson(route('attendance.check-by-id'), $payload)->assertOk();
         $this->actingAs($official)->postJson(route('attendance.check-by-id'), $payload)
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'This resident has already been recorded for this event.');
+            ->assertJsonPath('message', 'Attendance is already recorded.')
+            ->assertJsonPath('resident', $resident->full_name);
 
         $this->assertDatabaseCount('attendances', 1);
         $this->assertSame(100, $resident->fresh()->points);

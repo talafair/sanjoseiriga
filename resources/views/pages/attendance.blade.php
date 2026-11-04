@@ -191,6 +191,14 @@
   let officialMode = OFFICIAL; // 'own' for official's own attendance, 'resident' for recording resident
   let currentAttendanceMode = OFFICIAL ? (SUPERADMIN ? 'resident' : 'own') : null;
   const QUEUE_KEY = 'talafair-attendance-queue';
+  const OFFLINE_EVENTS_KEY = 'talafair-offline-events';
+  let syncingScans = false;
+
+  try {
+    localStorage.setItem(OFFLINE_EVENTS_KEY, JSON.stringify(@json($openEvents->map(fn ($event) => ['id' => $event->id, 'title' => $event->title])->values())));
+  } catch (error) {
+    console.warn('Unable to save event choices for offline attendance scanning.', error);
+  }
 
   if (!startBtn) return;
 
@@ -291,25 +299,84 @@
     resultBox.textContent = message;
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    })[character]);
+  }
+
+  function feedbackHtml(data, fallback) {
+    const message = escapeHtml(data.message || fallback);
+    return data.resident
+      ? '<strong>' + escapeHtml(data.resident) + ':</strong> ' + message
+      : message;
+  }
+
   function queuedScans() {
-    try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch (e) { return []; }
+    const savedQueue = localStorage.getItem(QUEUE_KEY);
+    if (!savedQueue) return [];
+    const queue = JSON.parse(savedQueue);
+    if (!Array.isArray(queue)) throw new Error('Saved attendance scans are not in the expected format.');
+    let updated = false;
+    queue.forEach(item => {
+      if (!item.id) {
+        item.id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        updated = true;
+      }
+    });
+    if (updated) localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    return queue;
   }
 
   function updateOfflineStatus() {
-    const count = queuedScans().length;
+    let queue;
+    try {
+      queue = queuedScans();
+    } catch (error) {
+      console.error('Unable to read saved attendance scans.', error);
+      if (offlineStatus) {
+        offlineStatus.classList.remove('d-none');
+        offlineStatus.textContent = 'Saved scans could not be read from this device. Do not clear browser storage.';
+      }
+      return;
+    }
+    const count = queue.length;
+    const failed = queue.filter(item => item.syncError).length;
     if (!offlineStatus) return;
     offlineStatus.classList.toggle('d-none', count === 0 && navigator.onLine);
-    offlineStatus.innerHTML = count
-      ? '<i class="bi bi-cloud-arrow-up me-1"></i>' + count + ' scan' + (count === 1 ? '' : 's') + ' waiting to sync when you are online.'
-      : '<i class="bi bi-wifi me-1"></i>Back online. Saved scans are syncing.';
+    offlineStatus.textContent = count
+      ? failed
+        ? `${count} saved scan${count === 1 ? '' : 's'} remain on this device; ${failed} need attention. ${queue.find(item => item.syncError).syncError} They are not confirmed attendance.`
+        : `${count} saved scan${count === 1 ? '' : 's'} waiting to sync. They are not confirmed attendance yet.`
+      : navigator.onLine
+        ? 'Back online. Saved scans are syncing.'
+        : 'You are offline. Scans will be saved on this device.';
   }
 
   function queueScan(url, payload) {
-    const queue = queuedScans();
-    queue.push({ url, payload, queuedAt: Date.now() });
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-    updateOfflineStatus();
-    show(true, '<div class="fw-semibold"><i class="bi bi-cloud-arrow-down-fill me-1"></i>Scan saved on this device.</div><div class="small mt-1">It will be submitted automatically when you are back online. Keep this app installed and signed in.</div>');
+    try {
+      const queue = queuedScans();
+      queue.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        url,
+        payload,
+        queuedAt: Date.now()
+      });
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+      updateOfflineStatus();
+      show(true, '<div class="fw-semibold"><i class="bi bi-cloud-arrow-down-fill me-1"></i>Scan saved on this device.</div><div class="small mt-1">It is not confirmed attendance until it syncs successfully. Reconnect before the event attendance window closes.</div>');
+      if (!OFFICIAL) {
+        completed = true;
+        stopCamera();
+      }
+    } catch (error) {
+      console.error('Unable to save attendance scan on this device.', error);
+      show(false, 'This scan could not be saved on this device. Check available device storage and try again.');
+    }
   }
 
   async function sendScan(url, payload) {
@@ -318,23 +385,57 @@
       headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await response.json().catch(() => ({ ok: false, message: 'The attendance service is temporarily unavailable. Please try again.' }));
+    const data = await response.json().catch(() => ({
+      ok: false,
+      message: response.status === 401 || response.status === 419
+        ? 'Sign in again to sync this saved scan.'
+        : 'The attendance service did not return a valid response.'
+    }));
     return data;
   }
 
   async function syncQueuedScans() {
-    const queue = queuedScans();
-    if (!queue.length || !navigator.onLine) return;
-    const remaining = [];
-    for (const item of queue) {
-      try {
-        await sendScan(item.url, item.payload);
-      } catch (error) {
-        remaining.push(item);
-      }
+    if (syncingScans || !navigator.onLine) return;
+    let queue;
+    try {
+      queue = queuedScans();
+    } catch (error) {
+      console.error('Unable to sync saved attendance scans.', error);
+      updateOfflineStatus();
+      return;
     }
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
-    updateOfflineStatus();
+    if (!queue.length) return;
+    syncingScans = true;
+    const confirmedIds = new Set();
+    const failedScans = new Map();
+    try {
+      for (const item of queue) {
+        try {
+          const data = await sendScan(item.url, item.payload);
+          if (data.ok) confirmedIds.add(item.id);
+          else failedScans.set(item.id, {
+            ...item,
+            syncError: data.message || 'The server did not confirm this scan.'
+          });
+        } catch (error) {
+          failedScans.set(item.id, {
+            ...item,
+            syncError: 'Could not reach the attendance service. This scan remains saved on this device.'
+          });
+        }
+      }
+      try {
+        const latestQueue = queuedScans()
+          .filter(item => !confirmedIds.has(item.id))
+          .map(item => failedScans.get(item.id) || item);
+        localStorage.setItem(QUEUE_KEY, JSON.stringify(latestQueue));
+      } catch (error) {
+        console.error('Unable to update saved attendance scans after syncing.', error);
+      }
+      updateOfflineStatus();
+    } finally {
+      syncingScans = false;
+    }
   }
 
   window.addEventListener('online', syncQueuedScans);
@@ -419,18 +520,18 @@
       if (data.ok) {
         completed = !OFFICIAL;
         show(true, ACTIVITY
-          ? '<div class="fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>' + data.message + '</div>'
+          ? '<div class="fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>' + escapeHtml(data.resident) + ': ' + escapeHtml(data.message) + '</div>'
           :
-          '<div class="fw-semibold mb-2"><i class="bi bi-check-circle-fill me-1"></i>' + data.message + '</div>' +
+          '<div class="fw-semibold mb-2"><i class="bi bi-check-circle-fill me-1"></i>' + escapeHtml(data.resident) + ': ' + escapeHtml(data.message) + '</div>' +
           '<ul class="small mb-0 ps-3">' +
-            '<li>Event: ' + data.event + '</li>' +
+            '<li>Event: ' + escapeHtml(data.event) + '</li>' +
             '<li>Base points: ' + data.breakdown.base + '</li>' +
             '<li>Engagement bonus: +' + data.breakdown.early_bonus + '</li>' +
             '<li class="fw-semibold">Total: ' + data.breakdown.total + '</li>' +
           '</ul>');
         stopCamera();
       } else {
-        const scanMessage = data.message || 'Attendance was not recorded. That scan could not be accepted.';
+        const scanMessage = feedbackHtml(data, 'Attendance was not recorded. That scan could not be accepted.');
         if (OFFICIAL) {
           manualForm?.classList.remove('d-none');
           manualToggle?.classList.add('d-none');
@@ -478,9 +579,9 @@
       }));
       if (data.ok) {
         uniqueId.value = '';
-        show(true, '<div class="fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>Attendance recorded successfully.</div><div class="small mt-1">' + data.resident + ' · ' + data.message + '</div>');
+        show(true, '<div class="fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>' + escapeHtml(data.resident) + '</div><div class="small mt-1">' + escapeHtml(data.message) + '</div>');
       } else {
-        show(false, data.message || 'Attendee Unique ID not found. Please check the ID and try again.');
+        show(false, feedbackHtml(data, 'Attendee Unique ID not found. Please check the ID and try again.'));
       }
     } catch (err) {
       show(false, 'Unable to record attendance. Please try again.');

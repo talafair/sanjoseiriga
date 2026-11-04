@@ -47,7 +47,7 @@ class SurveyController extends Controller
     public function respondForResident(Request $request, Survey $survey): RedirectResponse
     {
         abort_unless($request->user()->isSuperadmin(), 403);
-        abort_if($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at), 410, 'This survey is closed.');
+        abort_unless($survey->isOpenForResponses(), 410, 'This survey is closed.');
 
         $data = $request->validate([
             'respondent_user_id' => ['required', 'integer', 'exists:users,id'],
@@ -75,7 +75,7 @@ class SurveyController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'due_at' => ['required', 'date', 'after:now'],
+            'due_at' => ['required', 'date_format:Y-m-d', 'after:today'],
             'points' => ['required', 'integer', 'min:0', 'max:100000'],
             'sections' => ['required', 'array', 'min:1'],
             'sections.*.heading' => ['nullable', 'string', 'max:255'],
@@ -128,7 +128,7 @@ class SurveyController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'due_at' => ['required', 'date', 'after:now'],
+            'due_at' => ['required', 'date_format:Y-m-d', 'after:today'],
             'points' => ['required', 'integer', 'min:0', 'max:100000'],
             'sections' => ['required', 'array', 'min:1'],
             'sections.*.heading' => ['nullable', 'string', 'max:255'],
@@ -177,7 +177,7 @@ class SurveyController extends Controller
             'message' => ['nullable', 'string', 'max:500'],
         ]);
 
-        if (! $survey->due_at || now()->greaterThanOrEqualTo($survey->due_at)) {
+        if (! $survey->isOpenForResponses()) {
             return back()->with('error', 'Reminders can only be sent while the survey is open.');
         }
 
@@ -228,7 +228,7 @@ class SurveyController extends Controller
 
     public function respond(Request $request, Survey $survey): RedirectResponse
     {
-        abort_if($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at), 410, 'This survey is closed.');
+        abort_unless($survey->isOpenForResponses(), 410, 'This survey is closed.');
         abort_unless($this->audienceQuery($survey)->whereKey($request->user()->id)->exists(), 403);
         abort_if(SurveyResponse::where('survey_id', $survey->id)->where('user_id', $request->user()->id)->exists(), 409, 'You already answered this survey.');
 
@@ -239,7 +239,7 @@ class SurveyController extends Controller
             ...$this->researchConsentRules($survey),
         ]);
 
-        abort_if($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at), 410, 'This survey is closed.');
+        abort_unless($survey->isOpenForResponses(), 410, 'This survey is closed.');
 
         $response = $this->createResponse($survey, $request->user(), $data);
         SuperadminNotificationService::notifyDataChange($response, 'created');
@@ -250,7 +250,7 @@ class SurveyController extends Controller
     private function createResponse(Survey $survey, User $respondent, array $data): SurveyResponse
     {
         return DB::transaction(function () use ($survey, $respondent, $data): SurveyResponse {
-            abort_if($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at), 410, 'This survey is closed.');
+            abort_unless($survey->isOpenForResponses(), 410, 'This survey is closed.');
             abort_if(
                 SurveyResponse::where('survey_id', $survey->id)->where('user_id', $respondent->id)->exists(),
                 409,

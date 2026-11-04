@@ -11,7 +11,7 @@
     <div class="row g-3">
       <div class="col-md-6"><label class="form-label fw-semibold">Title</label><input name="title" class="form-control" value="{{ old('title') }}" placeholder="Community event feedback" required></div>
       <div class="col-md-6"><label class="form-label fw-semibold">Description <span class="text-secondary fw-normal">(optional)</span></label><textarea name="description" class="form-control" rows="4" placeholder="Tell residents what this survey is about">{{ old('description') }}</textarea></div>
-      <div class="col-md-6"><label class="form-label fw-semibold">Due date and time</label><input type="datetime-local" name="due_at" class="form-control" value="{{ old('due_at') }}" required></div>
+      <div class="col-md-6"><label class="form-label fw-semibold">Due date</label><input type="date" name="due_at" class="form-control" value="{{ old('due_at') }}" required><div class="form-text">Responses close at the start of this date.</div></div>
       <div class="col-md-6"><label class="form-label fw-semibold">Points for answering</label><input type="number" name="points" class="form-control" min="0" max="100000" value="{{ old('points', 0) }}" required><div class="form-text">Fixed points awarded after submission. No bonus.</div></div>
       <div class="col-md-6"><label class="form-label fw-semibold">Audience</label><select name="audience" id="surveyAudience" class="form-select" required><option value="event_attendees">Attendees of an event</option><option value="public">All residents</option><option value="youth">Youth</option><option value="senior">Senior citizens</option><option value="family_heads">Family heads</option><option value="officials">Officials</option></select></div>
       <div class="col-md-6" id="surveyEventWrap"><label class="form-label fw-semibold">Event</label><select name="event_id" id="surveyEvent" class="form-select" required><option value="">Choose the event attended</option>@foreach ($events as $event)<option value="{{ $event->id }}">{{ $event->title }}{{ $event->event_start_at ? ' · ' . $event->event_start_at->format('M j, Y') : '' }}</option>@endforeach</select></div>
@@ -63,7 +63,7 @@
           <div>
             <div class="fw-semibold">{{ $survey->title }}</div>
             <div class="small text-secondary">
-              {{ count($survey->questions) }} questions · Due {{ $survey->due_at?->format('M j, Y g:i A') }}
+              {{ count($survey->questions) }} questions · Due {{ $survey->due_at?->format('M j, Y') }}
               · {{ $survey->audience === 'event_attendees' ? 'Event attendees' : ucfirst(str_replace('_', ' ', $survey->audience)) }}
               @if ($survey->research_consent_enabled)
                 · Research consent required
@@ -79,7 +79,7 @@
             </form>
           </div>
         </div>
-        @if ($survey->due_at && now()->lessThan($survey->due_at))
+        @if ($survey->isOpenForResponses())
           <form method="POST" action="{{ route('surveys.remind', $survey) }}" class="border-top mt-3 pt-3">
             @csrf
             <label class="form-label fw-semibold" for="surveyReminderMessage{{ $survey->id }}">Remind the audience</label>
@@ -93,7 +93,7 @@
         @endif
         @if (auth()->user()->isSuperadmin())
           <div class="border border-primary-subtle rounded-3 bg-primary-subtle p-3 mt-3">
-            @if ($survey->due_at && now()->lessThan($survey->due_at) && $survey->respondent_options->isNotEmpty())
+            @if ($survey->isOpenForResponses() && $survey->respondent_options->isNotEmpty())
               <button class="btn btn-primary fw-semibold px-3 py-2" type="button" data-bs-toggle="collapse" data-bs-target="#recordSurveyResponse{{ $survey->id }}" aria-expanded="false" aria-controls="recordSurveyResponse{{ $survey->id }}">
                 <i class="bi bi-person-lines-fill me-2" aria-hidden="true"></i>Record response for resident, guest, or official
                 <i class="bi bi-chevron-down ms-1" aria-hidden="true"></i>
@@ -155,7 +155,7 @@
               </div>
             @else
               <span class="small text-secondary">
-                @if ($survey->due_at && now()->greaterThanOrEqualTo($survey->due_at))
+                @if (! $survey->isOpenForResponses())
                   This survey is closed.
                 @else
                   No eligible residents, guests, or officials remain to answer.
@@ -250,7 +250,7 @@
     <div class="card-header py-3 d-flex justify-content-between align-items-center gap-2 flex-wrap">
       <span class="fw-bold">{{ $survey->title }} summary</span>
       <div class="d-flex align-items-center gap-2 flex-wrap">
-        <span class="badge badge-soft">Due {{ $survey->due_at?->format('M j, Y g:i A') }}</span>
+        <span class="badge badge-soft">Due {{ $survey->due_at?->format('M j, Y') }}</span>
         <label class="form-check form-check-inline mb-0 d-none-print">
           <input class="form-check-input" type="checkbox" data-include-respondent-names="{{ $survey->id }}">
           <span class="form-check-label small">Include names in print summary</span>

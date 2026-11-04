@@ -32,6 +32,12 @@ class Survey extends Model
         return $this->hasMany(SurveyResponse::class);
     }
 
+    public function isOpenForResponses(): bool
+    {
+        return $this->due_at !== null
+            && now()->startOfDay()->lessThan($this->due_at->copy()->startOfDay());
+    }
+
     public function audienceQuery(): Builder
     {
         if ($this->audience === 'event_attendees') {

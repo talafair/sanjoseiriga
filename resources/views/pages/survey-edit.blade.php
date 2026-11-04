@@ -22,8 +22,9 @@
               <textarea name="description" class="form-control" rows="4">{{ old('description', $survey->description) }}</textarea>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Due date and time</label>
-              <input type="datetime-local" name="due_at" class="form-control" value="{{ old('due_at', $survey->due_at?->format('Y-m-d\TH:i')) }}" required>
+              <label class="form-label fw-semibold">Due date</label>
+              <input type="date" name="due_at" class="form-control" value="{{ old('due_at', $survey->due_at?->format('Y-m-d')) }}" required>
+              <div class="form-text">Responses close at the start of this date.</div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Points for answering</label>

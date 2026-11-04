@@ -91,6 +91,20 @@ class AttendanceController extends Controller
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'accuracy'  => ['nullable', 'numeric'],
         ]);
+        $scannedAttendee = $viewer->canScanAttendance()
+            ? $this->tryParseAttendeeQr($data['token'])
+            : null;
+        $qrPayload = json_decode($data['token'], true);
+        $scannedUniqueId = is_array($qrPayload) && is_string($qrPayload['id'] ?? null)
+            ? $qrPayload['id']
+            : null;
+        $scannedQrSignature = is_array($qrPayload) ? ($qrPayload['sig'] ?? null) : null;
+        $hasValidScannedQr = $scannedUniqueId
+            && is_string($scannedQrSignature)
+            && hash_equals(
+                substr(hash_hmac('sha256', $scannedUniqueId, config('app.key')), 0, 16),
+                $scannedQrSignature
+            );
 
         if ($viewer->role === 'resident' && ! $viewer->is_verified) {
             return $this->fail('Your resident account must be verified by a Barangay Official before attendance can be recorded.');
@@ -110,18 +124,31 @@ class AttendanceController extends Controller
             $requestedEvent = Announcement::events()->find($data['announcement_id']);
 
             if ($event && $event->id !== $requestedEvent?->id) {
-                return $this->fail('That QR code does not belong to this announcement.');
+                return $this->fail('That QR code does not belong to this announcement.', $scannedAttendee);
             }
 
             if (! $event && ! $viewer->canScanAttendance()) {
-                return $this->fail('Invalid event QR code. Please scan this event\'s QR code.');
+                return $this->fail('Invalid event QR code. Please scan this event\'s QR code.', $scannedAttendee);
+            }
+
+            if (! $event && $scannedUniqueId && ! $scannedAttendee) {
+                $message = $hasValidScannedQr
+                    ? "No attendee was found for Unique ID {$scannedUniqueId}."
+                    : 'That attendee ID QR code is invalid or has been altered.';
+                return $this->fail($message, null, $scannedUniqueId, false);
             }
 
             $event = $event ?: $requestedEvent;
         }
 
         if (! $event) {
-            return $this->fail('Invalid event QR code. Please scan the QR code for the correct event.');
+            if ($scannedUniqueId && ! $scannedAttendee) {
+                $message = $hasValidScannedQr
+                    ? "No attendee was found for Unique ID {$scannedUniqueId}."
+                    : 'That attendee ID QR code is invalid or has been altered.';
+                return $this->fail($message, null, $scannedUniqueId, false);
+            }
+            return $this->fail('Invalid event QR code. Please scan the QR code for the correct event.', $scannedAttendee);
         }
 
         if ($viewer->isOfficial()) {
@@ -130,16 +157,16 @@ class AttendanceController extends Controller
         }
 
         if ($viewer->isGuest() && ! $event->allow_guest_scanning) {
-            return $this->fail('Guest QR scanning is not enabled for this event.');
+            return $this->fail('Guest QR scanning is not enabled for this event.', $scannedAttendee);
         }
 
         $canFacilitate = $viewer->isOfficial() || $this->isAssignedFacilitator($viewer, $event);
         if ($viewer->role === 'official' && ! $canFacilitate) {
-            return $this->fail('You are not assigned or authorized to facilitate this event.');
+            return $this->fail('You are not assigned or authorized to facilitate this event.', $scannedAttendee);
         }
 
         if ($windowError = $this->attendanceWindowError($event)) {
-            return $windowError;
+            return $this->fail($windowError->getData(true)['message'], $scannedAttendee);
         }
 
         // Geofence: use the venue pin, falling back to the barangay hall coordinates.
@@ -153,7 +180,7 @@ class AttendanceController extends Controller
             return $this->fail(sprintf(
                 'Attendance was not recorded. You are about %s m from %s. Move within %d m of the venue and scan again.',
                 number_format($distance), $event->venue_name ?: 'the venue', $radius
-            ));
+            ), $scannedAttendee);
         }
 
         /** @var User $user */
@@ -166,10 +193,10 @@ class AttendanceController extends Controller
 
         // If official, check whether the scanned ID belongs to an attendee.
         if ($user->canScanAttendance()) {
-            $attendeeResult = $this->tryParseAttendeeQr($data['token']);
+            $attendeeResult = $scannedAttendee;
             if ($attendeeResult instanceof User) {
                 if ($attendeeResult->isGuest() && ! $event->allow_guest_scanning) {
-                    return $this->fail('Guest attendance is not enabled for this event.');
+                    return $this->fail('Guest attendance is not enabled for this event.', $attendeeResult);
                 }
 
                 $attendee = $attendeeResult;
@@ -180,7 +207,7 @@ class AttendanceController extends Controller
         }
 
         if ($userCategory !== 'official' && ! $this->canAttendEvent($attendee, $event)) {
-            return $this->fail('You are not eligible to attend this event.');
+            return $this->fail('You are not eligible to attend this event.', $attendee);
         }
 
         return $this->recordAttendance($event, $attendee, $data, $distance, $userCategory, $attendanceMethod);
@@ -204,7 +231,7 @@ class AttendanceController extends Controller
 
         $data['unique_id'] = trim($data['unique_id']);
         if ($data['unique_id'] === '') {
-            return $this->fail('Attendee Unique ID not found. Please check the ID and try again.');
+            return $this->fail('No attendee was found for the entered Unique ID.', null, $data['unique_id'], false);
         }
 
         $event = Announcement::events()->findOrFail($data['announcement_id']);
@@ -218,11 +245,11 @@ class AttendanceController extends Controller
         $attendee = $this->attendeeByUniqueId(trim($data['unique_id']));
 
         if (! $attendee) {
-            return $this->fail('Attendee Unique ID not found. Please check the ID and try again.');
+            return $this->fail("No attendee was found for Unique ID {$data['unique_id']}.", null, $data['unique_id'], false);
         }
 
         if ($attendee->isGuest() && ! $event->allow_guest_scanning) {
-            return $this->fail('Guest attendance is not enabled for this event.');
+            return $this->fail('Guest attendance is not enabled for this event.', $attendee);
         }
 
         $lat = (float) ($event->venue_lat ?? config('talafair.barangay_lat'));
@@ -231,18 +258,18 @@ class AttendanceController extends Controller
         $radius = (int) ($event->geofence_radius ?: config('talafair.default_radius', 300));
 
         if ($windowError = $this->attendanceWindowError($event)) {
-            return $windowError;
+            return $this->fail($windowError->getData(true)['message'], $attendee);
         }
 
         if (! $this->canAttendEvent($attendee, $event)) {
-            return $this->fail('This attendee is not eligible to attend this event.');
+            return $this->fail('This attendee is not eligible to attend this event.', $attendee);
         }
 
         if ($distance > $radius) {
             return $this->fail(sprintf(
                 'Attendance was not recorded. You are about %s m from %s. Move within %d m of the venue and try again.',
                 number_format($distance), $event->venue_name ?: 'the venue', $radius
-            ));
+            ), $attendee);
         }
 
         return $this->recordAttendance($event, $attendee, $data, $distance, 'resident', 'manual_unique_id');
@@ -265,12 +292,17 @@ class AttendanceController extends Controller
         $signature = is_array($payload) ? ($payload['sig'] ?? null) : null;
 
         if (! $id || ! $signature || ! hash_equals(substr(hash_hmac('sha256', $id, config('app.key')), 0, 16), $signature)) {
-            return $this->fail('That resident ID QR code is invalid or has been altered.');
+            return $this->fail(
+                'That resident ID QR code is invalid or has been altered.',
+                null,
+                is_string($id) ? $id : null,
+                false
+            );
         }
 
         $resident = User::where('unique_id', $id)->where('role', 'resident')->first();
         if (! $resident) {
-            return $this->fail('That resident ID could not be found.');
+            return $this->fail("No resident was found for Unique ID {$id}.", null, $id, false);
         }
 
         $lat = (float) ($announcement->venue_lat ?? config('talafair.barangay_lat'));
@@ -279,11 +311,11 @@ class AttendanceController extends Controller
         $radius = (int) ($announcement->geofence_radius ?: config('talafair.default_radius', 300));
 
         if (! $announcement->scanningIsOpen() || $announcement->qrIsExpired() || $distance > $radius) {
-            return $this->fail('This activity is not currently accepting participation at this location.');
+            return $this->fail('This activity is not currently accepting participation at this location.', $resident);
         }
 
         if ($announcement->participations()->where('user_id', $resident->id)->exists()) {
-            return $this->fail('This resident already received participation points for this activity.');
+            return $this->fail('This resident already received participation points for this activity.', $resident);
         }
 
         $points = (int) $announcement->participation_points;
@@ -321,8 +353,7 @@ class AttendanceController extends Controller
             DB::transaction(function () use ($event, $attendee, $data, $distance, $early, $preRegistered, $breakdown, $userCategory, $attendanceMethod, &$attendancePosition) {
             $lockedEvent = Announcement::query()->lockForUpdate()->findOrFail($event->id);
             if ($lockedEvent->attendances()->where('user_id', $attendee->id)->exists()) {
-                $categoryLabel = $userCategory === 'official' ? 'official' : 'resident';
-                throw new \DomainException("This resident has already been recorded for this event.");
+                throw new \DomainException('Attendance is already recorded.');
             }
 
             $attendancePosition = $lockedEvent->attendances()->count() + 1;
@@ -370,7 +401,7 @@ class AttendanceController extends Controller
             }
             });
         } catch (\DomainException $exception) {
-            return $this->fail($exception->getMessage());
+            return $this->fail($exception->getMessage(), $attendee);
         }
 
         // Build response message
@@ -533,8 +564,17 @@ class AttendanceController extends Controller
         ]);
     }
 
-    private function fail(string $message): JsonResponse
+    private function fail(string $message, ?User $attendee = null, ?string $uniqueId = null, bool $includeAuthenticatedUser = true): JsonResponse
     {
-        return response()->json(['ok' => false, 'message' => $message], 422);
+        $response = ['ok' => false, 'message' => $message];
+        $attendee = $attendee ?: ($includeAuthenticatedUser ? Auth::user() : null);
+        if ($attendee instanceof User) {
+            $response['resident'] = $attendee->full_name;
+        }
+        if ($uniqueId !== null) {
+            $response['unique_id'] = $uniqueId;
+        }
+
+        return response()->json($response, 422);
     }
 }

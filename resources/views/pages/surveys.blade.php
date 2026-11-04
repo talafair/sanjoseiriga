@@ -14,7 +14,7 @@
 						<p class="text-secondary">{{ $survey->description }}</p>
 					@endif
 					<div class="small text-secondary mb-3">
-					{{ count($survey->questions) }} questions · Due {{ $survey->due_at?->format('M j, Y g:i A') }} · {{ $survey->points }} points
+					{{ count($survey->questions) }} questions · Due {{ $survey->due_at?->format('M j, Y') }} · {{ $survey->points }} points
 						@if ($survey->event)
 							· {{ $survey->event->title }}
 						@endif
@@ -22,8 +22,10 @@
 					<div class="mt-auto">
 						@if ($answered->contains($survey->id))
 							<span class="badge badge-yg"><i class="bi bi-check-circle me-1"></i>Answered</span>
-						@else
+						@elseif ($survey->isOpenForResponses())
 							<a href="{{ route('surveys.show', $survey) }}" class="btn btn-yg">Answer survey <i class="bi bi-arrow-right ms-1"></i></a>
+						@else
+							<span class="badge text-bg-secondary">Closed</span>
 						@endif
 					</div>
 				</div>

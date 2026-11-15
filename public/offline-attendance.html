@@ -8,7 +8,7 @@
   <style>
     :root { color-scheme: light; font-family: system-ui, sans-serif; color: #212529; background: #f4f5f6; }
     body { margin: 0; padding: 1.25rem; }
-    main { max-width: 34rem; margin: 2rem auto; padding: 1.5rem; background: white; border: 1px solid #dee2e6; border-radius: 1rem; }
+    main { max-width: 38rem; margin: 2rem auto; padding: 1.5rem; background: white; border: 1px solid #dee2e6; border-radius: 1rem; }
     h1 { margin-top: 0; font-size: 1.5rem; }
     p { line-height: 1.5; }
     label { display: block; margin: 1rem 0 .35rem; font-weight: 600; }
@@ -19,16 +19,23 @@
     #message { padding: .75rem; border-radius: .5rem; background: #e9ecef; }
     #message.error { background: #f8d7da; }
     #message.success { background: #d1e7dd; }
+    #offline-notice { padding: 1rem; margin-bottom: 1.25rem; border: 1px solid #b6d4fe; border-radius: .75rem; background: #cfe2ff; }
+    #offline-notice strong { display: block; margin-bottom: .25rem; }
+    #account-name { font-weight: 700; }
     .small { color: #5c636a; font-size: .9rem; }
   </style>
 </head>
 <body>
   <main>
     <h1>TalaFair attendance</h1>
-    <p class="small">You are offline. Scans are saved on this device and are not confirmed attendance until TalaFair syncs them while you are signed in.</p>
-    <label for="event">Event (needed when scanning a resident ID or entering a Unique ID)</label>
+    <div id="offline-notice" role="status" aria-live="polite">
+      <strong><span aria-hidden="true">●</span> You are offline — Attendance only</strong>
+      <span id="account-status">Loading this device's last signed-in account…</span>
+      <div class="small">Attendance scans are saved on this device, then submitted to TalaFair when the connection returns. A scan is not confirmed until the system accepts it.</div>
+    </div>
+    <label for="event">Select an event</label>
     <select id="event">
-      <option value="">Scan the event QR code</option>
+      <option value="">Choose an event before scanning</option>
     </select>
     <div id="reader"></div>
     <button id="start" type="button">Open camera</button>
@@ -47,29 +54,49 @@
   <script>
     (() => {
       const QUEUE_KEY = 'talafair-attendance-queue';
+      const ACCOUNT_KEY = 'talafair-attendance-account';
       const EVENTS_KEY = 'talafair-offline-events';
       const USER_KEY = 'talafair-attendance-user-id';
       const CAN_SCAN_KEY = 'talafair-can-scan-attendance';
       const ATTENDANCE_URL_KEY = 'talafair-attendance-url';
       const CHECK_URL_KEY = 'talafair-attendance-check-url';
       const CHECK_BY_ID_URL_KEY = 'talafair-attendance-check-by-id-url';
-      const userId = localStorage.getItem(USER_KEY);
-      const canScanAttendance = localStorage.getItem(CAN_SCAN_KEY) === '1';
-      const attendanceUrl = localStorage.getItem(ATTENDANCE_URL_KEY) || '/attendance';
-      const checkUrl = localStorage.getItem(CHECK_URL_KEY) || '/attendance/check';
-      const checkByIdUrl = localStorage.getItem(CHECK_BY_ID_URL_KEY) || '/attendance/check-by-id';
       const eventSelect = document.getElementById('event');
       const startButton = document.getElementById('start');
       const stopButton = document.getElementById('stop');
       const manualForm = document.getElementById('manual-form');
       const uniqueIdInput = document.getElementById('unique-id');
       const manualSaveButton = document.getElementById('manual-save');
-      document.getElementById('return-to-app').href = attendanceUrl;
-      if (!canScanAttendance) manualForm.hidden = true;
+      const accountStatus = document.getElementById('account-status');
       const message = document.getElementById('message');
       const queueStatus = document.getElementById('queue-status');
       let scanner = null;
       let busy = false;
+
+      function show(text, tone) {
+        message.textContent = text;
+        message.className = tone || '';
+      }
+
+      let account = null;
+      try {
+        account = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null');
+      } catch (error) {
+        show('The saved account details could not be read. Reconnect and sign in again before scanning.', 'error');
+      }
+      const userId = account?.id || localStorage.getItem(USER_KEY);
+      const canScanAttendance = account?.canScanAttendance ?? localStorage.getItem(CAN_SCAN_KEY) === '1';
+      const attendanceUrl = account?.attendanceUrl || localStorage.getItem(ATTENDANCE_URL_KEY) || '/attendance';
+      const checkUrl = account?.checkUrl || localStorage.getItem(CHECK_URL_KEY) || '/attendance/check';
+      const checkByIdUrl = account?.checkByIdUrl || localStorage.getItem(CHECK_BY_ID_URL_KEY) || '/attendance/check-by-id';
+      let availableEvents = [];
+      document.getElementById('return-to-app').href = attendanceUrl;
+      if (account?.name) {
+        accountStatus.textContent = `Last signed in as ${account.name}${account.role ? ` (${account.role})` : ''}.`;
+      } else {
+        accountStatus.textContent = 'This device has no saved signed-in account. Reconnect and sign in before scanning.';
+      }
+      if (!canScanAttendance) manualForm.hidden = true;
 
       function savedScans() {
         const savedQueue = localStorage.getItem(QUEUE_KEY);
@@ -81,28 +108,27 @@
 
       function updateQueueStatus() {
         try {
-          const count = savedScans().length;
+          const scans = savedScans();
+          const count = scans.filter(scan => String(scan.userId) === String(userId)).length;
+          const otherCount = scans.length - count;
           queueStatus.textContent = count
-            ? `${count} scan${count === 1 ? '' : 's'} saved on this device and waiting to sync.`
-            : 'No offline scans are waiting to sync.';
+            ? `${count} scan${count === 1 ? '' : 's'} saved for this account and waiting to sync.${otherCount ? ` ${otherCount} scan${otherCount === 1 ? ' belongs' : 's belong'} to another account.` : ''}`
+            : otherCount
+              ? `${otherCount} saved scan${otherCount === 1 ? ' belongs' : 's belong'} to another account on this device.`
+              : 'No offline scans are waiting to sync.';
         } catch (error) {
           queueStatus.textContent = 'Saved scans could not be read from this device. Do not clear browser storage.';
         }
       }
 
-      function show(text, tone) {
-        message.textContent = text;
-        message.className = tone || '';
-      }
-
       try {
-        const events = JSON.parse(localStorage.getItem(EVENTS_KEY) || '[]');
-        if (Array.isArray(events)) {
-          events.forEach((event) => {
+        availableEvents = JSON.parse(localStorage.getItem(EVENTS_KEY) || '[]');
+        if (Array.isArray(availableEvents)) {
+          availableEvents.forEach((event) => {
             if (!event || !Number.isInteger(Number(event.id)) || !event.title) return;
             const option = document.createElement('option');
             option.value = String(event.id);
-            option.textContent = event.title;
+            option.textContent = event.startsAt ? `${event.title} · ${event.startsAt}` : event.title;
             eventSelect.append(option);
           });
         }
@@ -112,13 +138,17 @@
 
       async function saveScan(token) {
         if (busy) return;
-        const attendeeQr = token.trim().startsWith('{');
+        let attendeeQr = false;
+        try {
+          const parsed = JSON.parse(token);
+          attendeeQr = Boolean(parsed && typeof parsed === 'object' && parsed.id && parsed.sig);
+        } catch (error) {}
         if (attendeeQr && !canScanAttendance) {
           show('Only an official can scan a resident or guest ID. Scan the event QR instead.', 'error');
           return;
         }
-        if (attendeeQr && !eventSelect.value) {
-          show('Choose the event before scanning a resident or guest ID.', 'error');
+        if (!eventSelect.value) {
+          show('Choose the event before opening the scanner.', 'error');
           eventSelect.focus();
           return;
         }
@@ -139,7 +169,16 @@
             longitude: coords.longitude,
             accuracy: coords.accuracy
           };
-          if (eventSelect.value) payload.announcement_id = Number(eventSelect.value);
+          const selectedEvent = availableEvents.find((event) => String(event.id) === eventSelect.value);
+          if (!selectedEvent) throw new Error('The selected event is no longer available offline. Reconnect and open TalaFair to refresh event choices.');
+          payload.announcement_id = Number(selectedEvent.id);
+          if (!attendeeQr) {
+            const eventToken = token.trim().split(/[?#]/, 1)[0].split('/').filter(Boolean).pop();
+            const qrEvent = availableEvents.find((event) => event.qrToken === eventToken);
+            if (qrEvent && String(qrEvent.id) !== String(selectedEvent.id)) {
+              throw new Error(`That event QR is for ${qrEvent.title}. Select that event and scan again.`);
+            }
+          }
 
           const scans = savedScans();
           scans.push({
@@ -151,7 +190,8 @@
           });
           localStorage.setItem(QUEUE_KEY, JSON.stringify(scans));
           updateQueueStatus();
-          show('Scan saved on this device. It is not confirmed until it syncs successfully.', 'success');
+          const eventDescription = selectedEvent ? ` for ${selectedEvent.title}` : '';
+          show(`Attendance scan${eventDescription} saved locally for ${account?.name || 'this account'}. It will sync when internet returns; it is not confirmed yet.`, 'success');
         } catch (error) {
           show(error.message || 'The scan could not be saved on this device.', 'error');
         } finally {
@@ -163,6 +203,10 @@
       async function saveManualId(event) {
         event.preventDefault();
         if (busy) return;
+        if (!userId || !canScanAttendance) {
+          show('Manual Unique ID attendance is available only to signed-in officials.', 'error');
+          return;
+        }
         const uniqueId = uniqueIdInput.value.trim();
         if (!uniqueId) {
           show('Enter the resident or guest Unique ID.', 'error');
@@ -201,7 +245,7 @@
           localStorage.setItem(QUEUE_KEY, JSON.stringify(scans));
           uniqueIdInput.value = '';
           updateQueueStatus();
-          show('Unique ID scan saved on this device. It is not confirmed until it syncs.', 'success');
+          show(`Attendance for ${uniqueId} saved locally for ${account?.name || 'this account'}. It will sync when internet returns; it is not confirmed yet.`, 'success');
         } catch (error) {
           show(error.message || 'The scan could not be saved on this device.', 'error');
         } finally {
@@ -213,6 +257,11 @@
       startButton.addEventListener('click', async () => {
         if (!userId) {
           show('Sign in to TalaFair while online on this device before scanning offline.', 'error');
+          return;
+        }
+        if (!eventSelect.value) {
+          show('Choose an event before opening the scanner.', 'error');
+          eventSelect.focus();
           return;
         }
         if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {

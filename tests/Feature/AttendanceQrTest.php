@@ -38,7 +38,7 @@ class AttendanceQrTest extends TestCase
 
     public function test_scanner_page_has_no_scan_error_before_a_qr_is_received(): void
     {
-        [, $resident] = $this->attendanceSetup();
+        [, $resident, $event] = $this->attendanceSetup();
 
         $this->actingAs($resident)
             ->get(route('attendance.scanner'))
@@ -46,6 +46,8 @@ class AttendanceQrTest extends TestCase
             ->assertSee('js/attendance-sync.js')
             ->assertSee('data-user-id="' . $resident->id . '"', false)
             ->assertSee('data-check-url="' . route('attendance.check') . '"', false)
+            ->assertSee('data-account-name="' . $resident->full_name . '"', false)
+            ->assertSee($event->qr_token)
             ->assertDontSee('Invalid event QR code. Please scan the QR code for the correct event.');
     }
 
@@ -75,11 +77,15 @@ class AttendanceQrTest extends TestCase
             'scanned_at' => now(),
         ]);
 
-        $this->actingAs($resident)
+        $response = $this->actingAs($resident)
             ->get(route('attendance.history'))
             ->assertOk()
-            ->assertSee('Test event')
-            ->assertDontSee('Another resident event');
+            ->assertSee('Test event');
+
+        $visibleContent = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $response->getContent());
+
+        $this->assertStringContainsString('Test event', $visibleContent);
+        $this->assertStringNotContainsString('Another resident event', $visibleContent);
     }
 
     public function test_attendance_rejects_coordinates_outside_valid_ranges(): void

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'talafair-shell-v8';
+const CACHE_NAME = 'talafair-shell-v9';
 const QR_LIBRARY_URL = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
 const APP_SHELL = [
   new URL('./manifest.json', self.location).href,
@@ -93,10 +93,13 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     (networkFirst
-      ? fetch(event.request).then(cacheResponse).catch(async () => {
-        const cachedPage = await caches.match(event.request);
-        if (cachedPage) return cachedPage;
-        return caches.match(new URL('./offline-attendance.html', self.location).href);
+      ? fetch(event.request).then((response) => {
+        if (response.status >= 500) throw new Error('The TalaFair server is temporarily unavailable.');
+        return cacheResponse(response);
+      }).catch(async () => {
+        const offlinePage = await caches.match(new URL('./offline-attendance.html', self.location).href);
+        if (offlinePage) return offlinePage;
+        throw new Error('The offline attendance page is not cached on this device.');
       })
       : caches.match(event.request).then((cached) => cached || fetch(event.request).then(cacheResponse)).catch(() => caches.match(event.request)))
   );

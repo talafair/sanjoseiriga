@@ -1,5 +1,6 @@
 (() => {
   const QUEUE_KEY = 'talafair-attendance-queue';
+  const ACCOUNT_KEY = 'talafair-attendance-account';
   const USER_KEY = 'talafair-attendance-user-id';
   const CAN_SCAN_KEY = 'talafair-can-scan-attendance';
   const ATTENDANCE_URL_KEY = 'talafair-attendance-url';
@@ -18,11 +19,24 @@
   }
 
   try {
+    const openEvents = JSON.parse(script.dataset.openEvents || '[]');
+    if (!Array.isArray(openEvents)) throw new Error('Open event choices are not in the expected format.');
+    localStorage.setItem(ACCOUNT_KEY, JSON.stringify({
+      id: userId,
+      name: script.dataset.accountName,
+      role: script.dataset.accountRole,
+      canScanAttendance: script.dataset.canScanAttendance === '1',
+      attendanceUrl: script.dataset.attendanceUrl,
+      checkUrl: script.dataset.checkUrl,
+      checkByIdUrl: script.dataset.checkByIdUrl,
+      updatedAt: Date.now()
+    }));
     localStorage.setItem(USER_KEY, userId);
     localStorage.setItem(CAN_SCAN_KEY, script.dataset.canScanAttendance === '1' ? '1' : '0');
     localStorage.setItem(ATTENDANCE_URL_KEY, script.dataset.attendanceUrl);
     localStorage.setItem(CHECK_URL_KEY, script.dataset.checkUrl);
     localStorage.setItem(CHECK_BY_ID_URL_KEY, script.dataset.checkByIdUrl);
+    localStorage.setItem('talafair-offline-events', JSON.stringify(openEvents));
   } catch (error) {
     console.error('Unable to save the signed-in account for offline attendance.', error);
     showStatus('Offline attendance cannot be saved because this browser blocks local storage.', 'danger');
@@ -203,11 +217,13 @@
   });
   document.querySelectorAll('form[action$="/logout"]').forEach((form) => {
     form.addEventListener('submit', () => {
+      localStorage.removeItem(ACCOUNT_KEY);
       localStorage.removeItem(USER_KEY);
       localStorage.removeItem(CAN_SCAN_KEY);
       localStorage.removeItem(ATTENDANCE_URL_KEY);
       localStorage.removeItem(CHECK_URL_KEY);
       localStorage.removeItem(CHECK_BY_ID_URL_KEY);
+      localStorage.removeItem('talafair-offline-events');
     });
   });
   try {

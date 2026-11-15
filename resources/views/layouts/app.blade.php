@@ -42,7 +42,7 @@
                     $unreadNotifications = auth()->user()->unreadAppNotifications()->count();
                 @endphp
             @endauth
-            @auth
+            <?php if (auth()->check()): ?>
                 <a class="mobile-notification notification-toggle" href="{{ route('notifications.index') }}"
                    aria-label="Notifications">
                     <i class="bi bi-bell"></i>
@@ -52,7 +52,7 @@
                         </span>
                     @endif
                 </a>
-            @endauth
+            <?php endif; ?>
         </div>
     </div>
 </header>
@@ -154,7 +154,9 @@
                 </li>
                 @auth
                     @if (auth()->user()->isOfficial())
-                        @php($isUnverifiedOfficial = auth()->user()->isUnverifiedOfficial())
+                        @php
+                            $isUnverifiedOfficial = auth()->user()->isUnverifiedOfficial();
+                        @endphp
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle {{ request()->is('prizes') || request()->is('users') || request()->is('manage/badges') || request()->is('audit-logs') || request()->is('manage/games') ? 'active' : '' }}"
                                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Manage" title="Manage">
@@ -914,14 +916,25 @@
     });
 </script>
 @auth
+@php
+    $offlineAttendanceEventsJson = $offlineAttendanceEvents->map(fn ($event) => [
+        'id' => $event->id,
+        'title' => $event->title,
+        'qrToken' => $event->qr_token,
+        'startsAt' => $event->event_start_at?->format('M j, g:i A'),
+    ])->values()->toJson(JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_HEX_TAG);
+@endphp
 <script src="{{ asset('js/attendance-sync.js') }}"
         id="attendance-sync-script"
         data-user-id="{{ auth()->id() }}"
+        data-account-name="{{ auth()->user()->full_name }}"
+        data-account-role="{{ \App\Models\User::ROLE_LABELS[auth()->user()->role] ?? 'Account' }}"
         data-csrf-token="{{ csrf_token() }}"
         data-can-scan-attendance="{{ auth()->user()->canScanAttendance() ? '1' : '0' }}"
         data-attendance-url="{{ route('attendance.scanner') }}"
         data-check-url="{{ route('attendance.check') }}"
         data-check-by-id-url="{{ route('attendance.check-by-id') }}"
+        data-open-events="{{ $offlineAttendanceEventsJson }}"
         defer></script>
 @endauth
 @stack('scripts')

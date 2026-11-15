@@ -1,10 +1,11 @@
-const CACHE_NAME = 'talafair-shell-v7';
+const CACHE_NAME = 'talafair-shell-v8';
 const QR_LIBRARY_URL = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
 const APP_SHELL = [
   new URL('./manifest.json', self.location).href,
   new URL('./images/talafair-logo.png', self.location).href,
   new URL('./images/default-avatar.svg', self.location).href,
   new URL('./css/theme.css', self.location).href,
+  new URL('./js/attendance-sync.js', self.location).href,
   new URL('./offline-attendance.html', self.location).href,
 ];
 

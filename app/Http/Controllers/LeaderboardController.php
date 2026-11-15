@@ -14,7 +14,6 @@ class LeaderboardController extends Controller
         $players = User::with('badges')
             ->orderByDesc('points')
             ->orderBy('created_at')
-            ->take(50)
             ->get();
 
         $households = $this->households();

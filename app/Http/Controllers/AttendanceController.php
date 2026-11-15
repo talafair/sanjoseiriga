@@ -353,7 +353,7 @@ class AttendanceController extends Controller
             DB::transaction(function () use ($event, $attendee, $data, $distance, $early, $preRegistered, $breakdown, $userCategory, $attendanceMethod, &$attendancePosition) {
             $lockedEvent = Announcement::query()->lockForUpdate()->findOrFail($event->id);
             if ($lockedEvent->attendances()->where('user_id', $attendee->id)->exists()) {
-                throw new \DomainException('Attendance is already recorded.');
+                throw new \DomainException("Already checked in for {$lockedEvent->title}.");
             }
 
             $attendancePosition = $lockedEvent->attendances()->count() + 1;

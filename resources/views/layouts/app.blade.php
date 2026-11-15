@@ -913,6 +913,17 @@
         field.form?.addEventListener('submit', titleCase);
     });
 </script>
+@auth
+<script src="{{ asset('js/attendance-sync.js') }}"
+        id="attendance-sync-script"
+        data-user-id="{{ auth()->id() }}"
+        data-csrf-token="{{ csrf_token() }}"
+        data-can-scan-attendance="{{ auth()->user()->canScanAttendance() ? '1' : '0' }}"
+        data-attendance-url="{{ route('attendance.scanner') }}"
+        data-check-url="{{ route('attendance.check') }}"
+        data-check-by-id-url="{{ route('attendance.check-by-id') }}"
+        defer></script>
+@endauth
 @stack('scripts')
 </body>
 </html>

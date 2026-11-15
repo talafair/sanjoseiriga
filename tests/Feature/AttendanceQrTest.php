@@ -43,6 +43,9 @@ class AttendanceQrTest extends TestCase
         $this->actingAs($resident)
             ->get(route('attendance.scanner'))
             ->assertOk()
+            ->assertSee('js/attendance-sync.js')
+            ->assertSee('data-user-id="' . $resident->id . '"', false)
+            ->assertSee('data-check-url="' . route('attendance.check') . '"', false)
             ->assertDontSee('Invalid event QR code. Please scan the QR code for the correct event.');
     }
 
@@ -589,7 +592,7 @@ class AttendanceQrTest extends TestCase
         $this->actingAs($resident)->postJson(route('attendance.check'), $payload)->assertOk();
         $this->actingAs($resident)->postJson(route('attendance.check'), $payload)
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Attendance is already recorded.')
+            ->assertJsonPath('message', "Already checked in for {$event->title}.")
             ->assertJsonPath('resident', $resident->full_name);
 
         $this->assertDatabaseCount('attendances', 1);
@@ -670,7 +673,7 @@ class AttendanceQrTest extends TestCase
         $this->actingAs($official)->postJson(route('attendance.check-by-id'), $payload)->assertOk();
         $this->actingAs($official)->postJson(route('attendance.check-by-id'), $payload)
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Attendance is already recorded.')
+            ->assertJsonPath('message', "Already checked in for {$event->title}.")
             ->assertJsonPath('resident', $resident->full_name);
 
         $this->assertDatabaseCount('attendances', 1);

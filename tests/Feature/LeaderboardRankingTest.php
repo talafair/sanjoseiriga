@@ -8,6 +8,26 @@ use Tests\TestCase;
 
 class LeaderboardRankingTest extends TestCase
 {
+    public function test_individual_leaderboard_includes_all_users_with_zero_points(): void
+    {
+        $lastUser = null;
+        foreach (range(1, 55) as $number) {
+            $lastUser = User::factory()->create([
+                'name' => "Zero Point {$number}",
+                'first_name' => 'Zero',
+                'last_name' => "Point{$number}",
+                'points' => 0,
+            ]);
+        }
+
+        $this->get(route('leaderboard', ['ranking' => 'individual']))
+            ->assertOk()
+            ->assertSee($lastUser->name)
+            ->assertViewHas('players', fn ($players) => $players->count() === 55
+                && $players->contains('id', $lastUser->id)
+                && $players->last()->points === 0);
+    }
+
     public function test_family_leaderboard_aggregates_head_and_member_points(): void
     {
         $head = User::factory()->create([

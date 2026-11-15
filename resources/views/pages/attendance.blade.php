@@ -192,7 +192,6 @@
   let currentAttendanceMode = OFFICIAL ? (SUPERADMIN ? 'resident' : 'own') : null;
   const QUEUE_KEY = 'talafair-attendance-queue';
   const OFFLINE_EVENTS_KEY = 'talafair-offline-events';
-  let syncingScans = false;
 
   try {
     localStorage.setItem(OFFLINE_EVENTS_KEY, JSON.stringify(@json($openEvents->map(fn ($event) => ['id' => $event->id, 'title' => $event->title])->values())));
@@ -362,6 +361,7 @@
       const queue = queuedScans();
       queue.push({
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        userId: @json(auth()->id()),
         url,
         payload,
         queuedAt: Date.now()
@@ -369,13 +369,16 @@
       localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
       updateOfflineStatus();
       show(true, '<div class="fw-semibold"><i class="bi bi-cloud-arrow-down-fill me-1"></i>Scan saved on this device.</div><div class="small mt-1">It is not confirmed attendance until it syncs successfully. Reconnect before the event attendance window closes.</div>');
+      window.dispatchEvent(new Event('attendance-queue-updated'));
       if (!OFFICIAL) {
         completed = true;
         stopCamera();
       }
+      return true;
     } catch (error) {
       console.error('Unable to save attendance scan on this device.', error);
       show(false, 'This scan could not be saved on this device. Check available device storage and try again.');
+      return false;
     }
   }
 
@@ -385,6 +388,11 @@
       headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
       body: JSON.stringify(payload)
     });
+    if (response.status >= 500) {
+      const error = new Error('The attendance service is temporarily unavailable.');
+      error.status = response.status;
+      throw error;
+    }
     const data = await response.json().catch(() => ({
       ok: false,
       message: response.status === 401 || response.status === 419
@@ -394,53 +402,7 @@
     return data;
   }
 
-  async function syncQueuedScans() {
-    if (syncingScans || !navigator.onLine) return;
-    let queue;
-    try {
-      queue = queuedScans();
-    } catch (error) {
-      console.error('Unable to sync saved attendance scans.', error);
-      updateOfflineStatus();
-      return;
-    }
-    if (!queue.length) return;
-    syncingScans = true;
-    const confirmedIds = new Set();
-    const failedScans = new Map();
-    try {
-      for (const item of queue) {
-        try {
-          const data = await sendScan(item.url, item.payload);
-          if (data.ok) confirmedIds.add(item.id);
-          else failedScans.set(item.id, {
-            ...item,
-            syncError: data.message || 'The server did not confirm this scan.'
-          });
-        } catch (error) {
-          failedScans.set(item.id, {
-            ...item,
-            syncError: 'Could not reach the attendance service. This scan remains saved on this device.'
-          });
-        }
-      }
-      try {
-        const latestQueue = queuedScans()
-          .filter(item => !confirmedIds.has(item.id))
-          .map(item => failedScans.get(item.id) || item);
-        localStorage.setItem(QUEUE_KEY, JSON.stringify(latestQueue));
-      } catch (error) {
-        console.error('Unable to update saved attendance scans after syncing.', error);
-      }
-      updateOfflineStatus();
-    } finally {
-      syncingScans = false;
-    }
-  }
-
-  window.addEventListener('online', syncQueuedScans);
   updateOfflineStatus();
-  syncQueuedScans();
 
   function position() {
     return new Promise((resolve, reject) => {
@@ -510,7 +472,7 @@
       try {
         data = await sendScan(submitUrl, payload);
       } catch (error) {
-        if (!navigator.onLine || error instanceof TypeError) {
+        if (!navigator.onLine || error instanceof TypeError || error.status >= 500) {
           queueScan(submitUrl, payload);
           return;
         }
@@ -563,20 +525,23 @@
         return;
       }
       const coords = await position();
-      const res = await fetch(@json(route('attendance.check-by-id')), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
-        body: JSON.stringify({
-          announcement_id: selectedAnnouncementId,
-          unique_id: uniqueId.value,
-          latitude: coords.latitude,
-          longitude: coords.longitude
-        })
-      });
-      const data = await res.json().catch(() => ({
-        ok: false,
-        message: 'The attendance service is temporarily unavailable. Please try again.'
-      }));
+      const manualUrl = @json(route('attendance.check-by-id'));
+      const payload = {
+        announcement_id: selectedAnnouncementId,
+        unique_id: uniqueId.value,
+        latitude: coords.latitude,
+        longitude: coords.longitude
+      };
+      let data;
+      try {
+        data = await sendScan(manualUrl, payload);
+      } catch (error) {
+        if (!navigator.onLine || error instanceof TypeError || error.status >= 500) {
+          if (queueScan(manualUrl, payload)) uniqueId.value = '';
+          return;
+        }
+        throw error;
+      }
       if (data.ok) {
         uniqueId.value = '';
         show(true, '<div class="fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>' + escapeHtml(data.resident) + '</div><div class="small mt-1">' + escapeHtml(data.message) + '</div>');

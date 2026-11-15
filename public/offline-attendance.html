@@ -12,7 +12,7 @@
     h1 { margin-top: 0; font-size: 1.5rem; }
     p { line-height: 1.5; }
     label { display: block; margin: 1rem 0 .35rem; font-weight: 600; }
-    select, button, .button { box-sizing: border-box; width: 100%; padding: .8rem; border: 1px solid #adb5bd; border-radius: .5rem; font: inherit; }
+    select, input, button, .button { box-sizing: border-box; width: 100%; padding: .8rem; border: 1px solid #adb5bd; border-radius: .5rem; font: inherit; }
     button, .button { display: block; margin-top: .75rem; background: #151515; color: white; text-align: center; text-decoration: none; font-weight: 600; cursor: pointer; }
     button:disabled { opacity: .6; cursor: wait; }
     #reader { width: 100%; max-width: 28rem; aspect-ratio: 1; margin: 1rem auto; overflow: hidden; border: 1px solid #dee2e6; border-radius: .75rem; }
@@ -26,16 +26,21 @@
   <main>
     <h1>TalaFair attendance</h1>
     <p class="small">You are offline. Scans are saved on this device and are not confirmed attendance until TalaFair syncs them while you are signed in.</p>
-    <label for="event">Event (needed when an official scans a resident ID)</label>
+    <label for="event">Event (needed when scanning a resident ID or entering a Unique ID)</label>
     <select id="event">
       <option value="">Scan the event QR code</option>
     </select>
     <div id="reader"></div>
     <button id="start" type="button">Open camera</button>
     <button id="stop" type="button" hidden>Close camera</button>
+    <form id="manual-form">
+      <label for="unique-id">Or enter a resident/guest Unique ID</label>
+      <input id="unique-id" autocomplete="off" maxlength="32" placeholder="Enter Unique ID" required>
+      <button id="manual-save" type="submit">Save Unique ID scan</button>
+    </form>
     <p id="message" role="status">Choose an event if needed, then open the camera.</p>
     <p id="queue-status" class="small"></p>
-    <a class="button" href="/attendance">Go to attendance and sync scans</a>
+    <a id="return-to-app" class="button" href="/attendance">Go to attendance and sync scans</a>
     <p class="small">Reconnect before the event's attendance window closes. TalaFair will validate each scan when it syncs.</p>
   </main>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -43,9 +48,24 @@
     (() => {
       const QUEUE_KEY = 'talafair-attendance-queue';
       const EVENTS_KEY = 'talafair-offline-events';
+      const USER_KEY = 'talafair-attendance-user-id';
+      const CAN_SCAN_KEY = 'talafair-can-scan-attendance';
+      const ATTENDANCE_URL_KEY = 'talafair-attendance-url';
+      const CHECK_URL_KEY = 'talafair-attendance-check-url';
+      const CHECK_BY_ID_URL_KEY = 'talafair-attendance-check-by-id-url';
+      const userId = localStorage.getItem(USER_KEY);
+      const canScanAttendance = localStorage.getItem(CAN_SCAN_KEY) === '1';
+      const attendanceUrl = localStorage.getItem(ATTENDANCE_URL_KEY) || '/attendance';
+      const checkUrl = localStorage.getItem(CHECK_URL_KEY) || '/attendance/check';
+      const checkByIdUrl = localStorage.getItem(CHECK_BY_ID_URL_KEY) || '/attendance/check-by-id';
       const eventSelect = document.getElementById('event');
       const startButton = document.getElementById('start');
       const stopButton = document.getElementById('stop');
+      const manualForm = document.getElementById('manual-form');
+      const uniqueIdInput = document.getElementById('unique-id');
+      const manualSaveButton = document.getElementById('manual-save');
+      document.getElementById('return-to-app').href = attendanceUrl;
+      if (!canScanAttendance) manualForm.hidden = true;
       const message = document.getElementById('message');
       const queueStatus = document.getElementById('queue-status');
       let scanner = null;
@@ -92,6 +112,16 @@
 
       async function saveScan(token) {
         if (busy) return;
+        const attendeeQr = token.trim().startsWith('{');
+        if (attendeeQr && !canScanAttendance) {
+          show('Only an official can scan a resident or guest ID. Scan the event QR instead.', 'error');
+          return;
+        }
+        if (attendeeQr && !eventSelect.value) {
+          show('Choose the event before scanning a resident or guest ID.', 'error');
+          eventSelect.focus();
+          return;
+        }
         busy = true;
         startButton.disabled = true;
         try {
@@ -114,7 +144,8 @@
           const scans = savedScans();
           scans.push({
             id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            url: '/attendance/check',
+            userId,
+            url: checkUrl,
             payload,
             queuedAt: Date.now()
           });
@@ -129,7 +160,61 @@
         }
       }
 
+      async function saveManualId(event) {
+        event.preventDefault();
+        if (busy) return;
+        const uniqueId = uniqueIdInput.value.trim();
+        if (!uniqueId) {
+          show('Enter the resident or guest Unique ID.', 'error');
+          return;
+        }
+        if (!eventSelect.value) {
+          show('Choose the event before saving a Unique ID scan.', 'error');
+          eventSelect.focus();
+          return;
+        }
+
+        busy = true;
+        manualSaveButton.disabled = true;
+        try {
+          if (!navigator.geolocation) throw new Error('Location is unavailable on this device.');
+          const coords = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              (position) => resolve(position.coords),
+              () => reject(new Error('Allow location access to save an attendance scan.')),
+              { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+          });
+          const scans = savedScans();
+          scans.push({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            userId,
+            url: checkByIdUrl,
+            payload: {
+              announcement_id: Number(eventSelect.value),
+              unique_id: uniqueId,
+              latitude: coords.latitude,
+              longitude: coords.longitude
+            },
+            queuedAt: Date.now()
+          });
+          localStorage.setItem(QUEUE_KEY, JSON.stringify(scans));
+          uniqueIdInput.value = '';
+          updateQueueStatus();
+          show('Unique ID scan saved on this device. It is not confirmed until it syncs.', 'success');
+        } catch (error) {
+          show(error.message || 'The scan could not be saved on this device.', 'error');
+        } finally {
+          busy = false;
+          manualSaveButton.disabled = false;
+        }
+      }
+
       startButton.addEventListener('click', async () => {
+        if (!userId) {
+          show('Sign in to TalaFair while online on this device before scanning offline.', 'error');
+          return;
+        }
         if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
           show('Camera scanning requires HTTPS and a supported browser.', 'error');
           return;
@@ -166,9 +251,19 @@
         show('Camera closed.');
       });
 
+      manualForm.addEventListener('submit', saveManualId);
+      if (!userId) {
+        show('Your signed-in account could not be confirmed on this device. Reconnect and open TalaFair before scanning offline.', 'error');
+        startButton.disabled = true;
+        manualSaveButton.disabled = true;
+      }
+
       updateQueueStatus();
       window.addEventListener('online', () => {
-        show('You are back online. Open Attendance to sign in and sync saved scans.');
+        show('Connection restored. Returning to TalaFair to sync saved scans…', 'success');
+        const destination = new URL(attendanceUrl, window.location.href);
+        destination.searchParams.set('offline-sync', '1');
+        window.location.replace(destination.href);
       });
     })();
   </script>

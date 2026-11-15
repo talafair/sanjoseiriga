@@ -55,6 +55,11 @@
             <div class="card yg-card h-100">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-stars me-2 text-yg"></i>Recent Winners</span>
+                    @if (auth()->check() && (auth()->user()->isSuperadmin() || auth()->user()->is_verified))
+                        <a href="{{ route('spin') }}" class="small fw-semibold text-yg text-decoration-none">Spin the Wheel <i class="bi bi-arrow-right"></i></a>
+                    @elseif (auth()->check() && (auth()->user()->role === 'resident' || auth()->user()->isGuest()))
+                        <span class="small fw-semibold text-secondary disabled" aria-disabled="true" title="{{ auth()->user()->isGuest() ? 'Verify your guest account to access Spin the Wheel.' : 'A Barangay Official must verify your resident account before you can spin.' }}">Spin the Wheel <i class="bi bi-arrow-right"></i></span>
+                    @endif
                 </div>
                 <div class="card-body p-3">
                     @forelse ($recentWinners as $i => $win)

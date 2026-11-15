@@ -106,10 +106,13 @@ class NavigationLayoutTest extends TestCase
         $this->actingAs($official)
             ->get(route('home'))
             ->assertOk()
+            ->assertSee('href="' . route('spin') . '"', false)
             ->assertSee('Manage')
             ->assertSee('Manage surveys')
             ->assertSee('System log')
             ->assertSeeInOrder(['Appearance', 'Light Mode', 'Dark Mode', 'Switch Account', 'Logout']);
+
+        $this->get(route('spin'))->assertOk();
     }
 
     public function test_unverified_official_sees_disabled_management_links_and_verification_reminder(): void

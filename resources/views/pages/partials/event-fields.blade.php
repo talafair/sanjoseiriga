@@ -74,7 +74,7 @@
              id="raffle_enabled{{ $sfx }}" @checked(old('raffle_enabled', $a?->raffle_enabled))>
       <label class="form-check-label" for="raffle_enabled{{ $sfx }}">
         <span class="fw-semibold">Enable event raffle</span>
-        <span class="d-block small text-secondary">Every attendee is entered automatically. Early check-ins receive 10% more raffle weight.</span>
+        <span class="d-block small text-secondary">Check-ins from the 2-hour QR opening through 15 minutes before start receive 10% more attendance points and raffle weight.</span>
       </label>
     </div>
 
@@ -123,13 +123,13 @@
         <label class="form-label" for="base_points{{ $sfx }}">Base Points</label>
         <input type="number" name="base_points" id="base_points{{ $sfx }}" min="0" class="form-control"
                value="{{ old('base_points', $a?->base_points ?? 50) }}">
-        <div class="form-text">Points awarded for successfully attending the event. Early scanners receive an additional 10%.</div>
+        <div class="form-text">Points awarded for successfully attending. The 10% early bonus applies from the 2-hour QR opening through 15 minutes before start.</div>
       </div>
       <div class="col-md-6">
         <label class="form-label" for="confirmation_points{{ $sfx }}">Additional points for confirming attendance</label>
         <input type="number" name="confirmation_points" id="confirmation_points{{ $sfx }}" min="0" max="100000" class="form-control"
                value="{{ old('confirmation_points', $a?->confirmation_points ?? 0) }}">
-        <div class="form-text">Awarded once, only after the resident confirms attendance and successfully checks in.</div>
+        <div class="form-text">Awarded once after the resident answers Yes to the event survey and successfully checks in.</div>
       </div>
       <div class="col-md-6 d-none" id="participation_points_wrap{{ $sfx }}">
         <label class="form-label" for="participation_points{{ $sfx }}">Participation weight</label>

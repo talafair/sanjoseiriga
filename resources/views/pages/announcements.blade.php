@@ -245,7 +245,7 @@
                                     @if ($announcement->isParticipationActivity())
                                         {{ $announcement->participation_points }} participation points
                                     @else
-                                        {{ $announcement->base_points }} base points + 10% early bonus
+                                        {{ $announcement->base_points }} base points + 10% bonus from QR opening until 15 minutes before start
                                     @endif
                                 </div>
                             </div>

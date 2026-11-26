@@ -19,6 +19,9 @@
         .data th { font-size: 9px; height: 22px; padding: 3px 5px; text-align: center; }
         .data td { border: 1px solid #222; height: 21px; padding: 3px 5px; }
         .data tr { page-break-inside: avoid; }
+        .acknowledgment-note { border: 1px solid #222; font-size: 8px; line-height: 1.35; margin-bottom: 8px; padding: 5px 7px; }
+        .acknowledgment-status { color: #52605a; font-family: DejaVu Sans, sans-serif; font-size: 7px; margin-top: 2px; }
+        .signature-name { font-family: DejaVu Sans, sans-serif; font-size: 9px; font-style: italic; text-align: center; }
         .number { text-align: center; width: 7%; }
         .name { width: 35%; }
         .zone { width: 15%; }
@@ -51,17 +54,29 @@
         </tr>
     </table>
 
+    <div class="acknowledgment-note">
+        <strong>Attendee acknowledgment statement:</strong>
+        &quot;I acknowledge that the information I provide will be recorded and included in the attendance sheet for the purpose of documenting my participation in this barangay event.&quot;
+    </div>
+
     <table class="data">
-        <thead><tr><th class="number">NO.</th><th class="name">NAME / CATEGORY</th><th class="zone">ZONE</th><th class="check-in">CHECK IN</th><th class="signature">SIGNATURE</th></tr></thead>
+        <thead><tr><th class="number">NO.</th><th class="name">NAME / CATEGORY</th><th class="zone">ZONE</th><th class="check-in">CHECK IN</th><th class="signature">SIGNATURE / ACKNOWLEDGMENT</th></tr></thead>
         <tbody>
         @for ($index = 0; $index < max(10, $attendees->count()); $index++)
             @php($attendance = $attendees->get($index))
             <tr>
                 <td class="number">{{ $index + 1 }}</td>
-                <td>{{ $attendance?->confirmed_name ?: $attendance?->user?->full_name }}{{ $attendance ? ' (' . ($attendance->user?->isGuest() ? 'Guest' : ucfirst($attendance->user_category)) . ')' : '' }}</td>
+                <td>
+                    {{ $attendance?->confirmed_name ?: $attendance?->user?->full_name }}{{ $attendance ? ' (' . ($attendance->user?->isGuest() ? 'Guest' : ucfirst($attendance->user_category)) . ')' : '' }}
+                </td>
                 <td>{{ $attendance?->user?->zone ? 'Zone ' . $attendance->user->zone : '' }}</td>
                 <td>{{ $attendance?->scanned_at?->format('g:i A') }}</td>
-                <td></td>
+                <td class="signature">
+                    @if ($attendance?->acknowledged_at)
+                        <div class="signature-name">{{ $attendance->confirmed_name ?: $attendance->user?->full_name }}</div>
+                        <div class="acknowledgment-status">Acknowledged {{ $attendance->acknowledged_at->format('M j, g:i A') }}</div>
+                    @endif
+                </td>
             </tr>
         @endfor
         </tbody>

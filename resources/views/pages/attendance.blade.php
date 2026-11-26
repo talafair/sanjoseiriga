@@ -543,7 +543,7 @@
           '<ul class="small mb-0 ps-3">' +
             '<li>Event: ' + escapeHtml(data.event) + '</li>' +
             '<li>Base points: ' + data.breakdown.base + '</li>' +
-            '<li>Engagement bonus: +' + data.breakdown.early_bonus + '</li>' +
+            '<li>Early scan bonus: +' + data.breakdown.early_bonus + '</li>' +
             '<li class="fw-semibold">Total: ' + data.breakdown.total + '</li>' +
           '</ul>');
         stopCamera();

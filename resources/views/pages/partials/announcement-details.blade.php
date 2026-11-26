@@ -24,7 +24,7 @@
             @if ($announcement->isParticipationActivity())
                 {{ $announcement->participation_points }} participation points per resident
             @else
-                {{ $announcement->base_points }} base points, plus 10% for early scanning
+                {{ $announcement->base_points }} base points; 10% bonus from the 2-hour QR opening until 15 minutes before start
             @endif
         </div>
     </div>

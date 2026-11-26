@@ -364,7 +364,7 @@ class AttendanceQrTest extends TestCase
         ]);
     }
 
-    public function test_self_check_in_requires_acknowledgment_and_prints_the_confirmed_name(): void
+    public function test_self_check_in_requires_acknowledgment_and_prints_the_confirmed_name_in_signature_column(): void
     {
         [, $resident, $event] = $this->attendanceSetup();
         $payload = $this->selfCheckInPayload($resident, $event);
@@ -404,6 +404,21 @@ class AttendanceQrTest extends TestCase
             'attendees' => collect([$attendance]),
         ])->render();
         $this->assertStringContainsString('Name Confirmed By Attendee (Resident)', $html);
+        $this->assertStringContainsString(
+            'I acknowledge that the information I provide will be recorded and included in the attendance sheet for the purpose of documenting my participation in this barangay event.',
+            $html
+        );
+        $this->assertStringContainsString(
+            'Acknowledged ' . $attendance->acknowledged_at->format('M j, g:i A'),
+            $html
+        );
+        $signatureCellStart = strpos($html, '<td class="signature">');
+        $this->assertNotFalse($signatureCellStart);
+        $signatureCellEnd = strpos($html, '</td>', $signatureCellStart);
+        $this->assertNotFalse($signatureCellEnd);
+        $signatureCell = substr($html, $signatureCellStart, $signatureCellEnd - $signatureCellStart);
+        $this->assertStringContainsString('Name Confirmed By Attendee', $signatureCell);
+        $this->assertStringContainsString('Acknowledged ' . $attendance->acknowledged_at->format('M j, g:i A'), $signatureCell);
     }
 
     public function test_official_event_qr_attendance_awards_base_points(): void
@@ -729,7 +744,82 @@ class AttendanceQrTest extends TestCase
             $this->actingAs($resident)->postJson(
                 route('attendance.check'),
                 $this->selfCheckInPayload($resident, $event)
-            )->assertOk()->assertJsonPath('ok', true);
+            )->assertOk()
+                ->assertJsonPath('ok', true)
+                ->assertJsonPath('early', true)
+                ->assertJsonPath('breakdown.total', 110);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_resident_receives_the_early_bonus_at_fifteen_minutes_before_start(): void
+    {
+        [, $resident, $event] = $this->attendanceSetup();
+        $scanAt = now()->startOfSecond();
+        Carbon::setTestNow($scanAt);
+        $eventStart = $scanAt->copy()->addMinutes(15);
+        $event->update([
+            'event_start_at' => $eventStart,
+            'event_end_at' => $eventStart->copy()->addHour(),
+            'qr_expires_at' => $eventStart->copy()->addHour(),
+        ]);
+
+        try {
+            $this->actingAs($resident)->postJson(
+                route('attendance.check'),
+                $this->selfCheckInPayload($resident, $event)
+            )->assertOk()
+                ->assertJsonPath('early', true)
+                ->assertJsonPath('breakdown.early_bonus', 10)
+                ->assertJsonPath('breakdown.total', 110);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_after_the_early_bonus_cutoff_only_base_and_yes_confirmation_points_are_awarded(): void
+    {
+        [, $resident, $event] = $this->attendanceSetup();
+        $otherResident = User::factory()->create([
+            'role' => 'resident',
+            'is_verified' => true,
+            'unique_id' => 'Z2-26-000000002',
+            'points' => 0,
+        ]);
+        $scanAt = now()->startOfSecond();
+        Carbon::setTestNow($scanAt);
+        $eventStart = $scanAt->copy()->addMinutes(14)->addSecond();
+        $event->update([
+            'event_start_at' => $eventStart,
+            'event_end_at' => $eventStart->copy()->addHour(),
+            'qr_expires_at' => $eventStart->copy()->addHour(),
+            'rsvp_due_at' => $eventStart->copy()->addMinutes(5),
+            'confirmation_points' => 25,
+        ]);
+
+        try {
+            $this->actingAs($resident)->post(route('announcements.rsvp', $event), [
+                'status' => 'attending',
+            ])->assertRedirect();
+
+            $this->actingAs($resident)->postJson(
+                route('attendance.check'),
+                $this->selfCheckInPayload($resident, $event)
+            )->assertOk()
+                ->assertJsonPath('early', false)
+                ->assertJsonPath('breakdown.early_bonus', 0)
+                ->assertJsonPath('breakdown.confirmation', 25)
+                ->assertJsonPath('breakdown.total', 125);
+
+            $this->actingAs($otherResident)->postJson(
+                route('attendance.check'),
+                $this->selfCheckInPayload($otherResident, $event)
+            )->assertOk()
+                ->assertJsonPath('early', false)
+                ->assertJsonPath('breakdown.early_bonus', 0)
+                ->assertJsonPath('breakdown.confirmation', 0)
+                ->assertJsonPath('breakdown.total', 100);
         } finally {
             Carbon::setTestNow();
         }

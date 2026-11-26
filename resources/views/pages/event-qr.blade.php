@@ -38,7 +38,7 @@
       </li>
       <li class="list-group-item d-flex justify-content-between">
         <span class="text-secondary">Base points</span>
-        <span class="fw-semibold">{{ $announcement->base_points }} (+10% early)</span>
+        <span class="fw-semibold">{{ $announcement->base_points }} (+10% until 15 min before start)</span>
       </li>
     </ul>
 

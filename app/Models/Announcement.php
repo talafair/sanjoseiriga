@@ -15,6 +15,7 @@ class Announcement extends Model
 
     /** Scanning opens this many hours before the event starts. */
     public const SCAN_WINDOW_HOURS = 2;
+    public const EARLY_BONUS_CUTOFF_MINUTES = 15;
     public const FALLBACK_SCAN_CLOSE_HOURS = 4;
 
     public const AUDIENCES = [
@@ -134,8 +135,12 @@ class Announcement extends Model
     public function isEarlyScan(?Carbon $at = null): bool
     {
         $at = $at ?: now();
+        $bonusStartsAt = $this->scanOpensAt();
+        $bonusEndsAt = $this->event_start_at?->copy()->subMinutes(self::EARLY_BONUS_CUTOFF_MINUTES);
 
-        return $this->event_start_at !== null && $at->lessThan($this->event_start_at);
+        return $bonusStartsAt !== null
+            && $bonusEndsAt !== null
+            && $at->betweenIncluded($bonusStartsAt, $bonusEndsAt);
     }
 
     /* ------------------------------------------------------------------

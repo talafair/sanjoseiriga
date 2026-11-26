@@ -33,7 +33,7 @@
           </div>
         @endif
 
-        @if ($announcement->is_event && auth()->check() && (! $announcement->isParticipationActivity() || auth()->user()->canAccessOfficialFeatures()) && (! $myAttendance || $canScanAttendance))
+        @if ($announcement->is_event && auth()->check() && ! auth()->user()->isSuperadmin() && (! $announcement->isParticipationActivity() || auth()->user()->canAccessOfficialFeatures()) && (! $myAttendance || $canScanAttendance))
           <a href="{{ route('announcements.scan', $announcement) }}" class="btn btn-primary mt-3">
             <i class="bi bi-qr-code-scan me-1"></i>
             {{ $announcement->isParticipationActivity() ? 'Scan participants' : ($canScanAttendance ? 'Scan resident ID' : 'Scan event QR') }}

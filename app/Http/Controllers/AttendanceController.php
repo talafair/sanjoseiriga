@@ -33,6 +33,8 @@ class AttendanceController extends Controller
         /** @var User $viewer */
         $viewer = Auth::user();
 
+        abort_if($viewer->isSuperadmin(), 403, 'Attendance scanning is not available to administrators.');
+
         if ($viewer->role === 'resident' && ! $viewer->is_verified) {
             return redirect()
                 ->route('account')
@@ -83,6 +85,7 @@ class AttendanceController extends Controller
     {
         /** @var User $viewer */
         $viewer = Auth::user();
+        abort_if($viewer->isSuperadmin(), 403, 'Administrators cannot record attendance scans.');
 
         $data = $request->validate([
             'token'     => ['required', 'string', 'max:1024'],
@@ -210,6 +213,17 @@ class AttendanceController extends Controller
             return $this->fail('You are not eligible to attend this event.', $attendee);
         }
 
+        if (in_array($attendanceMethod, ['event_qr_scan', 'official_qr_scan'], true)) {
+            $data = array_merge($data, $request->validate([
+                'confirmed_name' => ['required', 'string', 'max:255'],
+                'acknowledgment' => ['required', 'accepted'],
+            ]));
+            $data['confirmed_name'] = trim($data['confirmed_name']);
+            if ($data['confirmed_name'] === '') {
+                return $this->fail('Enter the name that should appear on the attendance sheet.', $attendee);
+            }
+        }
+
         return $this->recordAttendance($event, $attendee, $data, $distance, $userCategory, $attendanceMethod);
     }
 
@@ -272,6 +286,15 @@ class AttendanceController extends Controller
             ), $attendee);
         }
 
+        $data = array_merge($data, $request->validate([
+            'confirmed_name' => ['required', 'string', 'max:255'],
+            'acknowledgment' => ['required', 'accepted'],
+        ]));
+        $data['confirmed_name'] = trim($data['confirmed_name']);
+        if ($data['confirmed_name'] === '') {
+            return $this->fail('Enter the name that should appear on the attendance sheet.', $attendee);
+        }
+
         return $this->recordAttendance($event, $attendee, $data, $distance, 'resident', 'manual_unique_id');
     }
 
@@ -279,7 +302,12 @@ class AttendanceController extends Controller
     {
         /** @var User $official */
         $official = Auth::user();
-        abort_unless($official->isOfficial() && $announcement->isParticipationActivity(), 403);
+        abort_unless(
+            ! $official->isSuperadmin()
+                && $official->isOfficial()
+                && $announcement->isParticipationActivity(),
+            403
+        );
 
         $data = $request->validate([
             'token' => ['required', 'string', 'max:1024'],
@@ -369,6 +397,8 @@ class AttendanceController extends Controller
                 'longitude' => $data['longitude'],
                 'distance_m' => (int) round($distance),
                 'points_awarded' => $breakdown['total'],
+                'confirmed_name' => $data['confirmed_name'] ?? null,
+                'acknowledged_at' => isset($data['confirmed_name']) ? now() : null,
             ]);
             
             // Residents receive account points; every successful attendee may enter the event raffle.

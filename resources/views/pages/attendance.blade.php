@@ -109,6 +109,19 @@
 
       <div id="result" class="alert d-none mt-3 rounded-3" role="alert"></div>
 
+      <form id="attendance-acknowledgment" class="border rounded-3 p-3 mt-3 d-none">
+        <div class="fw-semibold mb-2">Review your attendance name</div>
+        <label for="confirmed-name" class="form-label">Name for the attendance sheet</label>
+        <input id="confirmed-name" class="form-control mb-3" type="text" maxlength="255" autocomplete="name" required value="{{ auth()->user()->full_name }}">
+        <p class="small mb-2">I acknowledge that the information I provide will be recorded and included in the attendance sheet for the purpose of documenting my participation in this barangay event.</p>
+        <div class="form-check mb-3">
+          <input id="attendance-acknowledgment-checkbox" class="form-check-input" type="checkbox" required>
+          <label class="form-check-label" for="attendance-acknowledgment-checkbox">I have read and acknowledge the statement above.</label>
+        </div>
+        <button class="btn btn-primary w-100 fw-semibold" type="submit">Confirm attendance</button>
+        <button id="cancel-attendance-acknowledgment" class="btn btn-link btn-sm w-100 mt-2" type="button">Cancel</button>
+      </form>
+
       <div id="permission-help" class="alert alert-light border mt-3">
         <div class="fw-semibold"><i class="bi bi-shield-check me-1 text-yg"></i>Camera and location permission required</div>
         <div class="small text-secondary mt-1">Allow camera access to read the QR code and location access so TalaFair can confirm you are at the venue. Nothing starts until you choose Open camera.</div>
@@ -125,6 +138,13 @@
         <div class="input-group">
           <input id="unique-id" class="form-control" placeholder="Z2-26-000000001 or GZ2-26-000000001" maxlength="32" autocomplete="off">
           <button class="btn btn-dark" type="submit">Record attendance</button>
+        </div>
+        <label for="manual-confirmed-name" class="form-label fw-semibold mt-3">Name for the attendance sheet</label>
+        <input id="manual-confirmed-name" class="form-control" maxlength="255" autocomplete="off" required>
+        <p class="small mt-3 mb-2">I acknowledge that the information I provide will be recorded and included in the attendance sheet for the purpose of documenting my participation in this barangay event.</p>
+        <div class="form-check mb-3">
+          <input id="manual-acknowledgment-checkbox" class="form-check-input" type="checkbox" required>
+          <label class="form-check-label" for="manual-acknowledgment-checkbox">I have read and acknowledge the statement above.</label>
         </div>
         <div class="form-text">Guest check-in must be enabled for the selected event.</div>
         <button id="manual-back" type="button" class="btn btn-link btn-sm px-0">Back to scanner</button>
@@ -174,6 +194,12 @@
   const manualForm = document.getElementById('manual-form');
   const manualToggle = document.getElementById('manual-toggle');
   const manualBack = document.getElementById('manual-back');
+  const manualConfirmedName = document.getElementById('manual-confirmed-name');
+  const manualAcknowledgmentCheckbox = document.getElementById('manual-acknowledgment-checkbox');
+  const acknowledgmentForm = document.getElementById('attendance-acknowledgment');
+  const confirmedNameInput = document.getElementById('confirmed-name');
+  const acknowledgmentCheckbox = document.getElementById('attendance-acknowledgment-checkbox');
+  const cancelAcknowledgmentButton = document.getElementById('cancel-attendance-acknowledgment');
 
   // For official mode
   const ownAttendanceMode = document.getElementById('own-attendance-mode');
@@ -188,6 +214,7 @@
 
   let scanner = null, cameraStream = null, preview = null, busy = false, completed = false, scannerPaused = false, scannerRunning = false;
   let selectedAnnouncementId = ANNOUNCEMENT_ID;
+  let pendingSelfCheckInToken = null;
   let officialMode = OFFICIAL; // 'own' for official's own attendance, 'resident' for recording resident
   let currentAttendanceMode = OFFICIAL ? (SUPERADMIN ? 'resident' : 'own') : null;
   const QUEUE_KEY = 'talafair-attendance-queue';
@@ -449,7 +476,30 @@
     }
   }
 
-  async function submit(token) {
+  function isAttendeeQr(token) {
+    try {
+      const payload = JSON.parse(token);
+      return Boolean(payload && typeof payload === 'object' && payload.id && payload.sig);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function handleScan(token) {
+    if (!ACTIVITY) {
+      pendingSelfCheckInToken = token;
+      confirmedNameInput.value = isAttendeeQr(token) ? '' : @json(auth()->user()->full_name);
+      acknowledgmentCheckbox.checked = false;
+      acknowledgmentForm?.classList.remove('d-none');
+      confirmedNameInput?.focus();
+      status('Review your name and acknowledge the statement before confirming attendance.', 'info');
+      return;
+    }
+
+    submit(token);
+  }
+
+  async function submit(token, acknowledgment = null) {
     token = typeof token === 'string' ? token.trim() : '';
     if (!token || busy || completed) return;
     busy = true;
@@ -468,6 +518,10 @@
         longitude: coords.longitude,
         accuracy: coords.accuracy
       };
+      if (acknowledgment) {
+        payload.confirmed_name = acknowledgment.confirmed_name;
+        payload.acknowledgment = acknowledgment.acknowledgment;
+      }
       let data;
       try {
         data = await sendScan(submitUrl, payload);
@@ -480,6 +534,7 @@
       }
 
       if (data.ok) {
+        acknowledgmentForm?.classList.add('d-none');
         completed = !OFFICIAL;
         show(true, ACTIVITY
           ? '<div class="fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>' + escapeHtml(data.resident) + ': ' + escapeHtml(data.message) + '</div>'
@@ -514,6 +569,29 @@
     }
   }
 
+  acknowledgmentForm?.addEventListener('submit', event => {
+    event.preventDefault();
+    const confirmedName = confirmedNameInput.value.trim();
+    if (!confirmedName || !acknowledgmentCheckbox.checked || !pendingSelfCheckInToken) {
+      show(false, 'Enter your name and acknowledge the statement before confirming attendance.');
+      return;
+    }
+    const token = pendingSelfCheckInToken;
+    pendingSelfCheckInToken = null;
+    acknowledgmentForm.classList.add('d-none');
+    submit(token, { confirmed_name: confirmedName, acknowledgment: true });
+  });
+
+  cancelAcknowledgmentButton?.addEventListener('click', () => {
+    pendingSelfCheckInToken = null;
+    acknowledgmentForm.classList.add('d-none');
+    status('Attendance was not submitted. Scan the event QR when you are ready.', 'secondary');
+    if (scannerPaused && scanner) {
+      try { scanner.resume(); } catch (error) {}
+      scannerPaused = false;
+    }
+  });
+
   manualForm?.addEventListener('submit', async function (event) {
     event.preventDefault();
     if (completed || busy || currentAttendanceMode !== 'resident') return;
@@ -524,14 +602,22 @@
         show(false, 'Enter the resident or guest Unique ID from their ID card.');
         return;
       }
+      if (!manualConfirmedName.value.trim() || !manualAcknowledgmentCheckbox.checked) {
+        show(false, 'Enter the attendee name and acknowledge the statement before recording attendance.');
+        return;
+      }
       const coords = await position();
       const manualUrl = @json(route('attendance.check-by-id'));
       const payload = {
         announcement_id: selectedAnnouncementId,
         unique_id: uniqueId.value,
+        confirmed_name: manualConfirmedName.value.trim(),
+        acknowledgment: manualAcknowledgmentCheckbox.checked,
         latitude: coords.latitude,
         longitude: coords.longitude
       };
+      manualConfirmedName.value = '';
+      manualAcknowledgmentCheckbox.checked = false;
       let data;
       try {
         data = await sendScan(manualUrl, payload);
@@ -544,6 +630,8 @@
       }
       if (data.ok) {
         uniqueId.value = '';
+        manualConfirmedName.value = '';
+        manualAcknowledgmentCheckbox.checked = false;
         show(true, '<div class="fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>' + escapeHtml(data.resident) + '</div><div class="small mt-1">' + escapeHtml(data.message) + '</div>');
       } else {
         show(false, feedbackHtml(data, 'Attendee Unique ID not found. Please check the ID and try again.'));
@@ -621,7 +709,7 @@
             scanner.pause(true);
             scannerPaused = true;
           } catch (e) {}
-          submit(text);
+          handleScan(text);
         },
         () => {}
       );
@@ -666,7 +754,7 @@
 
   if (PREFILLED) {
     status('Processing event QR code…', 'info');
-    submit(PREFILLED);
+    handleScan(PREFILLED);
   }
 })();
 </script>

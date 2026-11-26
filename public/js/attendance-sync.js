@@ -25,6 +25,7 @@
       id: userId,
       name: script.dataset.accountName,
       role: script.dataset.accountRole,
+      isSuperadmin: script.dataset.isSuperadmin === '1',
       canScanAttendance: script.dataset.canScanAttendance === '1',
       attendanceUrl: script.dataset.attendanceUrl,
       checkUrl: script.dataset.checkUrl,

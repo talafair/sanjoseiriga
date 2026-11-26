@@ -243,8 +243,7 @@ class User extends Authenticatable implements CanResetPasswordContract
 
     public function canScanAttendance(): bool
     {
-        return $this->isSuperadmin()
-            || ($this->role === 'official' && $this->is_verified);
+        return $this->role === 'official' && $this->is_verified;
     }
 
     public function isSuperadmin(): bool

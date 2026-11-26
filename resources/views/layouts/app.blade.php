@@ -929,6 +929,7 @@
         data-user-id="{{ auth()->id() }}"
         data-account-name="{{ auth()->user()->full_name }}"
         data-account-role="{{ \App\Models\User::ROLE_LABELS[auth()->user()->role] ?? 'Account' }}"
+        data-is-superadmin="{{ auth()->user()->isSuperadmin() ? '1' : '0' }}"
         data-csrf-token="{{ csrf_token() }}"
         data-can-scan-attendance="{{ auth()->user()->canScanAttendance() ? '1' : '0' }}"
         data-attendance-url="{{ route('attendance.scanner') }}"

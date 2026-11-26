@@ -21,6 +21,12 @@ Added two new columns to the `attendances` table:
 ### Migration Status
 ✓ Applied successfully on 2026-09-07
 
+## Typed-Name Acknowledgment
+
+The migration `2026_11_26_000001_add_name_acknowledgment_to_attendances_table.php` adds nullable `confirmed_name` and `acknowledged_at` fields to attendance records. New event check-ins require the attendee's confirmed name and an accepted acknowledgment before an attendance row can be created. This applies to self check-in, official QR scans, and manual Unique ID check-in. The attendance sheet uses the confirmed name and falls back to the linked account name for older records.
+
+The scanner and offline queue show the acknowledgment statement and unchecked checkbox before saving/submitting an event scan. Officially recording another attendee requires the attendee name and the same acknowledgment fields; event participation scans remain separate from attendance records.
+
 ## Code Changes
 
 ### 1. Attendance Model (`app/Models/Attendance.php`)
@@ -144,7 +150,7 @@ Added two new columns to the `attendances` table:
 ## Backward Compatibility
 
 ### Preserved Functionality
-✓ Resident attendance flow completely unchanged
+✓ Event QR scanning and GPS/geofence verification remain in place; self and official-recorded check-ins now include acknowledgment
 ✓ Points calculation for residents unchanged
 ✓ Raffle draws only from residents (unchanged)
 ✓ Badge awards to residents unchanged

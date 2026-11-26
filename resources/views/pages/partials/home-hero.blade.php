@@ -25,18 +25,20 @@
     </div>
 
     <div class="d-flex flex-wrap gap-2">
-      @if (auth()->user()->canAccessOfficialFeatures() || auth()->user()->is_verified)
-        <a href="{{ route('attendance.scanner') }}" class="btn btn-light fw-semibold">
-          <i class="bi bi-qr-code-scan me-1"></i>Scan attendance
-          @if ($scanNow > 0)
-            <span class="badge rounded-pill text-bg-success ms-1">{{ $scanNow }} open</span>
-          @endif
-        </a>
-      @else
-        <span class="btn btn-light fw-semibold disabled" aria-disabled="true" title="A Barangay Official must verify your resident account before you can scan attendance.">
-          <i class="bi bi-hourglass-split me-1"></i>Verification pending
-        </span>
-      @endif
+      @unless (auth()->user()->isSuperadmin())
+        @if (auth()->user()->canAccessOfficialFeatures() || auth()->user()->is_verified)
+          <a href="{{ route('attendance.scanner') }}" class="btn btn-light fw-semibold">
+            <i class="bi bi-qr-code-scan me-1"></i>Scan attendance
+            @if ($scanNow > 0)
+              <span class="badge rounded-pill text-bg-success ms-1">{{ $scanNow }} open</span>
+            @endif
+          </a>
+        @else
+          <span class="btn btn-light fw-semibold disabled" aria-disabled="true" title="A Barangay Official must verify your resident account before you can scan attendance.">
+            <i class="bi bi-hourglass-split me-1"></i>Verification pending
+          </span>
+        @endif
+      @endunless
       @unless (auth()->user()->isSuperadmin())
         <a href="{{ route('id-card.show') }}" class="btn btn-outline-light fw-semibold">
           <i class="bi bi-person-badge me-1"></i>My {{ auth()->user()->isGuest() ? 'guest' : 'resident' }} ID

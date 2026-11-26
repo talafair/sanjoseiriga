@@ -1,4 +1,4 @@
-const CACHE_NAME = 'talafair-shell-v9';
+const CACHE_NAME = 'talafair-shell-v10';
 const QR_LIBRARY_URL = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
 const APP_SHELL = [
   new URL('./manifest.json', self.location).href,

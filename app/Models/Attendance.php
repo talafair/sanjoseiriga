@@ -11,7 +11,7 @@ class Attendance extends Model
 
     protected $fillable = [
         'announcement_id', 'user_id', 'user_category', 'attendance_method', 'scanned_at', 'is_early', 'pre_registered',
-        'latitude', 'longitude', 'distance_m', 'points_awarded',
+        'latitude', 'longitude', 'distance_m', 'points_awarded', 'confirmed_name', 'acknowledged_at',
     ];
 
     protected function casts(): array
@@ -22,6 +22,7 @@ class Attendance extends Model
             'pre_registered' => 'boolean',
             'user_category'  => 'string',
             'attendance_method' => 'string',
+            'acknowledged_at' => 'datetime',
         ];
     }
 

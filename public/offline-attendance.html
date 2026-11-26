@@ -23,6 +23,7 @@
     #offline-notice strong { display: block; margin-bottom: .25rem; }
     #account-name { font-weight: 700; }
     .small { color: #5c636a; font-size: .9rem; }
+    .ack-checkbox { width: auto; margin-right: .4rem; }
   </style>
 </head>
 <body>
@@ -43,7 +44,19 @@
     <form id="manual-form">
       <label for="unique-id">Or enter a resident/guest Unique ID</label>
       <input id="unique-id" autocomplete="off" maxlength="32" placeholder="Enter Unique ID" required>
+      <label for="manual-confirmed-name">Name for the attendance sheet</label>
+      <input id="manual-confirmed-name" maxlength="255" autocomplete="off" required>
+      <p>I acknowledge that the information I provide will be recorded and included in the attendance sheet for the purpose of documenting my participation in this barangay event.</p>
+      <label><input id="manual-acknowledgment-checkbox" class="ack-checkbox" type="checkbox" required>I have read and acknowledge the statement above.</label>
       <button id="manual-save" type="submit">Save Unique ID scan</button>
+    </form>
+    <form id="acknowledgment-form" hidden>
+      <label for="confirmed-name">Name for the attendance sheet</label>
+      <input id="confirmed-name" maxlength="255" autocomplete="name" required>
+      <p>I acknowledge that the information I provide will be recorded and included in the attendance sheet for the purpose of documenting my participation in this barangay event.</p>
+      <label><input id="acknowledgment-checkbox" class="ack-checkbox" type="checkbox" required>I have read and acknowledge the statement above.</label>
+      <button type="submit">Confirm attendance scan</button>
+      <button id="cancel-acknowledgment" type="button">Cancel</button>
     </form>
     <p id="message" role="status">Choose an event if needed, then open the camera.</p>
     <p id="queue-status" class="small"></p>
@@ -67,11 +80,18 @@
       const manualForm = document.getElementById('manual-form');
       const uniqueIdInput = document.getElementById('unique-id');
       const manualSaveButton = document.getElementById('manual-save');
+      const manualConfirmedName = document.getElementById('manual-confirmed-name');
+      const manualAcknowledgmentCheckbox = document.getElementById('manual-acknowledgment-checkbox');
+      const acknowledgmentForm = document.getElementById('acknowledgment-form');
+      const confirmedNameInput = document.getElementById('confirmed-name');
+      const acknowledgmentCheckbox = document.getElementById('acknowledgment-checkbox');
+      const cancelAcknowledgmentButton = document.getElementById('cancel-acknowledgment');
       const accountStatus = document.getElementById('account-status');
       const message = document.getElementById('message');
       const queueStatus = document.getElementById('queue-status');
       let scanner = null;
       let busy = false;
+      let pendingSelfCheckInToken = null;
 
       function show(text, tone) {
         message.textContent = text;
@@ -85,8 +105,11 @@
         show('The saved account details could not be read. Reconnect and sign in again before scanning.', 'error');
       }
       const userId = account?.id || localStorage.getItem(USER_KEY);
+      const isSuperadmin = account?.isSuperadmin === true
+        || account?.role === 'superadmin'
+        || account?.role === 'Superadmin';
       const canScanAttendance = account?.canScanAttendance ?? localStorage.getItem(CAN_SCAN_KEY) === '1';
-      const attendanceUrl = account?.attendanceUrl || localStorage.getItem(ATTENDANCE_URL_KEY) || '/attendance';
+      const attendanceUrl = isSuperadmin ? '/' : account?.attendanceUrl || localStorage.getItem(ATTENDANCE_URL_KEY) || '/attendance';
       const checkUrl = account?.checkUrl || localStorage.getItem(CHECK_URL_KEY) || '/attendance/check';
       const checkByIdUrl = account?.checkByIdUrl || localStorage.getItem(CHECK_BY_ID_URL_KEY) || '/attendance/check-by-id';
       let availableEvents = [];
@@ -96,7 +119,20 @@
       } else {
         accountStatus.textContent = 'This device has no saved signed-in account. Reconnect and sign in before scanning.';
       }
-      if (!canScanAttendance) manualForm.hidden = true;
+      if (isSuperadmin) {
+        eventSelect.disabled = true;
+        document.querySelector('label[for="event"]').hidden = true;
+        eventSelect.hidden = true;
+        startButton.hidden = true;
+        stopButton.hidden = true;
+        document.getElementById('reader').hidden = true;
+        manualForm.hidden = true;
+        acknowledgmentForm.hidden = true;
+        document.getElementById('return-to-app').textContent = 'Return home';
+        show('Attendance scanning is not available for administrators.', 'error');
+      } else if (!canScanAttendance) {
+        manualForm.hidden = true;
+      }
 
       function savedScans() {
         const savedQueue = localStorage.getItem(QUEUE_KEY);
@@ -136,7 +172,11 @@
         show('Saved event choices could not be read. You can still scan an event QR code.', 'error');
       }
 
-      async function saveScan(token) {
+      async function saveScan(token, acknowledgment = null) {
+        if (isSuperadmin) {
+          show('Attendance scanning is not available for administrators.', 'error');
+          return;
+        }
         if (busy) return;
         let attendeeQr = false;
         try {
@@ -150,6 +190,15 @@
         if (!eventSelect.value) {
           show('Choose the event before opening the scanner.', 'error');
           eventSelect.focus();
+          return;
+        }
+        if (!acknowledgment) {
+          pendingSelfCheckInToken = token;
+          confirmedNameInput.value = attendeeQr ? '' : account?.name || '';
+          acknowledgmentCheckbox.checked = false;
+          acknowledgmentForm.hidden = false;
+          confirmedNameInput.focus();
+          show('Review your name and acknowledge the statement before saving this attendance scan.');
           return;
         }
         busy = true;
@@ -169,6 +218,8 @@
             longitude: coords.longitude,
             accuracy: coords.accuracy
           };
+          payload.confirmed_name = acknowledgment.confirmed_name;
+          payload.acknowledgment = acknowledgment.acknowledgment;
           const selectedEvent = availableEvents.find((event) => String(event.id) === eventSelect.value);
           if (!selectedEvent) throw new Error('The selected event is no longer available offline. Reconnect and open TalaFair to refresh event choices.');
           payload.announcement_id = Number(selectedEvent.id);
@@ -192,16 +243,43 @@
           updateQueueStatus();
           const eventDescription = selectedEvent ? ` for ${selectedEvent.title}` : '';
           show(`Attendance scan${eventDescription} saved locally for ${account?.name || 'this account'}. It will sync when internet returns; it is not confirmed yet.`, 'success');
+          return true;
         } catch (error) {
           show(error.message || 'The scan could not be saved on this device.', 'error');
+          return false;
         } finally {
           busy = false;
           startButton.disabled = false;
         }
       }
 
+      acknowledgmentForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!pendingSelfCheckInToken) return;
+        const token = pendingSelfCheckInToken;
+        const acknowledgment = {
+          confirmed_name: confirmedNameInput.value.trim(),
+          acknowledgment: acknowledgmentCheckbox.checked
+        };
+        const saved = await saveScan(token, acknowledgment);
+        if (saved) {
+          pendingSelfCheckInToken = null;
+          acknowledgmentForm.hidden = true;
+        }
+      });
+
+      cancelAcknowledgmentButton.addEventListener('click', () => {
+        pendingSelfCheckInToken = null;
+        acknowledgmentForm.hidden = true;
+        show('Attendance scan was not saved.');
+      });
+
       async function saveManualId(event) {
         event.preventDefault();
+        if (isSuperadmin) {
+          show('Attendance scanning is not available for administrators.', 'error');
+          return;
+        }
         if (busy) return;
         if (!userId || !canScanAttendance) {
           show('Manual Unique ID attendance is available only to signed-in officials.', 'error');
@@ -210,6 +288,10 @@
         const uniqueId = uniqueIdInput.value.trim();
         if (!uniqueId) {
           show('Enter the resident or guest Unique ID.', 'error');
+          return;
+        }
+        if (!manualConfirmedName.value.trim() || !manualAcknowledgmentCheckbox.checked) {
+          show('Enter the attendee name and acknowledge the statement before saving this Unique ID scan.', 'error');
           return;
         }
         if (!eventSelect.value) {
@@ -237,6 +319,8 @@
             payload: {
               announcement_id: Number(eventSelect.value),
               unique_id: uniqueId,
+              confirmed_name: manualConfirmedName.value.trim(),
+              acknowledgment: manualAcknowledgmentCheckbox.checked,
               latitude: coords.latitude,
               longitude: coords.longitude
             },
@@ -244,6 +328,8 @@
           });
           localStorage.setItem(QUEUE_KEY, JSON.stringify(scans));
           uniqueIdInput.value = '';
+          manualConfirmedName.value = '';
+          manualAcknowledgmentCheckbox.checked = false;
           updateQueueStatus();
           show(`Attendance for ${uniqueId} saved locally for ${account?.name || 'this account'}. It will sync when internet returns; it is not confirmed yet.`, 'success');
         } catch (error) {
@@ -255,6 +341,10 @@
       }
 
       startButton.addEventListener('click', async () => {
+        if (isSuperadmin) {
+          show('Attendance scanning is not available for administrators.', 'error');
+          return;
+        }
         if (!userId) {
           show('Sign in to TalaFair while online on this device before scanning offline.', 'error');
           return;

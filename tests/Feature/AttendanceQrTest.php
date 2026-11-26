@@ -20,9 +20,18 @@ class AttendanceQrTest extends TestCase
     {
         [$official, $resident, $event] = $this->attendanceSetup();
 
+        $this->actingAs($official)->postJson(route('attendance.check-by-id'), [
+            'announcement_id' => $event->id,
+            'unique_id' => $resident->unique_id,
+            'latitude' => config('talafair.barangay_lat'),
+            'longitude' => config('talafair.barangay_lng'),
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['confirmed_name', 'acknowledgment']);
+
         $response = $this->actingAs($official)->postJson(route('attendance.check-by-id'), [
             'announcement_id' => $event->id,
             'unique_id' => $resident->unique_id,
+            ...$this->acknowledgmentPayload($resident),
             'latitude' => config('talafair.barangay_lat'),
             'longitude' => config('talafair.barangay_lng'),
         ]);
@@ -47,6 +56,10 @@ class AttendanceQrTest extends TestCase
             ->assertSee('data-user-id="' . $resident->id . '"', false)
             ->assertSee('data-check-url="' . route('attendance.check') . '"', false)
             ->assertSee('data-account-name="' . $resident->full_name . '"', false)
+            ->assertSee('Name for the attendance sheet')
+            ->assertSee('I acknowledge that the information I provide will be recorded and included in the attendance sheet for the purpose of documenting my participation in this barangay event.')
+            ->assertSee('I have read and acknowledge the statement above.')
+            ->assertSee('type="checkbox" required', false)
             ->assertSee($event->qr_token)
             ->assertDontSee('Invalid event QR code. Please scan the QR code for the correct event.');
     }
@@ -113,9 +126,18 @@ class AttendanceQrTest extends TestCase
             'sig' => substr(hash_hmac('sha256', $resident->unique_id, config('app.key')), 0, 16),
         ]);
 
+        $this->actingAs($official)->postJson(route('attendance.check'), [
+            'token' => $payload,
+            'announcement_id' => $event->id,
+            'latitude' => config('talafair.barangay_lat'),
+            'longitude' => config('talafair.barangay_lng'),
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['confirmed_name', 'acknowledgment']);
+
         $response = $this->actingAs($official)->postJson(route('attendance.check'), [
             'token' => $payload,
             'announcement_id' => $event->id,
+            ...$this->acknowledgmentPayload($resident),
             'latitude' => config('talafair.barangay_lat'),
             'longitude' => config('talafair.barangay_lng'),
         ]);
@@ -142,6 +164,7 @@ class AttendanceQrTest extends TestCase
         $this->actingAs($official)->postJson(route('attendance.check'), [
             'token' => $payload,
             'announcement_id' => $event->id,
+            ...$this->acknowledgmentPayload($personnel),
             'latitude' => config('talafair.barangay_lat'),
             'longitude' => config('talafair.barangay_lng'),
         ])->assertOk()->assertJsonPath('resident', $personnel->full_name);
@@ -170,6 +193,7 @@ class AttendanceQrTest extends TestCase
         $this->actingAs($official)->postJson(route('attendance.check-by-id'), [
             'announcement_id' => $event->id,
             'unique_id' => $personnel->unique_id,
+            ...$this->acknowledgmentPayload($personnel),
             'latitude' => config('talafair.barangay_lat'),
             'longitude' => config('talafair.barangay_lng'),
         ])->assertOk()->assertJsonPath('resident', $personnel->full_name);
@@ -201,6 +225,7 @@ class AttendanceQrTest extends TestCase
         $this->actingAs($official)->postJson(route('attendance.check'), [
             'token' => $payload,
             'announcement_id' => $event->id,
+            ...$this->acknowledgmentPayload($guest),
             'latitude' => config('talafair.barangay_lat'),
             'longitude' => config('talafair.barangay_lng'),
         ])->assertOk()->assertJsonPath('resident', $guest->full_name);
@@ -243,6 +268,7 @@ class AttendanceQrTest extends TestCase
         $this->actingAs($official)->postJson(route('attendance.check-by-id'), [
             'announcement_id' => $event->id,
             'unique_id' => $guest->unique_id,
+            ...$this->acknowledgmentPayload($guest),
             'latitude' => config('talafair.barangay_lat'),
             'longitude' => config('talafair.barangay_lng'),
         ])->assertOk()->assertJsonPath('resident', $guest->full_name);
@@ -323,12 +349,10 @@ class AttendanceQrTest extends TestCase
     {
         [, $resident, $event] = $this->attendanceSetup();
 
-        $response = $this->actingAs($resident)->postJson(route('attendance.check'), [
-            'token' => $event->qr_token,
-            'announcement_id' => $event->id,
-            'latitude' => config('talafair.barangay_lat'),
-            'longitude' => config('talafair.barangay_lng'),
-        ]);
+        $response = $this->actingAs($resident)->postJson(
+            route('attendance.check'),
+            $this->selfCheckInPayload($resident, $event)
+        );
 
         $response->assertOk()
             ->assertJsonPath('ok', true)
@@ -340,16 +364,56 @@ class AttendanceQrTest extends TestCase
         ]);
     }
 
+    public function test_self_check_in_requires_acknowledgment_and_prints_the_confirmed_name(): void
+    {
+        [, $resident, $event] = $this->attendanceSetup();
+        $payload = $this->selfCheckInPayload($resident, $event);
+        unset($payload['confirmed_name'], $payload['acknowledgment']);
+
+        $this->actingAs($resident)
+            ->postJson(route('attendance.check'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['confirmed_name', 'acknowledgment']);
+        $this->assertDatabaseCount('attendances', 0);
+
+        $payload = $this->selfCheckInPayload($resident, $event);
+        $payload['acknowledgment'] = false;
+        $this->actingAs($resident)
+            ->postJson(route('attendance.check'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('acknowledgment');
+        $this->assertDatabaseCount('attendances', 0);
+
+        $payload = $this->selfCheckInPayload($resident, $event);
+        $payload['confirmed_name'] = 'Name Confirmed By Attendee';
+
+        $this->actingAs($resident)
+            ->postJson(route('attendance.check'), $payload)
+            ->assertOk()
+            ->assertJsonPath('resident', $resident->full_name);
+
+        $attendance = Attendance::with('user')
+            ->where('announcement_id', $event->id)
+            ->where('user_id', $resident->id)
+            ->firstOrFail();
+        $this->assertSame('Name Confirmed By Attendee', $attendance->confirmed_name);
+        $this->assertNotNull($attendance->acknowledged_at);
+
+        $html = view('pdf.attendance-sheet', [
+            'announcement' => $event,
+            'attendees' => collect([$attendance]),
+        ])->render();
+        $this->assertStringContainsString('Name Confirmed By Attendee (Resident)', $html);
+    }
+
     public function test_official_event_qr_attendance_awards_base_points(): void
     {
         [$official, , $event] = $this->attendanceSetup();
 
-        $response = $this->actingAs($official)->postJson(route('attendance.check'), [
-            'token' => $event->qr_token,
-            'announcement_id' => $event->id,
-            'latitude' => config('talafair.barangay_lat'),
-            'longitude' => config('talafair.barangay_lng'),
-        ]);
+        $response = $this->actingAs($official)->postJson(
+            route('attendance.check'),
+            $this->selfCheckInPayload($official, $event)
+        );
 
         $response->assertOk()->assertJsonPath('breakdown.total', 100);
         $this->assertSame(100, $official->fresh()->points);
@@ -384,12 +448,7 @@ class AttendanceQrTest extends TestCase
 
         foreach ([$resident, $guest, $official] as $attendee) {
             $this->actingAs($attendee)
-                ->postJson(route('attendance.check'), [
-                    'token' => $event->qr_token,
-                    'announcement_id' => $event->id,
-                    'latitude' => config('talafair.barangay_lat'),
-                    'longitude' => config('talafair.barangay_lng'),
-                ])
+                ->postJson(route('attendance.check'), $this->selfCheckInPayload($attendee, $event))
                 ->assertOk()
                 ->assertJsonPath('ok', true);
 
@@ -401,13 +460,65 @@ class AttendanceQrTest extends TestCase
         }
     }
 
-    public function test_attendance_scanner_remains_available_after_operator_own_attendance_is_recorded(): void
+    public function test_superadmin_cannot_access_attendance_scanning_or_record_attendance(): void
     {
         [$official, $resident, $event] = $this->attendanceSetup();
         $superadmin = User::factory()->create([
             'role' => User::SUPERADMIN_ROLE,
             'is_verified' => true,
         ]);
+
+        $this->actingAs($superadmin)
+            ->get(route('home'))
+            ->assertOk()
+            ->assertDontSee('Scan attendance')
+            ->assertSee('data-is-superadmin="1"', false);
+
+        $this->get(route('attendance.scanner'))->assertForbidden();
+        $this->get(route('attendance.scan', 'event-token'))->assertForbidden();
+        $this->get(route('announcements.scan', $event))->assertForbidden();
+
+        $this->get(route('announcements.show', $event))
+            ->assertOk()
+            ->assertDontSee('href="' . route('announcements.scan', $event) . '"', false);
+
+        $this->get(route('announcements.qr', $event))
+            ->assertOk()
+            ->assertSee($event->qr_token);
+
+        $this->postJson(route('attendance.check'), $this->selfCheckInPayload($superadmin, $event))
+            ->assertForbidden();
+
+        $this->postJson(route('attendance.check-by-id'), [
+            'announcement_id' => $event->id,
+            'unique_id' => $resident->unique_id,
+            ...$this->acknowledgmentPayload($resident),
+            'latitude' => config('talafair.barangay_lat'),
+            'longitude' => config('talafair.barangay_lng'),
+        ])->assertForbidden();
+
+        $event->update(['category' => 'ice_breaker']);
+        $this->postJson(route('announcements.participation', $event), [
+            'token' => 'resident-qr-payload',
+            'latitude' => config('talafair.barangay_lat'),
+            'longitude' => config('talafair.barangay_lng'),
+        ])->assertForbidden();
+
+        $this->assertDatabaseCount('attendances', 0);
+
+        $this->actingAs($official)
+            ->get(route('attendance.scanner'))
+            ->assertOk()
+            ->assertSee('Record Attendee');
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('Scan attendance');
+    }
+
+    public function test_attendance_scanner_remains_available_after_official_own_attendance_is_recorded(): void
+    {
+        [$official, $resident, $event] = $this->attendanceSetup();
         $skOfficial = User::factory()->create([
             'role' => 'official',
             'official_group' => 'sangguniang_kabataan',
@@ -425,14 +536,9 @@ class AttendanceQrTest extends TestCase
             'user_id' => $personnel->id,
         ]);
 
-        foreach ([$superadmin, $official, $skOfficial, $personnel] as $operator) {
+        foreach ([$official, $skOfficial, $personnel] as $operator) {
             $this->actingAs($operator)
-                ->postJson(route('attendance.check'), [
-                    'token' => $event->qr_token,
-                    'announcement_id' => $event->id,
-                    'latitude' => config('talafair.barangay_lat'),
-                    'longitude' => config('talafair.barangay_lng'),
-                ])
+                ->postJson(route('attendance.check'), $this->selfCheckInPayload($operator, $event))
                 ->assertOk();
 
             $this->get(route('announcements.show', $event))
@@ -455,6 +561,7 @@ class AttendanceQrTest extends TestCase
             ->postJson(route('attendance.check'), [
                 'token' => $attendeeQr,
                 'announcement_id' => $event->id,
+                ...$this->acknowledgmentPayload($resident),
                 'latitude' => config('talafair.barangay_lat'),
                 'longitude' => config('talafair.barangay_lng'),
             ])
@@ -471,12 +578,10 @@ class AttendanceQrTest extends TestCase
             'qr_expires_at' => now()->addHours(2),
         ]);
 
-        $this->actingAs($official)->postJson(route('attendance.check'), [
-            'token' => $event->qr_token,
-            'announcement_id' => $event->id,
-            'latitude' => config('talafair.barangay_lat'),
-            'longitude' => config('talafair.barangay_lng'),
-        ])->assertOk()->assertJsonPath('breakdown.total', 110);
+        $this->actingAs($official)->postJson(
+            route('attendance.check'),
+            $this->selfCheckInPayload($official, $event)
+        )->assertOk()->assertJsonPath('breakdown.total', 110);
 
         $this->assertSame(110, $official->fresh()->points);
         $this->assertDatabaseHas('point_transactions', [
@@ -502,12 +607,10 @@ class AttendanceQrTest extends TestCase
             'user_id' => $personnel->id,
         ]);
 
-        $this->actingAs($personnel)->postJson(route('attendance.check'), [
-            'token' => $event->qr_token,
-            'announcement_id' => $event->id,
-            'latitude' => config('talafair.barangay_lat'),
-            'longitude' => config('talafair.barangay_lng'),
-        ])->assertOk()->assertJsonPath('breakdown.total', 100);
+        $this->actingAs($personnel)->postJson(
+            route('attendance.check'),
+            $this->selfCheckInPayload($personnel, $event)
+        )->assertOk()->assertJsonPath('breakdown.total', 100);
 
         $this->assertSame(100, $personnel->fresh()->points);
     }
@@ -543,12 +646,10 @@ class AttendanceQrTest extends TestCase
 
         $this->assertSame(0, $resident->fresh()->points);
 
-        $this->actingAs($resident)->postJson(route('attendance.check'), [
-            'token' => $event->qr_token,
-            'announcement_id' => $event->id,
-            'latitude' => config('talafair.barangay_lat'),
-            'longitude' => config('talafair.barangay_lng'),
-        ])->assertOk()->assertJsonPath('breakdown.total', 125);
+        $this->actingAs($resident)->postJson(
+            route('attendance.check'),
+            $this->selfCheckInPayload($resident, $event)
+        )->assertOk()->assertJsonPath('breakdown.total', 125);
 
         $this->assertSame(125, $resident->fresh()->points);
     }
@@ -558,12 +659,10 @@ class AttendanceQrTest extends TestCase
         [, $resident, $event] = $this->attendanceSetup();
         $event->update(['confirmation_points' => 25]);
 
-        $this->actingAs($resident)->postJson(route('attendance.check'), [
-            'token' => $event->qr_token,
-            'announcement_id' => $event->id,
-            'latitude' => config('talafair.barangay_lat'),
-            'longitude' => config('talafair.barangay_lng'),
-        ])->assertOk()->assertJsonPath('breakdown.total', 100);
+        $this->actingAs($resident)->postJson(
+            route('attendance.check'),
+            $this->selfCheckInPayload($resident, $event)
+        )->assertOk()->assertJsonPath('breakdown.total', 100);
 
         $this->assertSame(100, $resident->fresh()->points);
     }
@@ -588,12 +687,7 @@ class AttendanceQrTest extends TestCase
     {
         [, $resident, $event] = $this->attendanceSetup();
         $event->update(['confirmation_points' => 25]);
-        $payload = [
-            'token' => $event->qr_token,
-            'announcement_id' => $event->id,
-            'latitude' => config('talafair.barangay_lat'),
-            'longitude' => config('talafair.barangay_lng'),
-        ];
+        $payload = $this->selfCheckInPayload($resident, $event);
 
         $this->actingAs($resident)->postJson(route('attendance.check'), $payload)->assertOk();
         $this->actingAs($resident)->postJson(route('attendance.check'), $payload)
@@ -632,12 +726,10 @@ class AttendanceQrTest extends TestCase
         Carbon::setTestNow($event->event_start_at->copy()->subHours(2));
 
         try {
-            $this->actingAs($resident)->postJson(route('attendance.check'), [
-                'token' => $event->qr_token,
-                'announcement_id' => $event->id,
-                'latitude' => config('talafair.barangay_lat'),
-                'longitude' => config('talafair.barangay_lng'),
-            ])->assertOk()->assertJsonPath('ok', true);
+            $this->actingAs($resident)->postJson(
+                route('attendance.check'),
+                $this->selfCheckInPayload($resident, $event)
+            )->assertOk()->assertJsonPath('ok', true);
         } finally {
             Carbon::setTestNow();
         }
@@ -664,6 +756,7 @@ class AttendanceQrTest extends TestCase
         $payload = [
             'announcement_id' => $event->id,
             'unique_id' => $resident->unique_id,
+            ...$this->acknowledgmentPayload($resident),
             'latitude' => config('talafair.barangay_lat'),
             'longitude' => config('talafair.barangay_lng'),
         ];
@@ -773,6 +866,26 @@ class AttendanceQrTest extends TestCase
         ]);
 
         return [$official, $resident, $event];
+    }
+
+    private function selfCheckInPayload(User $attendee, Announcement $event): array
+    {
+        return [
+            'token' => $event->qr_token,
+            'announcement_id' => $event->id,
+            'latitude' => config('talafair.barangay_lat'),
+            'longitude' => config('talafair.barangay_lng'),
+            'confirmed_name' => $attendee->full_name,
+            'acknowledgment' => true,
+        ];
+    }
+
+    private function acknowledgmentPayload(User $attendee): array
+    {
+        return [
+            'confirmed_name' => $attendee->full_name,
+            'acknowledgment' => true,
+        ];
     }
 
     private function substituteSetup(): array
